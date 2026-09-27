@@ -1,13 +1,36 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useCart } from "../context/useCart";
-import { Check, Plus, ShieldCheck, Sparkles, MapPin } from "lucide-react";
+import { Check, Plus, Star } from "lucide-react";
 
 export default function ProductCard({ product }) {
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = useState(false);
 
-  const handleAdd = () => {
-    addToCart(product, 1);
+  const imageUrl = product.primaryImageUrl || product.image || "/placeholder.jpg";
+  const originName = product.origin || product.shop?.province || "Việt Nam";
+  const confidencePercent = product.aiOverallConfidence != null ? Math.round(Number(product.aiOverallConfidence) * 100) : product.freshnessScore;
+  const unit = product.unit || "kg";
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const normalizedProduct = {
+      ...product,
+      image: imageUrl,
+      aiGrade:
+        product.aiOverallLabel === "FRESH"
+          ? `Tươi sạch AI${confidencePercent ? ` (${confidencePercent}%)` : ""}`
+          : product.aiOverallLabel === "UNCERTAIN"
+          ? "Cần kiểm tra"
+          : product.aiGrade || "Kiểm định AI",
+      origin: originName,
+      certification: product.certification || "VietGAP",
+      unit
+    };
+
+    addToCart(normalizedProduct, 1);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1200);
   };
@@ -16,68 +39,88 @@ export default function ProductCard({ product }) {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND"
-    }).format(amount);
+    }).format(amount || 0);
+  };
+
+  const renderAiBadge = () => {
+    const label = product.aiOverallLabel;
+    const pct = confidencePercent || 98;
+    if (label === "FRESH" || !label) {
+      return (
+        <div className="card-ai-badge fresh">
+          <span>AI FRESH {pct}%</span>
+        </div>
+      );
+    }
+    if (label === "UNCERTAIN") {
+      return (
+        <div className="card-ai-badge uncertain">
+          <span>AI REVIEW {pct}%</span>
+        </div>
+      );
+    }
+    return (
+      <div className="card-ai-badge rotten">
+        <span>AI ALERT</span>
+      </div>
+    );
   };
 
   return (
     <div className="product-card">
-      <div className="product-image-container">
-        <img
-          src={product.image}
-          alt={product.name}
-          className="product-image"
-          loading="lazy"
-        />
+      <Link to={`/products/${product.id}`} className="product-card-media-link">
+        <div className="product-image-container">
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className="product-image"
+            loading="lazy"
+          />
 
-        {/* AI Grade Badge */}
-        <div className="ai-grade-tag">
-          <Sparkles size={13} />
-          <span>{product.aiGrade}</span>
+          {/* Clean AI Badge matching wireframe */}
+          {renderAiBadge()}
         </div>
-
-        {/* Freshness Rating Tag */}
-        <div className="freshness-score-tag">
-          {product.freshnessScore}% Tươi mới
-        </div>
-      </div>
+      </Link>
 
       <div className="product-content">
-        <div className="product-meta">
-          <span className="cert-pill">
-            <ShieldCheck size={12} /> {product.certification}
-          </span>
-          <span className="origin-text">
-            <MapPin size={12} /> {product.origin}
-          </span>
-        </div>
+        <Link to={`/products/${product.id}`} className="product-title-link">
+          <h3 className="product-title">{product.name}</h3>
+        </Link>
 
-        <h3 className="product-title">{product.name}</h3>
-        <p className="product-desc">{product.description}</p>
-
-        <div className="product-footer">
+        {/* Price on left, Rating on right (Khớp hoàn toàn Wireframe Image 2) */}
+        <div className="product-price-rating-row">
           <div className="product-price-block">
             <span className="product-price">{formatPrice(product.price)}</span>
-            <span className="product-unit">/{product.unit}</span>
+            <span className="product-unit">/{unit}</span>
           </div>
 
-          <button
-            type="button"
-            className={`add-cart-btn ${isAdded ? "added" : ""}`}
-            onClick={handleAdd}
-            aria-label={`Thêm ${product.name} vào giỏ`}
-          >
-            {isAdded ? (
-              <>
-                <Check size={16} /> Đã thêm
-              </>
-            ) : (
-              <>
-                <Plus size={16} /> Chọn mua
-              </>
-            )}
-          </button>
+          <div className="product-card-rating">
+            <Star size={13} className="star-icon" fill="currentColor" />
+            <span className="rating-num">
+              {Number(product.ratingAvg || 4.8).toFixed(1)}
+            </span>
+          </div>
         </div>
+
+        {/* Full-width Add to Cart button matching Image 2 */}
+        <button
+          type="button"
+          className={`card-add-to-cart-btn ${isAdded ? "added" : ""}`}
+          onClick={handleAdd}
+          aria-label={`Thêm ${product.name} vào giỏ`}
+        >
+          {isAdded ? (
+            <>
+              <Check size={16} /> Đã thêm vào giỏ
+            </>
+          ) : (
+            <>
+              <Plus size={16} /> Add to Cart
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
 }
+

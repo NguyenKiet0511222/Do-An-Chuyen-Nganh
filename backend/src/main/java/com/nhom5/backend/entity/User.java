@@ -2,6 +2,7 @@ package com.nhom5.backend.entity;
 
 import org.hibernate.annotations.Nationalized;
 
+import com.nhom5.backend.entity.enums.AccountTier;
 import com.nhom5.backend.entity.enums.AuthProvider;
 import com.nhom5.backend.entity.enums.Role;
 import com.nhom5.backend.entity.enums.UserStatus;
@@ -64,6 +65,11 @@ public class User extends BaseEntity {
     @Column(name = "status", length = 20)
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_tier", nullable = false, length = 20)
+    @Builder.Default
+    private AccountTier accountTier = AccountTier.STANDARD;
 
     @Nationalized
     @Column(name = "avatar_url", length = 500)

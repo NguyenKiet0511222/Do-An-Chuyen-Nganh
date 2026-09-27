@@ -96,15 +96,22 @@ export default function CartDrawer() {
               {cart.map((item) => (
                 <div key={item.product.id} className="cart-item-row">
                   <img
-                    src={item.product.image}
+                    src={item.product.image || item.product.primaryImageUrl || "/placeholder.jpg"}
                     alt={item.product.name}
                     className="cart-item-thumb"
                   />
                   <div className="cart-item-info">
                     <h4 className="cart-item-name">{item.product.name}</h4>
-                    <span className="cart-item-grade">{item.product.aiGrade}</span>
+                    <span className="cart-item-grade">
+                      {item.product.aiGrade ||
+                        (item.product.aiOverallLabel === "FRESH"
+                          ? "Tươi sạch AI"
+                          : item.product.aiOverallLabel === "UNCERTAIN"
+                          ? "Cần kiểm tra"
+                          : "Chuẩn VietGAP")}
+                    </span>
                     <span className="cart-item-price">
-                      {formatPrice(item.product.price)} / {item.product.unit}
+                      {formatPrice(item.product.price)} / {item.product.unit || "kg"}
                     </span>
 
                     <div className="cart-qty-actions">

@@ -1,5 +1,4 @@
 import axios from "axios";
-import { MOCK_PRODUCTS } from "../data/mockProducts";
 import { classifyProduceImage } from "./aiService";
 
 // NƠI DUY NHẤT gọi HTTP trong frontend. Mọi request đi qua Spring Boot (không gọi thẳng AI service / DB).
@@ -53,25 +52,41 @@ export const authApi = {
 };
 
 // ==========================================
-// 2. API Nông sản (Products)
-// Fallback dữ liệu mẫu chỉ để dev khi backend chưa có API — XOÁ khi backend xong (tuần 4-5)
+// 2. API Nông sản (Products) — Mục 4.4 api.md
 // ==========================================
 export const productApi = {
-  getAll: async () => {
+  /**
+   * Lấy danh sách sản phẩm công khai kèm lọc, sắp xếp và phân trang
+   * @param {Object} params { keyword, categoryId, shopId, minPrice, maxPrice, origin, aiLabel, sort, page, size }
+   */
+  getAll: async (params = {}) => {
+    const cleanedParams = {};
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null && value !== "" && value !== "all") {
+        cleanedParams[key] = value;
+      }
+    }
+
     try {
-      return unwrap(await apiClient.get("/products"));
+      const response = await apiClient.get("/products", { params: cleanedParams });
+      return unwrap(response);
     } catch (error) {
-      console.warn("Backend chưa sẵn sàng, sử dụng dữ liệu mẫu:", error.message);
-      return MOCK_PRODUCTS;
+      console.warn("Lỗi kết nối API /products:", error.message);
+      throw error;
     }
   },
 
+  /**
+   * Lấy chi tiết sản phẩm công khai kèm danh sách ảnh và nhãn AI từng ảnh
+   * @param {number|string} id
+   */
   getById: async (id) => {
     try {
-      return unwrap(await apiClient.get(`/products/${id}`));
+      const response = await apiClient.get(`/products/${id}`);
+      return unwrap(response);
     } catch (error) {
-      console.warn("Backend chưa sẵn sàng, sử dụng dữ liệu mẫu:", error.message);
-      return MOCK_PRODUCTS.find((p) => p.id === Number(id));
+      console.warn(`Lỗi kết nối API /products/${id}:`, error.message);
+      throw error;
     }
   }
 };

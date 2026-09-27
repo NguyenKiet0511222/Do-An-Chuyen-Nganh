@@ -2,20 +2,23 @@ package com.nhom5.backend.exception;
 
 import org.springframework.http.HttpStatus;
 
-import lombok.Getter;
-
 /**
  * Lỗi nghiệp vụ có mã HTTP đi kèm. Ném từ service, GlobalExceptionHandler sẽ đổi thành ApiResponse.
  * Ví dụ: {@code throw AppException.notFound("Không tìm thấy sản phẩm #" + id);}
  */
-@Getter
 public class AppException extends RuntimeException {
+
+	private static final long serialVersionUID = 1L;
 
 	private final HttpStatus status;
 
 	public AppException(HttpStatus status, String message) {
 		super(message);
 		this.status = status;
+	}
+
+	public HttpStatus getStatus() {
+		return status;
 	}
 
 	public static AppException badRequest(String message) {

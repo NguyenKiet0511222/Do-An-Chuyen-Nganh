@@ -114,6 +114,10 @@
 							<goal>compile</goal>
 						</goals>
 						<configuration>
+							<compilerArgs>
+								<arg>-Xlint:all</arg>
+								<arg>-Xlint:-processing</arg>
+							</compilerArgs>
 							<annotationProcessorPaths>
 								<path>
 									<groupId>org.projectlombok</groupId>
