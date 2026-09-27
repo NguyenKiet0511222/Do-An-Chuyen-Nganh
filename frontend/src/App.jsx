@@ -9,6 +9,11 @@ import HomePage from "./pages/customer/HomePage";
 import ProductsPage from "./pages/customer/ProductsPage";
 import ProductDetailPage from "./pages/customer/ProductDetailPage";
 import AIClassifierPage from "./pages/customer/AIClassifierPage";
+import CartPage from "./pages/customer/CartPage";
+import CheckoutPage from "./pages/customer/CheckoutPage";
+import MyOrdersPage from "./pages/customer/MyOrdersPage";
+import OrderDetailPage from "./pages/customer/OrderDetailPage";
+import AccountPage from "./pages/customer/AccountPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import SellerDashboardPage from "./pages/seller/SellerDashboardPage";
@@ -32,7 +37,13 @@ export default function App() {
             <Route element={<CustomerLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/products" element={<ProductsPage />} />
+              <Route path="/category/:slug" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/my-orders" element={<MyOrdersPage />} />
+              <Route path="/my-orders/:id" element={<OrderDetailPage />} />
+              <Route path="/account" element={<AccountPage />} />
               <Route path="/ai-check" element={<AIClassifierPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />

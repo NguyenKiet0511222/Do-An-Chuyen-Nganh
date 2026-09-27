@@ -52,7 +52,7 @@ public class Product extends BaseEntity {
     private String slug;
 
     @Nationalized
-    @Column(name = "description", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "description", columnDefinition = "LONGTEXT")
     private String description;
 
     /** VND, số nguyên. */

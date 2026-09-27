@@ -1,0 +1,151 @@
+.site-footer-new {
+  background-color: #061a10;
+  color: #fff;
+  padding: 40px 24px 24px 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin-top: auto;
+}
+
+.ft-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ft-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.ft-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ft-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: rgba(46, 204, 113, 0.1);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ft-brand-text h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ft-brand-text p {
+  margin: 0;
+  font-size: 13px;
+  color: #a0aab2;
+}
+
+.ft-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.ft-links a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ft-links a:hover {
+  color: #2ECC71;
+}
+
+.ft-hotline {
+  color: #7f8c8d;
+  font-size: 14px;
+}
+
+.ft-hotline strong {
+  color: #2ECC71;
+}
+
+.ft-socials {
+  display: flex;
+  gap: 12px;
+}
+
+.social-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+}
+.social-icon.zalo {
+  font-size: 11px;
+}
+
+.social-icon:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.ft-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 32px 0;
+}
+
+.ft-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ft-copyright {
+  margin: 0;
+  font-size: 13px;
+  color: #a0aab2;
+}
+
+.ft-payments {
+  display: flex;
+  gap: 10px;
+}
+
+.pay-badge {
+  background: #fff;
+  color: #333;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.pay-badge.momo { color: #d82d8b; }
+.pay-badge.vnpay { color: #005baa; }
+.pay-badge.visa { color: #1434cb; font-size: 14px; padding: 2px 10px; }
+
+@media (max-width: 900px) {
+  .ft-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ft-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

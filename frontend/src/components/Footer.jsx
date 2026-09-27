@@ -1,68 +1,54 @@
-import { Sprout, Sparkles, ShieldCheck, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Sprout } from "lucide-react";
+import "./Footer.css";
 
 export default function Footer() {
   return (
-    <footer className="site-footer">
-      <div className="footer-container">
-        <div className="footer-brand-col">
-          <div className="footer-brand">
-            <Sprout className="footer-icon" size={24} />
-            <span className="footer-title">AgriFresh AI</span>
+    <footer className="site-footer-new">
+      <div className="ft-container">
+        {/* Top Row */}
+        <div className="ft-top">
+          {/* Left: Brand */}
+          <div className="ft-brand">
+            <div className="ft-logo">
+              <Sprout size={24} color="#2ECC71" />
+            </div>
+            <div className="ft-brand-text">
+              <h3>Nông sản Việt</h3>
+              <p>Nông sản tươi ngon & minh bạch mỗi ngày</p>
+            </div>
           </div>
-          <p className="footer-desc">
-            Nền tảng thương mại điện tử nông sản sạch thế hệ mới. Ứng dụng công nghệ Trí tuệ nhân tạo (Computer Vision) để phân loại độ tươi, phát hiện khuyết tật và minh bạch nguồn gốc sản phẩm.
-          </p>
-          <div className="footer-tech-pill">
-            <Sparkles size={14} /> AI Quality Assurance 4.0
+
+          {/* Center: Links */}
+          <div className="ft-links">
+            <Link to="/">Về chúng tôi</Link>
+            <Link to="/">Sản phẩm</Link>
+            <Link to="/">Chính sách</Link>
+            <Link to="/">Hỗ trợ</Link>
+            <span className="ft-hotline">Hotline: <strong>1800 6868</strong></span>
+          </div>
+
+          {/* Right: Socials */}
+          <div className="ft-socials">
+            <a href="#" className="social-icon">f</a>
+            <a href="#" className="social-icon">d</a>
+            <a href="#" className="social-icon zalo">Zalo</a>
           </div>
         </div>
 
-        <div className="footer-links-col">
-          <h4 className="footer-heading">Điều hướng</h4>
-          <ul className="footer-menu">
-            <li>
-              <Link to="/">Trang chủ</Link>
-            </li>
-            <li>
-              <Link to="/products">Cửa hàng nông sản</Link>
-            </li>
-            <li>
-              <Link to="/ai-check">AI Kiểm định chất lượng</Link>
-            </li>
-          </ul>
-        </div>
+        {/* Divider */}
+        <div className="ft-divider"></div>
 
-        <div className="footer-links-col">
-          <h4 className="footer-heading">Tiêu chuẩn kiểm định</h4>
-          <ul className="footer-menu">
-            <li className="flex-item">
-              <ShieldCheck size={16} className="text-emerald" /> Tiêu chuẩn VietGAP
-            </li>
-            <li className="flex-item">
-              <ShieldCheck size={16} className="text-emerald" /> Phân loại Deep Learning
-            </li>
-            <li className="flex-item">
-              <ShieldCheck size={16} className="text-emerald" /> Nguồn gốc từ nhà vườn
-            </li>
-          </ul>
-        </div>
-
-        <div className="footer-links-col">
-          <h4 className="footer-heading">Đề tài nghiên cứu</h4>
-          <p className="footer-project-info">
-            Hệ thống website thương mại điện tử Nông sản & Thực phẩm tích hợp mô hình AI phân loại phẩm cấp qua hình ảnh.
-          </p>
-          <div className="team-badge">Nhóm 5 - Đồ án thực tập / chuyên ngành</div>
-        </div>
-      </div>
-
-      <div className="footer-bottom">
-        <div className="footer-bottom-content">
-          <p>© {new Date().getFullYear()} AgriFresh AI. All rights reserved.</p>
-          <p className="made-with">
-            Phát triển với <Heart size={14} className="text-red" fill="currentColor" /> cho nền nông nghiệp Việt Nam
-          </p>
+        {/* Bottom Row */}
+        <div className="ft-bottom">
+          <p className="ft-copyright">© 2026 Nông Sản Việt. Giữ trọn sự tươi ngon cho mọi nhà.</p>
+          
+          <div className="ft-payments">
+            <span className="pay-badge momo">MoMo</span>
+            <span className="pay-badge vnpay">VNPAY</span>
+            <span className="pay-badge visa">💳</span>
+            <span className="pay-badge cod">COD</span>
+          </div>
         </div>
       </div>
     </footer>

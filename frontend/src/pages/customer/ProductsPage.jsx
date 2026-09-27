@@ -1,60 +1,27 @@
 import { useState, useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
 import { productApi } from "../../services/api";
 import ProductCard from "../../components/ProductCard";
-import {
-  Search,
-  Filter,
-  Sparkles,
-  RefreshCw,
-  SlidersHorizontal,
-  ChevronLeft,
-  ChevronRight,
-  AlertCircle,
-  MapPin,
-  Tag
-} from "lucide-react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 
-const CATEGORIES = [
-  { id: "all", name: "Tất cả nông sản" },
-  { id: "1", name: "Rau củ" },
-  { id: "2", name: "Củ quả" },
-  { id: "3", name: "Rau lá" },
-  { id: "4", name: "Trái cây" }
-];
+const SLUG_TO_CATEGORY_ID = {
+  "rau-cu": 1,
+  "trai-cay": 2,
+  "nam": 3,
+  "thuc-pham-kho": 4,
+  "dac-san": 5,
+};
 
-const AI_OPTIONS = [
-  { id: "all", name: "Tất cả phẩm cấp" },
-  { id: "FRESH", name: "Tươi sạch AI (Chuẩn)" },
-  { id: "UNCERTAIN", name: "Cần kiểm định" }
-];
-
-const PRICE_RANGES = [
-  { id: "all", label: "Tất cả mức giá", min: null, max: null },
-  { id: "under50", label: "Dưới 50.000₫", min: 0, max: 50000 },
-  { id: "50to100", label: "50.000₫ - 100.000₫", min: 50000, max: 100000 },
-  { id: "above100", label: "Trên 100.000₫", min: 100000, max: null }
-];
-
-const ORIGINS = [
-  { id: "all", name: "Tất cả vùng trồng" },
-  { id: "Lâm Đồng", name: "Lâm Đồng (Đà Lạt)" },
-  { id: "Đồng Tháp", name: "Đồng Tháp (Cao Lãnh)" },
-  { id: "Tiền Giang", name: "Tiền Giang" },
-  { id: "Bến Tre", name: "Bến Tre" }
-];
+const SLUG_TO_NAME = {
+  "rau-cu": "Rau củ",
+  "trai-cay": "Trái cây",
+  "nam": "Nấm",
+  "thuc-pham-kho": "Thực phẩm khô",
+  "dac-san": "Đặc sản",
+};
 
 export default function ProductsPage() {
-  // Query state
-  const [keyword, setKeyword] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedAiLabel, setSelectedAiLabel] = useState("all");
-  const [selectedPriceRange, setSelectedPriceRange] = useState("all");
-  const [selectedOrigin, setSelectedOrigin] = useState("all");
-  const [sortBy, setSortBy] = useState("newest");
-  const [page, setPage] = useState(0);
-
-  // Response state
+  const { slug } = useParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,469 +32,223 @@ export default function ProductsPage() {
     totalPages: 1
   });
 
-  const [reloadKey, setReloadKey] = useState(0);
+  const initialCategoryId = slug && SLUG_TO_CATEGORY_ID[slug] ? SLUG_TO_CATEGORY_ID[slug].toString() : "all";
+  const [selectedCategory, setSelectedCategory] = useState(initialCategoryId);
+  const [sortBy, setSortBy] = useState("newest");
+  const [aiFilter, setAiFilter] = useState(false);
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+
+  // Cập nhật selectedCategory khi URL slug thay đổi
+  useEffect(() => {
+    if (slug && SLUG_TO_CATEGORY_ID[slug]) {
+      setSelectedCategory(SLUG_TO_CATEGORY_ID[slug].toString());
+    } else if (!slug) {
+      setSelectedCategory("all");
+    }
+  }, [slug]);
 
   useEffect(() => {
     let ignore = false;
-
     async function loadProducts() {
-      const priceConfig = PRICE_RANGES.find((r) => r.id === selectedPriceRange);
-
-      const params = {
-        keyword: keyword.trim() || undefined,
-        categoryId: selectedCategory !== "all" ? Number(selectedCategory) : undefined,
-        aiLabel: selectedAiLabel !== "all" ? selectedAiLabel : undefined,
-        minPrice: priceConfig?.min != null ? priceConfig.min : undefined,
-        maxPrice: priceConfig?.max != null ? priceConfig.max : undefined,
-        origin: selectedOrigin !== "all" ? selectedOrigin : undefined,
-        sort: sortBy !== "newest" ? sortBy : undefined,
-        page,
-        size: 12
-      };
-
+      setLoading(true);
       try {
+        const params = {
+          categoryId: selectedCategory !== "all" ? Number(selectedCategory) : undefined,
+          sort: sortBy !== "newest" ? sortBy : undefined,
+          page: pagination.page,
+          size: 12
+        };
         const data = await productApi.getAll(params);
         if (!ignore) {
           if (data && Array.isArray(data.content)) {
             setProducts(data.content);
-            setPagination({
-              page: data.page ?? 0,
-              size: data.size ?? 12,
+            setPagination(prev => ({
+              ...prev,
               totalElements: data.totalElements ?? data.content.length,
               totalPages: data.totalPages ?? 1
-            });
+            }));
           } else if (Array.isArray(data)) {
             setProducts(data);
-            setPagination({
-              page: 0,
-              size: data.length,
+            setPagination(prev => ({
+              ...prev,
               totalElements: data.length,
-              totalPages: 1
-            });
+              totalPages: Math.ceil(data.length / 12)
+            }));
           } else {
             setProducts([]);
           }
-          setError(null);
         }
       } catch (err) {
-        if (!ignore) {
-          console.error("Lỗi khi tải danh sách sản phẩm:", err);
-          setError(
-            "Không thể tải danh sách sản phẩm từ máy chủ API. Vui lòng kiểm tra backend Spring Boot (cổng 8080) đang chạy."
-          );
-        }
+        if (!ignore) console.error("API Error:", err);
       } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
+        if (!ignore) setLoading(false);
       }
     }
-
     loadProducts();
-
-    return () => {
-      ignore = true;
-    };
-  }, [keyword, selectedCategory, selectedAiLabel, selectedPriceRange, selectedOrigin, sortBy, page, reloadKey]);
-
-  const handleRetry = () => {
-    setLoading(true);
-    setReloadKey((k) => k + 1);
-  };
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setKeyword(searchInput);
-    setPage(0);
-  };
-
-  const handleClearSearch = () => {
-    setSearchInput("");
-    setLoading(true);
-    setKeyword("");
-    setPage(0);
-  };
-
-  const handleCategoryChange = (catId) => {
-    setLoading(true);
-    setSelectedCategory(catId);
-    setPage(0);
-  };
-
-  const handleAiLabelChange = (aiId) => {
-    setLoading(true);
-    setSelectedAiLabel(aiId);
-    setPage(0);
-  };
-
-  const handlePriceRangeChange = (priceId) => {
-    setLoading(true);
-    setSelectedPriceRange(priceId);
-    setPage(0);
-  };
-
-  const handleOriginChange = (e) => {
-    setLoading(true);
-    setSelectedOrigin(e.target.value);
-    setPage(0);
-  };
-
-  const handleSortChange = (e) => {
-    setLoading(true);
-    setSortBy(e.target.value);
-    setPage(0);
-  };
+    return () => { ignore = true; };
+  }, [selectedCategory, sortBy, pagination.page]);
 
   const handlePageChange = (newPage) => {
-    setLoading(true);
-    setPage(newPage);
+    setPagination(prev => ({ ...prev, page: newPage }));
+    window.scrollTo(0, 0);
   };
 
-  const handleResetFilters = () => {
-    setLoading(true);
-    setSearchInput("");
-    setKeyword("");
-    setSelectedCategory("all");
-    setSelectedAiLabel("all");
-    setSelectedPriceRange("all");
-    setSelectedOrigin("all");
-    setSortBy("newest");
-    setPage(0);
-  };
-
-  const hasActiveFilters =
-    keyword !== "" ||
-    selectedCategory !== "all" ||
-    selectedAiLabel !== "all" ||
-    selectedPriceRange !== "all" ||
-    selectedOrigin !== "all" ||
-    sortBy !== "newest";
+  const categoryName = slug && SLUG_TO_NAME[slug] ? SLUG_TO_NAME[slug] : "Tất cả sản phẩm";
 
   return (
-    <div className="products-page">
-      {/* Page Header Banner */}
-      <div className="page-header-banner">
-        <div className="section-container">
-          <div className="page-badge">
-            <Sparkles size={14} /> Nông sản sạch kiểm định AI Vision
-          </div>
-          <h1>Cửa Hàng Nông Sản Sạch</h1>
-          <p>
-            Tất cả nông sản đều trải qua kiểm định thị giác máy tính AI trước khi mở bán.
-            Minh bạch độ tươi, truy xuất nguồn gốc nông trại rõ ràng.
-          </p>
-        </div>
+    <div className="category-page">
+      {/* Breadcrumb */}
+      <div className="breadcrumb-container">
+        <Link to="/" className="breadcrumb-link">Trang chủ</Link>
+        <span className="breadcrumb-separator">/</span>
+        <span className="breadcrumb-current">{categoryName}</span>
       </div>
 
-      <div className="section-container main-content-wrapper">
-        {/* 3 Visual Category Banners (Khớp chuẩn Wireframe Image 2) */}
-        <div className="category-feature-cards-grid">
-          <button
-            type="button"
-            className={`cat-feature-card ${selectedCategory === "1" ? "active" : ""}`}
-            onClick={() => handleCategoryChange("1")}
-          >
-            <img
-              src="https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600"
-              alt="Fresh Vegetables"
-              className="cat-feature-img"
-            />
-            <div className="cat-feature-content">
-              <h3>FRESH VEGETABLES</h3>
-              <p>Rau củ tươi sạch</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            className={`cat-feature-card ${selectedCategory === "4" ? "active" : ""}`}
-            onClick={() => handleCategoryChange("4")}
-          >
-            <img
-              src="https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=600"
-              alt="Delicious Fruits"
-              className="cat-feature-img"
-            />
-            <div className="cat-feature-content">
-              <h3>DELICIOUS FRUITS</h3>
-              <p>Trái cây ngọt lành</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            className={`cat-feature-card ${selectedCategory === "all" ? "active" : ""}`}
-            onClick={() => handleCategoryChange("all")}
-          >
-            <img
-              src="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600"
-              alt="Organic Picks"
-              className="cat-feature-img"
-            />
-            <div className="cat-feature-content">
-              <h3>ORGANIC PICKS</h3>
-              <p>Nông sản VietGAP</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Section Heading matching Image 2 */}
-        <div className="arrivals-section-heading">
-          <h2>THIS WEEK'S FRESH ARRIVALS</h2>
-          <p>Nông sản tươi sạch hái trong ngày được kiểm định AI trước khi giao</p>
-        </div>
-
-        {/* Filters Toolbar */}
-        <div className="filters-toolbar-card">
-          <div className="filters-top-bar">
-            {/* Search Input */}
-            <form className="search-box-form" onSubmit={handleSearchSubmit}>
-              <Search size={18} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Tìm nông sản theo tên, giống, vùng trồng..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                aria-label="Tìm kiếm sản phẩm"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  className="clear-search-btn"
-                  onClick={handleClearSearch}
-                  aria-label="Xoá tìm kiếm"
-                >
-                  ×
-                </button>
-              )}
-              <button type="submit" className="search-submit-btn">
-                Tìm kiếm
-              </button>
-            </form>
-
-            {/* Origin & Sort Controls */}
-            <div className="controls-right-group">
-              <div className="select-control-box">
-                <MapPin size={15} className="select-icon" />
-                <select
-                  value={selectedOrigin}
-                  onChange={handleOriginChange}
-                  aria-label="Lọc theo vùng miền"
-                >
-                  {ORIGINS.map((ori) => (
-                    <option key={ori.id} value={ori.id}>
-                      {ori.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="select-control-box">
-                <SlidersHorizontal size={15} className="select-icon" />
-                <select
-                  value={sortBy}
-                  onChange={handleSortChange}
-                  aria-label="Sắp xếp sản phẩm"
-                >
-                  <option value="newest">Sắp xếp: Mới nhất</option>
-                  <option value="bestSelling">Bán chạy nhất</option>
-                  <option value="rating">Đánh giá cao nhất</option>
-                  <option value="priceAsc">Giá: Thấp đến Cao</option>
-                  <option value="priceDesc">Giá: Cao đến Thấp</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Pills Groups */}
-          <div className="filter-chips-section">
-            {/* Category Filter */}
-            <div className="filter-chip-row">
-              <span className="filter-group-title">
-                <Filter size={14} /> Danh mục:
-              </span>
-              <div className="chips-container">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`filter-chip ${
-                      selectedCategory === cat.id ? "active" : ""
-                    }`}
-                    onClick={() => handleCategoryChange(cat.id)}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* AI Quality Filter */}
-            <div className="filter-chip-row">
-              <span className="filter-group-title">
-                <Sparkles size={14} /> Kiểm định AI:
-              </span>
-              <div className="chips-container">
-                {AI_OPTIONS.map((ai) => (
-                  <button
-                    key={ai.id}
-                    type="button"
-                    className={`filter-chip ai-chip ${
-                      selectedAiLabel === ai.id ? "active" : ""
-                    }`}
-                    onClick={() => handleAiLabelChange(ai.id)}
-                  >
-                    {ai.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Price Filter */}
-            <div className="filter-chip-row">
-              <span className="filter-group-title">
-                <Tag size={14} /> Mức giá:
-              </span>
-              <div className="chips-container">
-                {PRICE_RANGES.map((pr) => (
-                  <button
-                    key={pr.id}
-                    type="button"
-                    className={`filter-chip ${
-                      selectedPriceRange === pr.id ? "active" : ""
-                    }`}
-                    onClick={() => handlePriceRangeChange(pr.id)}
-                  >
-                    {pr.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Results Summary Bar */}
-        <div className="results-summary-row">
-          <div className="summary-left">
-            <span>
-              Tìm thấy <strong>{pagination.totalElements}</strong> sản phẩm nông sản
-              {pagination.totalPages > 1 && (
-                <> (Trang {pagination.page + 1}/{pagination.totalPages})</>
-              )}
-            </span>
-          </div>
-
-          {hasActiveFilters && (
-            <button
-              type="button"
-              className="reset-filters-btn"
-              onClick={handleResetFilters}
-            >
-              <RefreshCw size={14} /> Đặt lại tất cả bộ lọc
-            </button>
-          )}
-        </div>
-
-        {/* Error Notice */}
-        {error && (
-          <div className="api-error-banner" role="alert">
-            <AlertCircle size={20} className="error-icon" />
-            <div className="error-content">
-              <strong>Không thể kết nối đến máy chủ backend:</strong>
-              <p>{error}</p>
-            </div>
-            <button type="button" className="retry-btn" onClick={handleRetry}>
-              <RefreshCw size={14} /> Thử lại
-            </button>
-          </div>
-        )}
-
-        {/* Loading Skeletons */}
-        {loading && (
-          <div className="products-grid">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div key={index} className="product-skeleton-card">
-                <div className="skeleton-image-box" />
-                <div className="skeleton-body">
-                  <div className="skeleton-line w-40" />
-                  <div className="skeleton-line w-80" />
-                  <div className="skeleton-line w-60" />
-                  <div className="skeleton-line w-50" />
+      <div className="category-layout">
+        {/* Sidebar Filters */}
+        <aside className="sidebar-filters">
+          <div className="filter-section">
+            <h3 className="filter-title">Danh mục <span className="info-icon">i</span></h3>
+            <div className="filter-list">
+              <Link to="/category/rau-cu" style={{textDecoration: 'none'}}>
+                <label className="checkbox-label font-bold" style={{cursor: 'pointer'}}>
+                  <input type="checkbox" checked={selectedCategory === "1"} readOnly /> Rau củ (68)
+                </label>
+              </Link>
+              {selectedCategory === "1" && (
+                <div className="sub-filter-list">
+                  <label className="checkbox-label">
+                    <input type="checkbox" defaultChecked /> Rau ăn lá (31)
+                  </label>
+                  <label className="checkbox-label">
+                    <input type="checkbox" /> Củ quả (29)
+                  </label>
+                  <label className="checkbox-label">
+                    <input type="checkbox" /> Nấm (8)
+                  </label>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+              
+              <Link to="/category/trai-cay" style={{textDecoration: 'none', display: 'block', marginTop: '12px'}}>
+                <label className="checkbox-label font-bold" style={{cursor: 'pointer'}}>
+                  <input type="checkbox" checked={selectedCategory === "2"} readOnly /> Trái cây (112)
+                </label>
+              </Link>
 
-        {/* Products Grid */}
-        {!loading && !error && products.length > 0 && (
-          <div className="products-grid">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
+              <Link to="/category/nam" style={{textDecoration: 'none', display: 'block', marginTop: '12px'}}>
+                <label className="checkbox-label font-bold" style={{cursor: 'pointer'}}>
+                  <input type="checkbox" checked={selectedCategory === "3"} readOnly /> Nấm (8)
+                </label>
+              </Link>
 
-        {/* Empty State */}
-        {!loading && !error && products.length === 0 && (
-          <div className="no-products-state">
-            <div className="empty-icon-wrap">
-              <Search size={36} />
+              <Link to="/category/thuc-pham-kho" style={{textDecoration: 'none', display: 'block', marginTop: '12px'}}>
+                <label className="checkbox-label font-bold" style={{cursor: 'pointer'}}>
+                  <input type="checkbox" checked={selectedCategory === "4"} readOnly /> Thực phẩm khô (40)
+                </label>
+              </Link>
+              
+              <Link to="/products" style={{textDecoration: 'none', display: 'block', marginTop: '12px'}}>
+                <label className="checkbox-label font-bold" style={{cursor: 'pointer'}}>
+                  <input type="checkbox" checked={selectedCategory === "all"} readOnly /> Tất cả sản phẩm
+                </label>
+              </Link>
             </div>
-            <h3>Không tìm thấy sản phẩm nào</h3>
-            <p>
-              Không có nông sản nào khớp với tiêu chí tìm kiếm hoặc bộ lọc hiện tại của bạn.
-            </p>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                className="btn-primary reset-cta-btn"
-                onClick={handleResetFilters}
-              >
-                <RefreshCw size={16} /> Đặt lại bộ lọc & xem tất cả
-              </button>
-            )}
           </div>
-        )}
 
-        {/* Pagination Controls */}
-        {!loading && pagination.totalPages > 1 && (
-          <div className="pagination-bar">
-            <button
-              type="button"
-              className="page-btn page-nav-btn"
-              disabled={page === 0}
-              onClick={() => handlePageChange(Math.max(0, page - 1))}
-              aria-label="Trang trước"
-            >
-              <ChevronLeft size={16} /> Trước
-            </button>
+          <div className="filter-section">
+            <h3 className="filter-title">Khoảng giá</h3>
+            <div className="price-inputs">
+              <input type="text" placeholder="Từ" className="price-input" value={minPrice} onChange={e => setMinPrice(e.target.value)} />
+              <span>-</span>
+              <input type="text" placeholder="Đến" className="price-input" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} />
+            </div>
+          </div>
 
-            <div className="page-numbers">
-              {Array.from({ length: pagination.totalPages }).map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className={`page-btn page-num-btn ${page === idx ? "active" : ""}`}
-                  onClick={() => handlePageChange(idx)}
-                >
-                  {idx + 1}
-                </button>
+          <div className="filter-section">
+            <h3 className="filter-title">Nhãn chất lượng AI <span className="info-icon">i</span></h3>
+            <label className="checkbox-label font-bold">
+              <input type="checkbox" className="ai-checkbox" checked={aiFilter} onChange={e => setAiFilter(e.target.checked)} />
+              <span>Chỉ hiện sản phẩm AI đánh giá Tươi</span>
+            </label>
+            <p className="filter-help-text">Sản phẩm chưa kiểm định vẫn hiện nhưng không có nhãn.</p>
+          </div>
+
+          <div className="filter-section">
+            <h3 className="filter-title">Xuất xứ</h3>
+            <div className="filter-list">
+              <label className="checkbox-label"><input type="checkbox" /> Đà Lạt</label>
+              <label className="checkbox-label"><input type="checkbox" /> Đồng Tháp</label>
+              <label className="checkbox-label"><input type="checkbox" /> Sơn La</label>
+            </div>
+          </div>
+
+          <button className="clear-filter-btn">Xóa bộ lọc</button>
+        </aside>
+
+        {/* Main Content */}
+        <main className="main-product-area">
+          <div className="product-area-header">
+            <div className="result-count">
+              Tìm thấy <strong>{pagination.totalElements}</strong> sản phẩm trong "{categoryName}"
+            </div>
+            <div className="sort-dropdown">
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                <option value="newest">Sắp xếp: Mới nhất</option>
+                <option value="priceAsc">Giá: Thấp đến Cao</option>
+                <option value="priceDesc">Giá: Cao đến Thấp</option>
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="products-grid-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="product-skeleton-card" style={{height: "300px"}}></div>
               ))}
             </div>
+          ) : (
+            <div className="products-grid-3">
+              {products.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
 
-            <button
-              type="button"
-              className="page-btn page-nav-btn"
-              disabled={page >= pagination.totalPages - 1}
-              onClick={() => handlePageChange(Math.min(pagination.totalPages - 1, page + 1))}
-              aria-label="Trang sau"
-            >
-              Sau <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
+          {/* Pagination */}
+          {!loading && pagination.totalPages > 0 && (
+            <div className="pagination-wrapper">
+              <div className="pagination-info">
+                Hiển thị {pagination.page * pagination.size + 1}–{Math.min((pagination.page + 1) * pagination.size, pagination.totalElements)} / {pagination.totalElements}
+              </div>
+              <div className="pagination-controls">
+                <button 
+                  className="page-nav-btn" 
+                  disabled={pagination.page === 0}
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                {[...Array(pagination.totalPages)].map((_, idx) => (
+                  <button 
+                    key={idx} 
+                    className={`page-num-btn ${pagination.page === idx ? 'active' : ''}`}
+                    onClick={() => handlePageChange(idx)}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+                <button 
+                  className="page-nav-btn" 
+                  disabled={pagination.page >= pagination.totalPages - 1}
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
