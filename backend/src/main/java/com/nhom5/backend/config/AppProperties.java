@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Cần thêm cấu hình mới thì thêm field ở đây thay vì rải @Value khắp nơi.
  */
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(Jwt jwt, Ai ai, Cors cors, Google google, Admin admin) {
+public record AppProperties(Jwt jwt, Ai ai, Cors cors, Google google, Admin admin, Upload upload) {
 
 	/** Cấu hình JWT do backend tự phát hành (HS256). */
 	public record Jwt(String secret, long expirationMinutes) {
@@ -29,5 +29,9 @@ public record AppProperties(Jwt jwt, Ai ai, Cors cors, Google google, Admin admi
 
 	/** Tài khoản ADMIN được tạo tự động khi khởi động nếu hệ thống chưa có ADMIN nào. */
 	public record Admin(String email, String password, String fullName) {
+	}
+
+	/** Thư mục lưu file upload (ảnh sản phẩm, logo...), phục vụ công khai tại /uploads/** (api.md mục 6). */
+	public record Upload(String dir) {
 	}
 }

@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -86,4 +88,36 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     default Optional<Product> findPublicDetailById(Long id) {
         return findDetailByIdAndStatus(id, ProductStatus.APPROVED, ShopStatus.ACTIVE);
     }
+
+    // ---------- Người bán (mục 4.8): luôn giới hạn trong shop của mình ----------
+
+    Optional<Product> findByIdAndShopId(Long id, Long shopId);
+
+    boolean existsBySlug(String slug);
+
+    List<Product> findByShopIdAndStatusOrderByIdAsc(Long shopId, ProductStatus status);
+
+    /** GET /seller/products — allStatuses = true -> bỏ qua lọc trạng thái (tránh IN với danh sách rỗng). */
+    @Query(value = """
+            SELECT p FROM Product p
+            JOIN FETCH p.category c
+            WHERE p.shop.id = :shopId
+              AND (:allStatuses = true OR p.status IN :statuses)
+              AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            """,
+            countQuery = """
+            SELECT COUNT(p) FROM Product p
+            WHERE p.shop.id = :shopId
+              AND (:allStatuses = true OR p.status IN :statuses)
+              AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            """)
+    Page<Product> searchByShop(@Param("shopId") Long shopId,
+                               @Param("allStatuses") boolean allStatuses,
+                               @Param("statuses") Collection<ProductStatus> statuses,
+                               @Param("keyword") String keyword,
+                               Pageable pageable);
+
+    /** Đếm sản phẩm theo trạng thái cho dashboard: mỗi dòng [ProductStatus, Long]. */
+    @Query("SELECT p.status, COUNT(p) FROM Product p WHERE p.shop.id = :shopId GROUP BY p.status")
+    List<Object[]> countByStatusForShop(@Param("shopId") Long shopId);
 }

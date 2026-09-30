@@ -8,14 +8,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.nhom5.backend.dto.response.ApiResponse;
@@ -80,6 +85,31 @@ public class GlobalExceptionHandler {
 		String field = ex.getName();
 		FieldError err = new FieldError(field, "Giá trị không hợp lệ cho tham số: " + field);
 		return ResponseEntity.badRequest().body(ApiResponse.validationErrors("Dữ liệu không hợp lệ", List.of(err)));
+	}
+
+	/** Body JSON sai cú pháp hoặc giá trị enum không tồn tại (ví dụ "status": "ABC"). */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ApiResponse<Void>> handleNotReadable(HttpMessageNotReadableException ex) {
+		return ResponseEntity.badRequest()
+				.body(ApiResponse.error("Dữ liệu gửi lên không đúng định dạng"));
+	}
+
+	/** Thiếu tham số query bắt buộc hoặc thiếu phần file trong multipart. */
+	@ExceptionHandler({ MissingServletRequestParameterException.class, MissingServletRequestPartException.class })
+	public ResponseEntity<ApiResponse<Void>> handleMissingParameter(Exception ex) {
+		return ResponseEntity.badRequest().body(ApiResponse.error("Thiếu dữ liệu bắt buộc: " + ex.getMessage()));
+	}
+
+	/** File vượt giới hạn multipart của server (spring.servlet.multipart.max-file-size). */
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMaxUpload(MaxUploadSizeExceededException ex) {
+		return ResponseEntity.badRequest().body(ApiResponse.error("File tải lên quá lớn (tối đa 5 MB mỗi ảnh)"));
+	}
+
+	/** Gửi request không phải multipart tới API upload. */
+	@ExceptionHandler(MultipartException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMultipart(MultipartException ex) {
+		return ResponseEntity.badRequest().body(ApiResponse.error("Yêu cầu upload không hợp lệ (cần multipart/form-data)"));
 	}
 
 	/** Mọi lỗi chưa lường trước: log đầy đủ stack trace, không lộ chi tiết ra ngoài. */

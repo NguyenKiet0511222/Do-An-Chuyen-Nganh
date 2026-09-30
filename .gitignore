@@ -35,3 +35,6 @@ build/
 ### Cấu hình cục bộ - KHÔNG commit ###
 **/application-local.properties
 .env
+
+### Ảnh người dùng upload khi chạy backend (app.upload.dir) ###
+backend/uploads/
