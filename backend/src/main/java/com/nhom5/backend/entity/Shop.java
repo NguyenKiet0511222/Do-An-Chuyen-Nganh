@@ -27,7 +27,7 @@ public class Shop extends BaseEntity {
     private String shopName;
 
     @Nationalized
-    @Column(name = "description", columnDefinition = "LONGTEXT")
+    @Column(name = "description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @Nationalized

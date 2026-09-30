@@ -52,7 +52,7 @@ public class Product extends BaseEntity {
     private String slug;
 
     @Nationalized
-    @Column(name = "description", columnDefinition = "LONGTEXT")
+    @Column(name = "description", columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     /** VND, số nguyên. */
@@ -104,7 +104,7 @@ public class Product extends BaseEntity {
     @Builder.Default
     private Integer ratingCount = 0;
 
-    @Column(name = "approved_at", columnDefinition = "DATETIME2")
+    @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
     /** Xoá sản phẩm -> xoá ảnh (cascade, orphanRemoval). */

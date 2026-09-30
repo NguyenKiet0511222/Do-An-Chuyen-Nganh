@@ -38,7 +38,7 @@ CLAUDE.md  file này
 
 | Việc | Lệnh |
 |------|------|
-| Backend chạy | `cd backend && mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local` (Mac/Linux `./mvnw`) → http://localhost:8080 |
+| Backend chạy | `cd backend && mvnw.cmd -DskipTests package && java -jar target\backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=local` → http://localhost:8080 (xem cảnh báo `spring-boot:run` bên dưới) |
 | Backend test | `cd backend && mvnw.cmd test` (chạy trên H2, không cần SQL Server) |
 | Swagger | http://localhost:8080/swagger-ui.html — Health: http://localhost:8080/api/health |
 | Frontend | `cd frontend && npm install && npm run dev` → http://localhost:5173 |
@@ -51,6 +51,8 @@ CLAUDE.md  file này
 - AI: đặt model vào `ai/models/` (gitignore).
 
 **JDK:** pom đặt `java.version=21`; máy có JDK 24/25 vẫn build được (`--release 21`). Không tự đổi `java.version` khi chưa thống nhất nhóm. Branch `appmod/java-upgrade-*` là của tool nâng cấp Java tự tạo, không làm việc trên đó.
+
+**⚠️ `mvnw.cmd spring-boot:run` có thể lỗi `Could not find or load main class ...BackendApplication`** trên máy có đường dẫn project chứa dấu tiếng Việt/khoảng trắng (VD `D:\Đồ án chuyên ngành\Nhom5`) — nghi do Maven build classpath argfile bị vỡ trên Windows với path dạng này (đã xác nhận 28/09/2026, thử cả `-Dspring-boot.run.fork=false` cũng không hết). Class vẫn compile ra bình thường (`target/classes` có đủ `.class`). **Cách chạy ổn định đã test thật**: đóng gói jar rồi chạy trực tiếp bằng `java -jar` (lệnh ở bảng trên) — né hoàn toàn bước tính classpath của plugin. `run_backend.bat` / `backend/run.bat` hiện vẫn gọi `spring-boot:run` nên có thể dính lỗi này — nếu máy bạn gặp, đổi 2 file đó sang cách `java -jar` ở trên.
 
 ## 5. Backend — quy ước
 
@@ -137,6 +139,8 @@ src/
 ## 8. Database
 
 - SQL Server, DB `nongsan_db`. ERD do **Duy & Hà** thiết kế — **mọi thay đổi bảng/cột phải báo nhóm** trước khi sửa entity.
+- ⚠️ 27–28/09/2026: `pom.xml`/`application.properties` từng bị đổi ngầm sang MySQL (commit `dd58cd6`) rồi đổi lại SQL Server (đã chốt lại với cả nhóm: **giữ SQL Server**, khớp `docs/api.md` và ERD gốc). Không tự đổi engine DB lần nữa mà không hỏi — kể cả khi máy cá nhân cài sẵn MySQL cho tiện.
+- Instance SQL Server phải **bật TCP/IP cổng 1433** (SQL Server Configuration Manager → Protocols → Enable → restart service) thì backend mới connect được — mặc định cài đặt để tắt. Nếu backend báo `TCP/IP connection ... has failed`, đây là nguyên nhân số 1.
 - Script tạo DB/bảng: `backend/src/main/resources/db/` — chạy theo số thứ tự trong SSMS **trước khi** start backend (`01_create_database.sql`, `02_users.sql`). Thêm bảng mới = thêm file `03_xxx.sql` + entity tương ứng.
 - Bảng: `snake_case`, số nhiều (`users`, `products`, `order_items`); entity map bằng `@Table(name=...)`, `@Column(name=...)`; chuỗi tiếng Việt `@Nationalized`.
 - Dev dùng `ddl-auto=update` (`JPA_DDL_AUTO`) để không vỡ khi ai đó quên chạy script, nhưng script SQL vẫn là nguồn chuẩn của schema.

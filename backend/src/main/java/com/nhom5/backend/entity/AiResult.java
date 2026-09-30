@@ -76,7 +76,7 @@ public class AiResult extends BaseEntity {
     @JoinColumn(name = "reviewed_by")
     private User reviewedBy;
 
-    @Column(name = "reviewed_at", columnDefinition = "DATETIME2")
+    @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
     @Nationalized

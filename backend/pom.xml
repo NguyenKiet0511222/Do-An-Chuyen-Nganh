@@ -27,7 +27,7 @@
 		<url/>
 	</scm>
 	<properties>
-		<java.version>17</java.version>
+		<java.version>21</java.version>
 		<springdoc.version>3.1.1</springdoc.version>
 	</properties>
 	<dependencies>
@@ -61,14 +61,17 @@
 			<version>${springdoc.version}</version>
 		</dependency>
 
+		<!-- Database chính thức của nhóm là SQL Server (xem docs/api.md muc 0.1) -->
 		<dependency>
-			<groupId>com.mysql</groupId>
-			<artifactId>mysql-connector-j</artifactId>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>mssql-jdbc</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- H2 chỉ dùng cho profile "test" (mvnw test), không dùng khi chạy thật -->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
