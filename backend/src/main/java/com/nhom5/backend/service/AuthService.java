@@ -17,6 +17,7 @@ import com.nhom5.backend.entity.enums.AuthProvider;
 import com.nhom5.backend.entity.enums.Role;
 import com.nhom5.backend.entity.User;
 import com.nhom5.backend.exception.AppException;
+import com.nhom5.backend.repository.ShopRepository;
 import com.nhom5.backend.repository.UserRepository;
 import com.nhom5.backend.security.GoogleTokenVerifier;
 import com.nhom5.backend.security.JwtService;
@@ -32,6 +33,7 @@ public class AuthService {
 	private static final String BAD_CREDENTIALS = "Email hoặc mật khẩu không đúng";
 
 	private final UserRepository userRepository;
+	private final ShopRepository shopRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 	private final GoogleTokenVerifier googleTokenVerifier;
@@ -90,8 +92,12 @@ public class AuthService {
 	@Transactional(readOnly = true)
 	public UserResponse me(Long userId) {
 		return userRepository.findById(userId)
-				.map(UserResponse::from)
+				.map(this::toUserResponse)
 				.orElseThrow(() -> AppException.unauthorized("Tài khoản không còn tồn tại"));
+	}
+
+	private UserResponse toUserResponse(User user) {
+		return UserResponse.from(user, shopRepository.findByUserId(user.getId()).orElse(null));
 	}
 
 	private User createGoogleUser(Jwt idToken, String email) {
@@ -108,7 +114,7 @@ public class AuthService {
 
 	private AuthResponse buildAuthResponse(User user) {
 		return AuthResponse.bearer(jwtService.generateToken(user), jwtService.expiresInSeconds(),
-				UserResponse.from(user));
+				toUserResponse(user));
 	}
 
 	private static void ensureActive(User user) {

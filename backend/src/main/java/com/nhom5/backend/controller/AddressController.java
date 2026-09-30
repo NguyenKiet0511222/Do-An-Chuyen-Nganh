@@ -1,43 +1,41 @@
 package com.nhom5.backend.controller;
 
-import com.nhom5.backend.entity.Address;
-import com.nhom5.backend.repository.AddressRepository;
+import com.nhom5.backend.dto.response.AddressResponse;
+import com.nhom5.backend.dto.response.ApiResponse;
+import com.nhom5.backend.service.AddressService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * Sổ địa chỉ của tôi (api.md mục 4.2). Thay cho /api/addresses/user/{userId} cũ — ai đăng nhập cũng xem được địa chỉ người khác.
+ * Thêm / sửa / xoá / đặt mặc định làm cùng luồng checkout (tuần 5).
+ */
 @RestController
-@RequestMapping("/api/addresses")
+@RequestMapping("/api/users/me/addresses")
 @RequiredArgsConstructor
-@Tag(name = "Address API", description = "Quản lý sổ địa chỉ giao hàng của người dùng")
+@Tag(name = "Sổ địa chỉ", description = "Địa chỉ giao hàng của người đang đăng nhập")
 public class AddressController {
 
-    private final AddressRepository addressRepository;
+    private final AddressService addressService;
 
-    @GetMapping("/user/{userId}")
-    @Operation(summary = "Lấy danh sách địa chỉ của người dùng", description = "Danh sách các địa chỉ giao hàng theo User ID")
-    public ResponseEntity<List<Address>> getAddressesByUserId(@PathVariable Long userId) {
-        List<Address> addresses = addressRepository.findByUserId(userId);
-        return ResponseEntity.ok(addresses);
-    }
-
-    @GetMapping("/user/{userId}/default")
-    @Operation(summary = "Lấy địa chỉ mặc định của người dùng", description = "Địa chỉ nhận hàng mặc định theo User ID")
-    public ResponseEntity<Address> getDefaultAddress(@PathVariable Long userId) {
-        return addressRepository.findByUserIdAndDefaultAddressTrue(userId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @GetMapping
+    @Operation(summary = "Danh sách địa chỉ của tôi (mặc định lên đầu)")
+    public ApiResponse<List<AddressResponse>> list(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.ok(addressService.listMine(Long.parseLong(jwt.getSubject())));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Chi tiết một địa chỉ", description = "Lấy chi tiết địa chỉ theo Address ID")
-    public ResponseEntity<Address> getAddressById(@PathVariable Long id) {
-        return addressRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @Operation(summary = "Chi tiết một địa chỉ của tôi")
+    public ApiResponse<AddressResponse> detail(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return ApiResponse.ok(addressService.getMine(Long.parseLong(jwt.getSubject()), id));
     }
 }

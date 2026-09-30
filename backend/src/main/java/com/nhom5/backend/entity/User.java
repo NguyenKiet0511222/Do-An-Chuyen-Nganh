@@ -2,6 +2,7 @@ package com.nhom5.backend.entity;
 
 import org.hibernate.annotations.Nationalized;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nhom5.backend.entity.enums.AccountTier;
 import com.nhom5.backend.entity.enums.AuthProvider;
 import com.nhom5.backend.entity.enums.Role;
@@ -43,7 +44,8 @@ public class User extends BaseEntity {
     @Column(name = "phone", length = 20)
     private String phone;
 
-    /** BCrypt hash; NULL nếu tài khoản chỉ đăng nhập bằng Google. */
+    /** BCrypt hash; NULL nếu tài khoản chỉ đăng nhập bằng Google. Không bao giờ serialize ra JSON. */
+    @JsonIgnore
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
