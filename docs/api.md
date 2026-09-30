@@ -1,6 +1,6 @@
 # api.md — Đặc tả API & nghiệp vụ: Website bán nông sản tích hợp AI phân loại chất lượng
 
-> Phiên bản: v1.2 (21/09/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium.
+> Phiên bản: v1.3 (30/09/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium + chốt chi tiết API người bán (mục 4.8, changelog v1.3).
 > Tài liệu này là **nguồn sự thật duy nhất** để sinh code. Khi có mâu thuẫn giữa tài liệu này và tài liệu khác, ưu tiên tài liệu này.
 
 ---
@@ -159,18 +159,22 @@ Quan hệ chính: `users 1–1 shops`, `shops 1–n products`, `products 1–n p
 - Email là định danh duy nhất. Đăng ký thường tạo `role = CUSTOMER`, `provider = LOCAL`, `status = ACTIVE`, `account_tier = STANDARD`.
 - Đăng nhập Google: backend xác thực ID token với Google (`GOOGLE_CLIENT_ID`). Email chưa có → tạo user `provider = GOOGLE`, `password_hash = null`. Email đã có → đăng nhập vào user đó và cập nhật `provider_id` nếu trống.
 - Tài khoản `LOCKED` → mọi request trả 403 `"Tài khoản đã bị khoá"`.
-- Muốn bán hàng: user đã đăng nhập gọi `POST /api/seller/register` tạo `shop` (PENDING_VERIFICATION). Admin xác minh → `shop.status = ACTIVE` **và** `user.role = SELLER`. Trước khi xác minh, user vẫn là CUSTOMER và không vào được `/api/seller/**`.
-- Shop `LOCKED` → toàn bộ sản phẩm của shop ẩn khỏi trang công khai; đơn hàng đang xử lý vẫn giữ.
+- Muốn bán hàng: user đã đăng nhập gọi `POST /api/seller/register` tạo `shop` (PENDING_VERIFICATION). Admin xác minh → `shop.status = ACTIVE` **và** `user.role = SELLER`. Trước khi xác minh, user vẫn là CUSTOMER và không vào được `/api/seller/**`. Tài khoản ADMIN không đăng ký bán hàng được (403).
+- Sau khi admin xác minh, JWT cũ vẫn mang `role = CUSTOMER` → người bán **phải đăng nhập lại** để nhận token `SELLER`. Frontend biết trạng thái shop qua `shopId` / `shopStatus` trong `/auth/me`.
+- Shop `LOCKED` → toàn bộ sản phẩm của shop ẩn khỏi trang công khai; đơn hàng đang xử lý vẫn giữ. Người bán của shop bị khoá vẫn xem shop, sửa tồn kho và xử lý đơn, nhưng **không tạo / gửi duyệt sản phẩm** (403).
 
 ### 3.2 Sản phẩm & duyệt
 - Vòng đời: `DRAFT → PENDING → APPROVED | REJECTED | NEED_INFO`. Người bán sửa sản phẩm ở `REJECTED`/`NEED_INFO` rồi `submit` lại → `PENDING`. `APPROVED` có thể → `HIDDEN` (do SELLER hoặc ADMIN, ghi `hidden_by`) và ngược lại (`SELLER` chỉ được bỏ ẩn nếu `hidden_by = SELLER`).
-- Sửa **giá / tên / mô tả / ảnh** của sản phẩm `APPROVED` → tự chuyển về `PENDING` để duyệt lại. Sửa **tồn kho** không cần duyệt lại.
-- `submit` yêu cầu: ≥ 1 ảnh, giá > 0, tồn kho ≥ 0, có danh mục.
+- Sửa **bất kỳ thông tin nào trừ tồn kho** (tên, giá, mô tả, ảnh, danh mục, đơn vị, xuất xứ) của sản phẩm `APPROVED` hoặc `HIDDEN` → tự chuyển về `PENDING` để duyệt lại (xoá `hidden_by`). Sửa **tồn kho** không cần duyệt lại. Đổi ảnh chính không tính là sửa nội dung. *(v1.3: mở rộng từ "giá / tên / mô tả / ảnh" để chặn lách duyệt, ví dụ đổi "kg" thành "lạng" giữ nguyên giá.)*
+- Sản phẩm đang `PENDING` **bị khoá sửa** (thông tin + ảnh) → 409; chỉ được cập nhật tồn kho. `DRAFT` / `REJECTED` / `NEED_INFO` sửa tự do, giữ trạng thái tới khi `submit`.
+- `submit` yêu cầu: ≥ 1 ảnh, giá > 0, tồn kho ≥ 0, có danh mục; thiếu → 400 kèm danh sách điều kiện thiếu. Ảnh bị AI gắn ROTTEN **không** chặn submit (admin quyết định). Submit xoá `reject_reason`.
+- Xoá sản phẩm chỉ khi chưa từng nằm trong đơn nào; ngược lại 409 → dùng ẩn.
 - Trang công khai chỉ trả sản phẩm `APPROVED` thuộc shop `ACTIVE`.
 - Nhãn AI tổng hợp của sản phẩm (`ai_overall_label`) = xấu nhất trong các ảnh: có ROTTEN → ROTTEN; không có ROTTEN nhưng có UNCERTAIN → UNCERTAIN; còn lại FRESH. `ai_overall_confidence` = trung bình confidence.
 
 ### 3.3 AI
 - Ảnh hợp lệ: JPG/PNG/WEBP, ≤ 5 MB. Không hợp lệ → 400.
+- **Hiện trạng (v1.3, 30/09/2026): backend CHƯA gọi AI service.** Mỗi ảnh sản phẩm mới tạo `ai_results` với `label = UNCERTAIN`, `confidence = 0`, `review_status = PENDING_REVIEW`, `note = "Chưa tích hợp AI — chờ admin kiểm định thủ công"` → admin kiểm định tay. Khi nối AI chỉ thay `ProductAiLabeler.labelNewImage`, hợp đồng API không đổi.
 - Mỗi ảnh sản phẩm khi tải lên → backend gọi AI service **đồng bộ**; nếu AI service lỗi/timeout (5s) → vẫn lưu ảnh, tạo `ai_results` với `label = UNCERTAIN`, `note = "AI unavailable"`, `review_status = PENDING_REVIEW`.
 - Quy tắc gắn `review_status` từ ngưỡng trong `settings`:
   - `label = FRESH` và `confidence ≥ auto_accept_threshold` → `AUTO_ACCEPTED`
@@ -201,7 +205,7 @@ Quan hệ chính: `users 1–1 shops`, `shops 1–n products`, `products 1–n p
 | PROCESSING → CANCELLED | SELLER, ADMIN |
 | Mọi chuyển khác | 409 `"Chuyển trạng thái không hợp lệ"` |
 
-Mỗi lần chuyển ghi 1 dòng `order_status_history`.
+Mỗi lần chuyển ghi 1 dòng `order_status_history` (`note` tuỳ chọn, ví dụ mã vận đơn khi chuyển SHIPPING). Huỷ đơn: `cancel_reason` bắt buộc, lưu vào `orders.cancel_reason` và làm `note` của dòng lịch sử nếu không gửi `note`; **hoàn tồn kho** từng dòng.
 
 ### 3.6 Đánh giá
 - Chỉ khách có đơn `DELIVERED` chứa sản phẩm đó mới được đánh giá; mỗi (sản phẩm, đơn) 1 lần.
@@ -242,17 +246,22 @@ Validation: `fullName` 2–100 ký tự; `email` đúng định dạng; `phone` 
     "id": 12,
     "fullName": "Trần Thị Mai",
     "email": "mai@gmail.com",
+    "phone": "0912345678",
     "role": "CUSTOMER",
     "accountTier": "STANDARD",
+    "provider": "LOCAL",
     "avatarUrl": null,
-    "shopId": null
+    "active": true,
+    "createdAt": "...",
+    "shopId": null,
+    "shopStatus": null
   }
 }
 ```
 
 **POST /auth/google** — body `{ "idToken": "<Google ID token từ frontend>" }`. Token không hợp lệ → 401. Response **giống hệt** `/auth/login`.
 
-**GET /auth/me** — response: `{ "id", "fullName", "email", "phone", "role", "accountTier", "provider", "avatarUrl", "shopId", "shopStatus" }` (`shopId`/`shopStatus` null nếu chưa đăng ký bán).
+**GET /auth/me** — response: cùng khuôn `user` ở trên (`id, fullName, email, phone, role, accountTier, provider, avatarUrl, active, createdAt, shopId, shopStatus`). `shopId`/`shopStatus` null nếu chưa đăng ký bán; `shopStatus = PENDING_VERIFICATION` → frontend hiện "Chờ xác minh".
 
 **PUT /auth/change-password** — body `{ "currentPassword", "newPassword", "confirmPassword" }`.
 
@@ -267,7 +276,7 @@ Validation: `fullName` 2–100 ký tự; `email` đúng định dạng; `phone` 
 | PUT / DELETE | `/users/me/addresses/{id}` | 🔑 | Sửa / xoá (chỉ của mình) |
 | PATCH | `/users/me/addresses/{id}/default` | 🔑 | Đặt làm mặc định |
 
-Address JSON: `{ "id", "receiverName", "phone", "province", "district", "ward", "street", "isDefault" }`.
+Address JSON: `{ "id", "receiverName", "phone", "province", "district", "ward", "street", "isDefault" }`. Đã có: `GET /users/me/addresses` (mặc định lên đầu) và `GET /users/me/addresses/{id}` (địa chỉ người khác → 404); các API ghi làm cùng checkout (tuần 5).
 
 ### 4.3 Danh mục (`/api/categories`)
 
@@ -393,38 +402,81 @@ Tài khoản `STANDARD` gọi endpoint trên → 403:
 
 | Method | Endpoint | Quyền | Mô tả |
 |---|---|---|---|
-| POST | `/seller/register` | 🔑 | Đăng ký shop `{ "shopName", "description", "province", "address", "phone" }` → shop PENDING_VERIFICATION (đã có shop → 409) |
-| GET / PUT | `/seller/shop` | 🛒 | Xem / sửa thông tin shop |
-| PUT | `/seller/shop/logo` | 🛒 | Upload logo (multipart `file`) |
-| GET | `/seller/dashboard/summary` | 🛒 | `{ "todayRevenue", "pendingOrders", "productsByStatus": { "PENDING": 3, "APPROVED": 18, ... }, "aiFlags" }` |
-| GET | `/seller/products` | 🛒 | Sản phẩm của shop (`status`, `keyword`, `page`, `size`) |
-| POST | `/seller/products` | 🛒 | Tạo sản phẩm (DRAFT) |
-| GET / PUT / DELETE | `/seller/products/{id}` | 🛒 | Chi tiết / sửa / xoá (xoá chỉ khi chưa có đơn, ngược lại 409 → dùng ẩn) |
-| POST | `/seller/products/{id}/images` | 🛒 | Upload ảnh (multipart `files[]`, tối đa 5 ảnh/sản phẩm) → **gọi AI từng ảnh** |
-| DELETE | `/seller/products/{id}/images/{imageId}` | 🛒 | Xoá ảnh |
-| PATCH | `/seller/products/{id}/images/{imageId}/primary` | 🛒 | Đặt ảnh chính |
-| POST | `/seller/products/{id}/submit` | 🛒 | DRAFT/REJECTED/NEED_INFO → PENDING |
-| PATCH | `/seller/products/{id}/visibility` | 🛒 | `{ "hidden": true }` ẩn / bỏ ẩn (mục 3.2) |
-| PATCH | `/seller/products/{id}/stock` | 🛒 | `{ "stockQuantity": 100 }` (không cần duyệt lại) |
-| GET | `/seller/orders` | 🛒 | Đơn của shop (`status`, `from`, `to`, `page`, `size`) |
-| GET | `/seller/orders/{id}` | 🛒 | Chi tiết (chỉ đơn của shop) |
-| PATCH | `/seller/orders/{id}/status` | 🛒 | `{ "status": "CONFIRMED", "note": "..." }` theo bảng 3.5 |
-| GET | `/seller/ai/results` | 🛒 | Kết quả AI của các ảnh sản phẩm của shop (`reviewStatus`, `page`) |
+| POST | `/seller/register` | 🔑 | Đăng ký shop `{ "shopName", "description", "province", "address", "phone" }` → 201 Shop, PENDING_VERIFICATION (đã có shop → 409, ADMIN → 403) |
+| GET / PUT | `/seller/shop` | 🛒 | Xem / sửa thông tin shop (body giống register) → Shop |
+| PUT | `/seller/shop/logo` | 🛒 | Upload logo (multipart `file`) → `{ "logoUrl" }` |
+| GET | `/seller/dashboard/summary` | 🛒 | Số liệu tổng quan (khuôn bên dưới) |
+| GET | `/seller/products` | 🛒 | Sản phẩm của shop (`status` — **1 hoặc nhiều giá trị cách dấu phẩy**, ví dụ `REJECTED,NEED_INFO`; `keyword`; `page`; `size`) → trang SellerProduct |
+| POST | `/seller/products` | 🛒 | Tạo sản phẩm (DRAFT) → 201 SellerProductDetail |
+| GET / PUT / DELETE | `/seller/products/{id}` | 🛒 | Chi tiết / sửa / xoá (quy tắc mục 3.2; xoá chỉ khi chưa có đơn, ngược lại 409 → dùng ẩn) |
+| POST | `/seller/products/{id}/images` | 🛒 | Upload ảnh (multipart `files` — 1 hoặc nhiều phần cùng tên — hoặc `file`; tổng tối đa 5 ảnh/sản phẩm) → 201 ProductImages. Mỗi ảnh tạo 1 `ai_results` (hiện chờ admin, mục 3.3) |
+| DELETE | `/seller/products/{id}/images/{imageId}` | 🛒 | Xoá ảnh (xoá ảnh chính → ảnh đầu tiên còn lại thành ảnh chính) → ProductImages |
+| PATCH | `/seller/products/{id}/images/{imageId}/primary` | 🛒 | Đặt ảnh chính → ProductImages |
+| POST | `/seller/products/{id}/submit` | 🛒 | DRAFT/REJECTED/NEED_INFO → PENDING → SellerProductDetail |
+| PATCH | `/seller/products/{id}/visibility` | 🛒 | `{ "hidden": true }` ẩn (chỉ APPROVED) / `false` bỏ ẩn (403 nếu `hiddenBy = ADMIN`) → SellerProduct |
+| PATCH | `/seller/products/{id}/stock` | 🛒 | `{ "stockQuantity": 100 }` — mọi trạng thái, không cần duyệt lại → SellerProduct |
+| GET | `/seller/orders` | 🛒 | Đơn của shop (`status` 1 hoặc nhiều giá trị; `from`, `to` dạng `yyyy-MM-dd` theo ngày đặt, bao gồm 2 đầu; `page`, `size`) → trang OrderSummary |
+| GET | `/seller/orders/{id}` | 🛒 | Chi tiết (khuôn "Order (detail)" mục 4.6; đơn shop khác → 404) |
+| PATCH | `/seller/orders/{id}/status` | 🛒 | `{ "status": "CONFIRMED", "note": "..." }` theo bảng 3.5. Huỷ: `{ "status": "CANCELLED", "cancelReason": "..." }` (thiếu lý do → 400) → Order (detail) |
+| GET | `/seller/ai/results` | 🛒 | Kết quả AI các ảnh sản phẩm của shop, mới nhất trước (`reviewStatus` 1 hoặc nhiều giá trị, `page`, `size`) |
 
-**POST /seller/products** — body:
+Quy ước chung của nhóm `/seller/**`: luôn làm việc trong shop của người đang đăng nhập — sản phẩm / đơn / ảnh của shop khác trả **404** như không tồn tại. Tài khoản chưa có shop (ví dụ ADMIN) → 404 `"Tài khoản chưa có shop"`. Giá trị enum lạ trong `status` / `reviewStatus` → 400.
+
+**Shop** (register, GET/PUT shop):
+```json
+{ "id": 3, "shopName": "Vườn rau Tâm An", "description": "…", "province": "Lâm Đồng", "address": "Đường Mimosa, Phường 10, Đà Lạt",
+  "phone": "0901234567", "logoUrl": "/uploads/logos/….png", "status": "ACTIVE", "ratingAvg": 4.8, "ratingCount": 56,
+  "verifiedAt": "...", "createdAt": "..." }
+```
+Validation: `shopName` 3–150; `province` bắt buộc ≤ 100; `address` bắt buộc ≤ 255; `phone` 9–11 chữ số; `description` ≤ 2000.
+
+**GET /seller/dashboard/summary**:
+```json
+{ "todayRevenue": 90000, "pendingOrders": 2,
+  "productsByStatus": { "DRAFT": 0, "PENDING": 1, "APPROVED": 3, "REJECTED": 0, "NEED_INFO": 0, "HIDDEN": 0 },
+  "aiFlags": { "pendingReview": 4, "retakeRequested": 1, "rotten": 0 } }
+```
+`todayRevenue` = tổng `total` các đơn DELIVERED có `delivered_at` trong hôm nay. `productsByStatus` luôn đủ 6 khoá. `aiFlags` = số ảnh đang chờ admin kiểm định / bị yêu cầu chụp lại / có nhãn hiển thị ROTTEN.
+
+**POST /seller/products** — body (PUT dùng chung):
 ```json
 { "name": "Cà chua bi Đà Lạt", "categoryId": 5, "description": "Trồng nhà kính, thu hoạch trong ngày…", "price": 45000, "unit": "kg", "stockQuantity": 120, "origin": "Đà Lạt, Lâm Đồng" }
 ```
-Validation: `name` 3–200; `price` > 0; `stockQuantity` ≥ 0; `unit` 1–20; `categoryId` phải tồn tại & active.
+Validation: `name` 3–200; `price` > 0; `stockQuantity` ≥ 0; `unit` 1–20; `origin` ≤ 150; `description` ≤ 5000; `categoryId` phải tồn tại & active (sai → 400). `slug` backend tự sinh (tên không dấu + hậu tố ngẫu nhiên), không đổi khi sửa tên.
 
-**POST /seller/products/{id}/images** response 201:
+**SellerProduct** (1 dòng danh sách; cũng trả về sau `visibility` / `stock`):
 ```json
-{ "images": [
-  { "id": 501, "url": "/uploads/products/1187/1.jpg", "isPrimary": true, "displayOrder": 1,
-    "ai": { "id": 9001, "produce": "tomato", "label": "FRESH", "confidence": 0.96, "reviewStatus": "AUTO_ACCEPTED" } },
-  { "id": 502, "url": "/uploads/products/1187/2.jpg", "isPrimary": false, "displayOrder": 2,
-    "ai": { "id": 9002, "produce": "tomato", "label": "ROTTEN", "confidence": 0.78, "reviewStatus": "PENDING_REVIEW" } }
-], "aiOverallLabel": "ROTTEN", "aiOverallConfidence": 0.87 }
+{ "id": 1187, "name": "Cà chua bi Đà Lạt", "slug": "ca-chua-bi-da-lat-2k9f1", "price": 45000, "unit": "kg",
+  "stockQuantity": 120, "soldCount": 214, "status": "REJECTED", "hiddenBy": null, "rejectReason": "Ảnh có dấu hiệu hỏng",
+  "aiOverallLabel": "UNCERTAIN", "aiOverallConfidence": 0.0, "primaryImageUrl": "/uploads/products/1187/….jpg",
+  "category": { "id": 5, "name": "Củ quả" }, "createdAt": "...", "updatedAt": "..." }
+```
+**SellerProductDetail** = SellerProduct + `description`, `origin`, `ratingAvg`, `ratingCount`, `approvedAt`, `images` (khuôn như ProductImages bên dưới).
+
+**ProductImages** (upload / xoá ảnh / đặt ảnh chính) — trả **toàn bộ** ảnh hiện tại, kèm `status` vì sửa ảnh sản phẩm đã duyệt sẽ về PENDING:
+```json
+{ "productId": 1187, "status": "DRAFT",
+  "images": [
+    { "id": 501, "url": "/uploads/products/1187/….png", "isPrimary": true, "displayOrder": 1,
+      "ai": { "id": 9001, "produce": null, "label": "UNCERTAIN", "confidence": 0.0, "finalLabel": null,
+              "reviewStatus": "PENDING_REVIEW", "note": "Chưa tích hợp AI — chờ admin kiểm định thủ công" } }
+  ],
+  "aiOverallLabel": "UNCERTAIN", "aiOverallConfidence": 0.0 }
+```
+
+**OrderSummary** (1 dòng GET /seller/orders):
+```json
+{ "id": 5011, "orderCode": "DH-2026-01187", "status": "PENDING", "paymentMethod": "COD", "paymentStatus": "UNPAID",
+  "customer": { "id": 12, "fullName": "Trần Thị Mai", "phone": "0912345678" }, "receiverName": "Trần Thị Mai", "phone": "0912345678",
+  "items": [ { "productId": 1187, "productName": "Cà chua bi Đà Lạt", "unit": "kg", "quantity": 2 } ], "itemCount": 1,
+  "subtotal": 90000, "shippingFee": 20000, "total": 110000, "createdAt": "..." }
+```
+
+**SellerAiResult** (1 dòng GET /seller/ai/results — có `product.id` để frontend dẫn tới trang sửa sản phẩm):
+```json
+{ "id": 9001, "product": { "id": 1187, "name": "Cà chua bi Đà Lạt", "status": "PENDING" }, "imageId": 501,
+  "imageUrl": "/uploads/products/1187/….png", "produce": null, "label": "UNCERTAIN", "confidence": 0.0, "finalLabel": null,
+  "reviewStatus": "PENDING_REVIEW", "note": "…", "reviewedAt": null, "createdAt": "..." }
 ```
 
 ### 4.9 Quản trị (`/api/admin`) 🛡
@@ -507,8 +559,8 @@ Backend là **client duy nhất** của AI service (frontend không gọi thẳn
 
 ## 6. Upload & file tĩnh
 
-- Multipart field: `file` (1 ảnh) hoặc `files` (nhiều ảnh). Chấp nhận `image/jpeg`, `image/png`, `image/webp`; ≤ 5 MB/ảnh; tối đa 5 ảnh/sản phẩm.
-- Lưu tại `UPLOAD_DIR/products/{productId}/{uuid}.{ext}`, `UPLOAD_DIR/ai/{aiResultId}.{ext}`, `UPLOAD_DIR/avatars/`, `UPLOAD_DIR/logos/`. Trả URL tương đối `/uploads/...`; frontend ghép với `VITE_API_BASE_URL`.
+- Multipart field: `file` (1 ảnh) hoặc `files` (nhiều ảnh). Chấp nhận `image/jpeg`, `image/png`, `image/webp`; ≤ 5 MB/ảnh; tối đa 5 ảnh/sản phẩm. Backend kiểm tra cả content-type **và chữ ký đầu file** (file đổi đuôi thành .png vẫn bị 400). Upload nhiều ảnh: kiểm tra hết trước khi lưu — 1 ảnh sai thì không lưu ảnh nào.
+- Lưu tại `UPLOAD_DIR/products/{productId}/{uuid}.{ext}`, `UPLOAD_DIR/ai/{aiResultId}.{ext}`, `UPLOAD_DIR/avatars/`, `UPLOAD_DIR/logos/` (`UPLOAD_DIR` mặc định `uploads`, tương đối theo thư mục chạy backend, đã gitignore). Trả URL tương đối `/uploads/...`; frontend ghép với origin của backend (bỏ đuôi `/api` của `VITE_API_URL`). Xoá ảnh / sản phẩm / đổi logo thì xoá luôn file cũ.
 - `GET /uploads/**` công khai (Spring `ResourceHandlerRegistry`).
 
 ---
@@ -521,6 +573,7 @@ Backend là **client duy nhất** của AI service (frontend không gọi thẳn
 | Người bán (shop ACTIVE) | `taman@nongsan.vn` / `Seller@123` — shop "Vườn rau Tâm An" (Lâm Đồng); `caolanh@nongsan.vn` / `Seller@123` — "HTX Xoài Cao Lãnh" (Đồng Tháp) |
 | Người bán chờ xác minh | `mocchau@nongsan.vn` / `Seller@123` — "Vườn dâu Mộc Châu" (PENDING_VERIFICATION) |
 | Khách | `mai@nongsan.vn` / `Customer@123`, `nam@nongsan.vn` / `Customer@123` |
+| **Seed thực tế trong code (30/09/2026)** | `AdminSeeder`: `admin@nongsan.local` / `Admin@123`. `ProductSeeder`: `seller@nongsan.local` / `Seller@123` (Vườn rau Tâm An), `caolanh@nongsan.local` / `Seller@123` (HTX Xoài Cao Lãnh), danh mục + sản phẩm mẫu. `OrderSeeder`: `customer@nongsan.local` / `Customer@123` + 6 đơn mẫu của Tâm An (2 PENDING, CONFIRMED, SHIPPING, DELIVERED, CANCELLED) — chỉ chạy khi bảng `orders` trống |
 | Danh mục | Rau củ (Rau ăn lá, Củ quả, Nấm) · Trái cây (Trái cây nhiệt đới, Trái cây nhập khẩu) · Thực phẩm khô · Đặc sản vùng miền |
 | Sản phẩm | ≥ 12 sản phẩm APPROVED chia đều 2 shop (cà chua bi, xoài cát, rau muống, chuối tiêu, khoai tây, cam sành, ớt chuông, dâu tây…), 2 sản phẩm PENDING, 1 REJECTED; ảnh placeholder |
 | Settings | `ai.auto_accept_threshold=0.90`, `ai.review_threshold=0.70`, `ai.model_version=mobilenetv2_v1` |
@@ -561,6 +614,16 @@ Refresh token · quên mật khẩu qua OTP/email · thanh toán online VNPay/Mo
 ---
 
 ## 11. Nhật ký cập nhật & Đồng bộ Codebase (Changelog)
+
+### Phiên bản v1.3 (30/09/2026) — API người bán + vá bảo mật (nhánh `feat/be-seller-api`)
+- **Đã làm đủ 20 endpoint mục 4.8** + `PATCH /admin/shops/{id}/status` (VERIFY/LOCK/UNLOCK). Test MockMvc (H2) + chạy thật trên SQL Server.
+- **Chốt nghiệp vụ** (mục 3.1, 3.2, 3.5): sản phẩm PENDING khoá sửa (chỉ sửa tồn kho); sửa mọi field trừ tồn kho của sản phẩm APPROVED/HIDDEN → PENDING; ảnh ROTTEN không chặn submit; huỷ đơn của người bán gửi `cancelReason`; shop LOCKED không tạo/gửi duyệt sản phẩm; ADMIN không đăng ký bán hàng; người bán phải đăng nhập lại sau khi được xác minh.
+- **Hợp đồng mới**: khuôn JSON Shop, SellerProduct(Detail), ProductImages, OrderSummary, SellerAiResult, dashboard summary (`aiFlags` = `{ pendingReview, retakeRequested, rotten }`); tham số `status` / `reviewStatus` nhận nhiều giá trị cách dấu phẩy; upload nhận field `files` hoặc `file`.
+- **AI**: chưa gọi AI service — ảnh mới vào hàng chờ admin kiểm định thủ công (mục 3.3). Hợp đồng AI thực tế của `ai/app/main.py` là `POST /classify` field `image` (xem CLAUDE.md mục 7), khác mục 5 (`/predict`) — cần chốt lại khi nối AI.
+- **Auth**: `user` trong login/google/me có thêm `phone`, `accountTier`, `shopId`, `shopStatus`.
+- **Vá bảo mật**: bỏ `GET /api/users`, `/api/users/{id}` (trả entity kèm `passwordHash` cho mọi user đã đăng nhập) → thay bằng `GET /admin/users`, `/admin/users/{id}` (DTO, chỉ ADMIN). Bỏ `/api/addresses/user/{userId}` (xem được địa chỉ người khác) → `GET /users/me/addresses`, `/users/me/addresses/{id}`. `passwordHash` gắn `@JsonIgnore`.
+- **DB**: thêm bảng `orders`, `order_items`, `order_status_history` đúng ERD mục 2 (không đổi thiết kế); script `03_catalog.sql`, `04_orders.sql`. Enum `ShopStatus` trong code thêm `LOCKED` (các giá trị cũ `SUSPENDED/REJECTED/INACTIVE` chưa dùng, giữ lại chờ nhóm chốt bỏ).
+- Lỗi JSON sai cú pháp / enum lạ / thiếu file multipart nay trả 400 thay vì 500.
 
 ### Phiên bản v1.2 (21/09/2026) — Hợp nhất Cơ chế Tài khoản Premium & Chuẩn hoá Monorepo
 - **Cơ chế Phân cấp Tài khoản (AccountTier)**:

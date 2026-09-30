@@ -74,16 +74,17 @@ Quy tắc:
 - Validate input bằng `@Valid` + jakarta annotations trên request record, message tiếng Việt; lỗi validate trả 400 với `data = { field: message }`.
 - Constructor injection qua Lombok `@RequiredArgsConstructor`; không `@Autowired` trên field.
 - URL & quyền (`SecurityConfig`):
-  - Public: `/api/health`, `POST /api/auth/register|login|google`, `GET /api/products/**`, `GET /api/categories/**`, Swagger.
-  - `/api/auth/me` và mọi thứ còn lại: cần JWT. `/api/seller/**` → `SELLER` hoặc `ADMIN`; `/api/admin/**` → `ADMIN`.
-  - Kiểm tra sâu hơn (vd: seller chỉ sửa sản phẩm của mình) làm trong service.
+  - Public: `/api/health`, `POST /api/auth/register|login|google`, `GET /api/products/**`, `GET /api/categories/**`, `GET /uploads/**` (ảnh upload), Swagger.
+  - `/api/auth/me` và mọi thứ còn lại: cần JWT. `POST /api/seller/register` → mọi user đã đăng nhập; `/api/seller/**` còn lại → `SELLER` hoặc `ADMIN`; `/api/admin/**` → `ADMIN`.
+  - Kiểm tra sâu hơn (vd: seller chỉ sửa sản phẩm của mình) làm trong service — mẫu: `SellerShopService.requireShop(userId)` + `findByIdAndShopId`, tài nguyên của shop khác trả 404.
+- Tham số lọc enum nhiều giá trị (`status=REJECTED,NEED_INFO`) và phân trang dùng `util/QueryParams`. Ảnh upload qua `FileStorageService` (JPG/PNG/WEBP ≤ 5 MB, kiểm tra chữ ký file, lưu `app.upload.dir`, trả `/uploads/...`).
 - **Role**: 1 cột `role` trong `users`. Đăng ký thường **luôn** tạo `CUSTOMER`. `SELLER` chỉ có qua API đăng ký shop (tuần 4) và admin duyệt. `ADMIN` chỉ có qua `AdminSeeder` (`app.admin.*`).
 - **JWT**: HS256, secret `app.jwt.secret`, hạn `app.jwt.expiration-minutes` (mặc định 60). Claims: `sub` = userId (string), `email`, `role` = `"CUSTOMER"|"SELLER"|"ADMIN"`, `iat`, `exp`, `iss = nhom5-backend`. Sinh bằng `JwtService`; xác thực do resource-server làm (claim `role` → `ROLE_xxx`). Client gửi `Authorization: Bearer <token>`. Trong controller lấy user hiện tại bằng `@AuthenticationPrincipal Jwt jwt` → `Long.parseLong(jwt.getSubject())`.
 - **API auth** (`AuthController`):
   - `POST /api/auth/register` `{fullName, email, password, confirmPassword}` → 201 `data: { userId }`, không tự đăng nhập.
   - `POST /api/auth/login` `{email, password}` → `data: { accessToken, tokenType: "Bearer", expiresIn (giây), user }`.
   - `POST /api/auth/google` `{idToken}` → giống login; email mới → tạo user `provider=GOOGLE`, email đã có → đăng nhập + liên kết `provider_id`. Cần `GOOGLE_CLIENT_ID`, thiếu thì 503.
-  - `GET /api/auth/me` → `data: user`. `user = { id, fullName, email, role, provider, avatarUrl, active, createdAt }`.
+  - `GET /api/auth/me` → `data: user`. `user = { id, fullName, email, phone, role, accountTier, provider, avatarUrl, active, createdAt, shopId, shopStatus }` (`shopId/shopStatus` null nếu chưa đăng ký bán; sau khi admin xác minh shop phải đăng nhập lại để JWT mang role SELLER).
   - Google login: frontend lấy ID token từ Google Identity Services, backend xác minh bằng JWKS của Google (`GoogleTokenVerifier`), không dùng OAuth2 redirect flow, không thêm google-api-client.
 - Test: `@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")` (H2), MockMvc. Mẫu: `AuthControllerTest`, `HealthControllerTest`. `AdminSeeder` cũng chạy trong test → có sẵn `admin@nongsan.local / Admin@123`.
 
@@ -141,7 +142,8 @@ src/
 - SQL Server, DB `nongsan_db`. ERD do **Duy & Hà** thiết kế — **mọi thay đổi bảng/cột phải báo nhóm** trước khi sửa entity.
 - ⚠️ 27–28/09/2026: `pom.xml`/`application.properties` từng bị đổi ngầm sang MySQL (commit `dd58cd6`) rồi đổi lại SQL Server (đã chốt lại với cả nhóm: **giữ SQL Server**, khớp `docs/api.md` và ERD gốc). Không tự đổi engine DB lần nữa mà không hỏi — kể cả khi máy cá nhân cài sẵn MySQL cho tiện.
 - Instance SQL Server phải **bật TCP/IP cổng 1433** (SQL Server Configuration Manager → Protocols → Enable → restart service) thì backend mới connect được — mặc định cài đặt để tắt. Nếu backend báo `TCP/IP connection ... has failed`, đây là nguyên nhân số 1.
-- Script tạo DB/bảng: `backend/src/main/resources/db/` — chạy theo số thứ tự trong SSMS **trước khi** start backend (`01_create_database.sql`, `02_users.sql`). Thêm bảng mới = thêm file `03_xxx.sql` + entity tương ứng.
+- Script tạo DB/bảng: `backend/src/main/resources/db/` — chạy theo số thứ tự trong SSMS **trước khi** start backend (`01_create_database.sql`, `02_users.sql`, `03_catalog.sql` shop/danh mục/sản phẩm/ảnh/ai_results, `04_orders.sql` đơn hàng). Thêm bảng mới = thêm file `05_xxx.sql` + entity tương ứng. ⚠️ `02_users.sql` chưa có cột `phone`, `status`, `account_tier` mà entity `User` đã có (ddl-auto tự thêm) — cần cập nhật script.
+- Kiểm tra script bằng sqlcmd: dùng `-S tcp:localhost,1433` (máy có thể có nhiều instance; `-S localhost` đi shared memory vào instance khác → "Login failed").
 - Bảng: `snake_case`, số nhiều (`users`, `products`, `order_items`); entity map bằng `@Table(name=...)`, `@Column(name=...)`; chuỗi tiếng Việt `@Nationalized`.
 - Dev dùng `ddl-auto=update` (`JPA_DDL_AUTO`) để không vỡ khi ai đó quên chạy script, nhưng script SQL vẫn là nguồn chuẩn của schema.
 
@@ -176,9 +178,12 @@ Phân công chi tiết từng tuần: file sheet của nhóm (ngoài repo).
 - Không đổi Spring Boot / Java version, không thêm UI library khác ngoài MUI, khi chưa hỏi nhóm.
 - Không sửa schema DB "cho tiện" mà không báo; không hardcode secret/mật khẩu trong code.
 
-## 12. Trạng thái hiện tại (cập nhật 13/09/2026 — tuần 1)
+## 12. Trạng thái hiện tại (cập nhật 30/09/2026 — tuần 3-4)
 
-- Backend: khung config/security/JWT/Swagger/exception + **auth hoàn chỉnh phía backend** (`register`, `login`, `google`, `me`, seed ADMIN, bảng `users`), test pass trên H2. Chưa có product/order/AI client.
+- Backend (nhánh `feat/be-seller-api`): **đủ 20 API người bán** (`/api/seller/**`: shop, logo, dashboard, sản phẩm + ảnh + gửi duyệt + ẩn/tồn kho, đơn hàng + chuyển trạng thái, kết quả AI) + `PATCH /api/admin/shops/{id}/status` + `GET /api/admin/users` + `GET /api/users/me/addresses`. Bảng đơn hàng đã có (seed 6 đơn mẫu, `customer@nongsan.local / Customer@123`), **chưa có checkout / giỏ hàng / API khách cho đơn**. Chi tiết quy tắc + khuôn JSON: api.md v1.3.
+- **AI chưa nối**: ảnh sản phẩm mới vào hàng chờ admin (UNCERTAIN/PENDING_REVIEW) qua `ProductAiLabeler` — nối AI thì chỉ sửa class này. Hợp đồng AI thực tế (`POST /classify`, field `image`) lệch api.md mục 5 (`/predict`) — chốt khi nối.
+- Còn trả entity ra ngoài: `ShopController` (`/api/shops/**`) — cần đổi sang DTO khi làm trang shop công khai (§4.4).
+- Lịch sử (13/09): khung config/security/JWT/Swagger/exception + auth hoàn chỉnh phía backend, test pass trên H2.
 - Frontend: khu khách hàng hoàn chỉnh với mock data; khung MUI cho seller/admin/auth; **chưa gắn API auth thật** (xem TODO mục 6).
 - AI: khung FastAPI chạy mock; chưa có model.
 - Việc tiếp theo: chạy script SQL + test Postman auth → gắn auth vào FE (mốc tuần 3) → ERD các bảng còn lại (tuần 2) → API sản phẩm/danh mục (tuần 4).
