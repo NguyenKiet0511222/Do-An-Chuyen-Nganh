@@ -59,7 +59,11 @@ public class SecurityConfig {
 						.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
 						// Khách vãng lai xem được sản phẩm & danh mục
 						.requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
+						// Ảnh upload (sản phẩm, logo) hiển thị công khai
+						.requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
+						// Đăng ký bán hàng: user còn là CUSTOMER cho tới khi admin xác minh shop
+						.requestMatchers(HttpMethod.POST, "/api/seller/register").authenticated()
 						.requestMatchers("/api/seller/**").hasAnyRole("SELLER", "ADMIN")
 						.anyRequest().authenticated())
 				// 401 / 403 trả JSON dạng ApiResponse thay vì body rỗng
