@@ -1,0 +1,264 @@
+/* AIClassifierPage.css */
+
+.ai-wireframe-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  color: #333;
+  font-family: sans-serif;
+}
+
+.ai-breadcrumb {
+  font-size: 14px;
+  margin-bottom: 24px;
+  color: #666;
+}
+
+.ai-breadcrumb-current {
+  font-weight: bold;
+  color: #333;
+}
+
+.ai-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.ai-card-wf {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #fff;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.ai-card-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 0;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #2196f3;
+  color: #2196f3;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+/* Upload Area */
+.ai-upload-area {
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  padding: 40px 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+.ai-upload-area:hover {
+  background: #f0f0f0;
+}
+
+.ai-upload-icon-ph {
+  width: 80px;
+  height: 80px;
+  border: 1px solid #ccc;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.ai-upload-icon-ph::before, .ai-upload-icon-ph::after {
+  content: '';
+  position: absolute;
+  background: #ccc;
+}
+.ai-upload-icon-ph::before {
+  width: 100%; height: 1px; top: 50%; left: 0; transform: rotate(45deg);
+}
+.ai-upload-icon-ph::after {
+  width: 100%; height: 1px; top: 50%; left: 0; transform: rotate(-45deg);
+}
+
+.ai-upload-text {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.ai-upload-links {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.ai-upload-links a {
+  color: #333;
+  text-decoration: underline;
+}
+
+.ai-upload-hint {
+  font-size: 12px;
+  color: #888;
+}
+
+.ai-btn-classify {
+  width: 100%;
+  background: #222;
+  color: #fff;
+  border: none;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.ai-btn-classify:disabled {
+  background: #888;
+  cursor: not-allowed;
+}
+
+.ai-usage-text {
+  font-size: 12px;
+  color: #666;
+  margin-top: 12px;
+}
+
+.ai-support-text {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+}
+
+/* Result Area */
+.ai-result-content {
+  display: flex;
+  gap: 20px;
+}
+
+.ai-result-image {
+  width: 150px;
+  height: 150px;
+  border: 1px solid #ccc;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+  color: #999;
+  font-size: 12px;
+  background-size: cover;
+  background-position: center;
+}
+
+.ai-result-info {
+  flex: 1;
+}
+
+.ai-result-title {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-result-tag {
+  border: 1px solid #333;
+  padding: 2px 8px;
+  font-size: 14px;
+  font-weight: normal;
+  border-radius: 4px;
+}
+.ai-result-tag.tag-warning {
+  background: #333;
+  color: #fff;
+}
+.ai-result-tag.tag-uncertain {
+  border-style: dashed;
+}
+
+.ai-confidence-label {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+.ai-progress-bg {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.ai-progress-fill {
+  height: 100%;
+  background: #333;
+}
+
+.ai-model-info {
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 16px;
+}
+.ai-model-info strong {
+  font-weight: bold;
+}
+
+.ai-suggestion, .ai-disclaimer {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 8px;
+}
+.ai-disclaimer {
+  color: #888;
+}
+
+/* History Table */
+.ai-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ai-history-table th {
+  background: #f0f0f0;
+  text-align: left;
+  padding: 12px;
+  font-weight: bold;
+  border-bottom: 1px solid #ccc;
+}
+
+.ai-history-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.ai-history-img {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ccc;
+  display: block;
+  background-size: cover;
+  background-position: center;
+}
+
+.hidden-input {
+  display: none;
+}

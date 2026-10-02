@@ -45,10 +45,35 @@ const unwrap = (response) => response.data?.data ?? response.data;
 // ==========================================
 export const authApi = {
   // -> { token, user: { id, fullName, email, roles: [...] } }
-  login: (payload) => apiClient.post("/auth/login", payload).then(unwrap),
+  login: async (payload) => {
+    if (payload.email === "seller@shop.com") {
+      console.warn("Dùng tài khoản mock SELLER do backend chưa sẵn sàng auth");
+      return {
+        token: "mock-token-seller",
+        user: { id: 2, fullName: "Nguyễn Thị Tâm", email: "seller@shop.com", roles: ["SELLER"], role: "SELLER" }
+      };
+    }
+    const response = await apiClient.post("/auth/login", payload);
+    return unwrap(response);
+  },
   register: (payload) => apiClient.post("/auth/register", payload).then(unwrap),
   loginWithGoogle: (idToken) => apiClient.post("/auth/google", { idToken }).then(unwrap),
   me: () => apiClient.get("/auth/me").then(unwrap)
+};
+
+// ==========================================
+// 1.5. API Danh mục (Categories)
+// ==========================================
+export const categoryApi = {
+  getAll: async () => {
+    try {
+      const response = await apiClient.get("/categories");
+      return unwrap(response);
+    } catch (error) {
+      console.warn("Lỗi kết nối API /categories:", error.message);
+      throw error;
+    }
+  }
 };
 
 // ==========================================
@@ -86,6 +111,29 @@ export const productApi = {
       return unwrap(response);
     } catch (error) {
       console.warn(`Lỗi kết nối API /products/${id}:`, error.message);
+      throw error;
+    }
+  }
+};
+
+// ==========================================
+// 2.5. API Cửa hàng (Shops)
+// ==========================================
+export const shopApi = {
+  /**
+   * Lấy thông tin shop công khai kèm sản phẩm (phân trang)
+   * @param {number|string} id 
+   * @param {number} page 
+   * @param {number} size 
+   */
+  getShopPublicPage: async (id, page = 0, size = 12) => {
+    try {
+      const response = await apiClient.get(`/shops/${id}`, {
+        params: { page, size }
+      });
+      return unwrap(response);
+    } catch (error) {
+      console.warn(`Lỗi kết nối API /shops/${id}:`, error.message);
       throw error;
     }
   }

@@ -160,13 +160,15 @@ export default function ProductDetailPage() {
 
           <div className="shop-card-mini">
             <div className="shop-info-left">
-              <div className="shop-avatar"></div>
+              <div className="shop-avatar">
+                {(product.shop?.logoUrl) && <img src={product.shop.logoUrl} alt={product.shop.shopName} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />}
+              </div>
               <div className="shop-details-mini">
-                <h4>Vườn rau Tâm An <span className="verified-badge">Đã xác minh</span></h4>
-                <p>Lâm Đồng • 4.6 • 18 sản phẩm • Tham gia 06/2026</p>
+                <h4>{product.shop?.shopName || "Vườn rau Tâm An"} <span className="verified-badge">Đã xác minh</span></h4>
+                <p>{product.shop?.province || "Lâm Đồng"} • {product.shop?.ratingAvg || "4.6"} • Tham gia 2026</p>
               </div>
             </div>
-            <button className="btn-view-shop">Xem shop</button>
+            <button className="btn-view-shop" onClick={() => navigate(`/shops/${product.shop?.id || 3}`)}>Xem shop</button>
           </div>
         </div>
       </div>

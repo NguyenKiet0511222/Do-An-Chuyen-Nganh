@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-slate-50 font-sans" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kênh Người Bán - Quản lý Sản phẩm | Vườn rau Tâm An</title>
+<!-- Tailwind CSS CDN with forms and container-queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-scrollbar">
+    /* Subtle scrollbar for sleek modern UI */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+<meta content="web_dashboard" name="shell-type"/></head>
+<body class="h-full text-slate-800 antialiased flex overflow-hidden">
+<!-- BEGIN: Sidebar -->
+<aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 select-none" data-purpose="seller-sidebar">
+<div>
+<!-- Brand Logo / Header -->
+<div class="h-16 px-6 border-b border-slate-100 flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold shadow-sm shadow-brand-500/20">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<span class="text-xs font-semibold text-brand-700 uppercase tracking-wider block">Kênh Người Bán</span>
+<span class="text-sm font-bold text-slate-900 leading-tight">EcoFresh Partner</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav class="p-3 space-y-1">
+<!-- Tổng quan -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Tổng quan</span>
+</a>
+<!-- Sản phẩm (Active) -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold bg-brand-50 text-brand-700" href="#">
+<div class="flex items-center gap-3">
+<svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Sản phẩm</span>
+</div>
+<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200/60">2 cần sửa</span>
+</a>
+<!-- Đơn hàng -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<div class="flex items-center gap-3">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Đơn hàng</span>
+</div>
+<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-600">4 mới</span>
+</a>
+<!-- Thông tin shop & AI -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Thông tin shop &amp; AI</span>
+</a>
+</nav>
+</div>
+<!-- Secondary Links -->
+<div class="p-3 border-t border-slate-100 space-y-1">
+<div class="px-3 py-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Khác</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Về trang mua hàng</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Đăng xuất</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContentArea -->
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto"><div class="flex flex-col w-full">
+<!-- Top Navigation & Header Bar -->
+<div class="px-6 py-4 bg-surface-container-lowest flex flex-wrap items-center justify-between gap-4 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-headline-sm">storefront</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<h1 class="font-headline-md text-headline-md text-on-surface">Thông tin shop &amp; Kết quả AI</h1>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-label-sm font-label-sm bg-secondary-container/40 text-on-secondary-container">
+            Hồ sơ đối tác
+          </span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Quản lý định danh pháp lý hợp tác xã và giám sát chất lượng sản phẩm bằng thị giác máy tính AI</p>
+</div>
+</div>
+<!-- Active Store Profile Pill -->
+<div class="flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-surface-container-low shadow-sm">
+<div class="relative">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Close-up headshot of a friendly Vietnamese female organic farmer wearing a soft green apron, warm sunlight, gentle smile, pristine quality" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZF6cezBX1YfYvQEaSh7-q83NvhVZxGCG5_ntzXj49Q6KE8LsVNEVr76j1nKOoF4a4eY1167etWPnLz6J05UDGDF492tq3ZZRzwRfkJgDTGHVGL2iBZLQIMStpELnwM2P_nWqenXKo6TDp4Ofmy6ewtMAmQB0OxxVQk2lXnU7Tz1DFulNrTBSQQ4wdKZLpvvmJSIYPRs4pd3u6xJALavZfB0sRka6vuXHhzLuePJCputadWV4lmClQgQ"/>
+</div>
+<span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface-container-lowest"></span>
+</div>
+<div class="text-left">
+<span class="font-label-md text-label-md text-on-surface block font-semibold">Vườn rau Tâm An</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Nguyễn Thị Tâm (Chủ hộ)</span>
+</div>
+<span class="material-symbols-outlined text-outline text-label-md">verified</span>
+</div>
+</div>
+<!-- Main Functional Layout with Dual Columns -->
+<div class="p-6 space-y-6">
+<!-- View Switcher Tabs -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 p-1 rounded-full bg-surface-container-high/60 w-fit">
+<button class="tab-btn flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md font-semibold transition-all duration-200 bg-surface-container-lowest text-primary shadow-sm" id="tab-shop-btn" onclick="switchTab('shop')">
+<span class="material-symbols-outlined text-label-lg">domain</span>
+<span>Thông tin shop</span>
+<span class="w-5 h-5 rounded-full bg-primary-container/20 text-primary flex items-center justify-center text-label-sm">1</span>
+</button>
+<button class="tab-btn flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all duration-200" id="tab-ai-btn" onclick="switchTab('ai')">
+<span class="material-symbols-outlined text-label-lg">auto_awesome</span>
+<span>Kết quả AI của shop</span>
+<span class="w-5 h-5 rounded-full bg-error-container text-on-error-container font-semibold flex items-center justify-center text-label-sm">2</span>
+</button>
+</div>
+<!-- Quick Status Ticker -->
+<div class="hidden lg:flex items-center gap-4 text-label-sm font-label-sm text-on-surface-variant bg-surface-container-lowest px-4 py-2 rounded-full shadow-sm">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span>Hệ thống AI Model v4.2 hoạt động ổn định</span>
+</div>
+<span class="text-outline-variant">|</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-label-sm text-outline">history</span>
+<span>Quét tự động gần nhất: 12 phút trước</span>
+</div>
+</div>
+</div>
+<!-- Main 2-Column Responsive Workspace Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+<!-- LEFT COLUMN: Profile & Farm Information (7 cols on desktop) -->
+<div class="xl:col-span-6 2xl:col-span-6 bg-surface-container-lowest rounded-full p-6 shadow-sm space-y-6">
+<!-- Card Header -->
+<div class="flex items-center justify-between pb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-headline-sm">badge</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Thông tin cơ sở &amp; Pháp lý</h2>
+</div>
+<!-- Verification Badge -->
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/30 text-on-secondary-container">
+<span class="material-symbols-outlined text-label-md" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<span class="font-label-sm text-label-sm font-semibold">Đã xác minh 15/06/2026</span>
+</div>
+</div>
+<!-- Logo & Brand Header Visual -->
+<div class="p-4 rounded-xl bg-surface-container-low flex flex-col sm:flex-row items-center gap-5">
+<div class="relative group">
+<div class="w-24 h-24 rounded-full overflow-hidden shadow-sm bg-surface-container ring-4 ring-surface-container-lowest">
+<img class="w-full h-full object-cover" data-alt="High resolution minimalist botanical logo badge of Tâm An organic produce garden with fresh green stylized leaf and farm symbol, crisp vector style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQmeLLLsVeFson7Iv8xJij6fU3LuM-Gh-gOLfLAWsoqws9WZDSi2Mb6eEtqWAlfndxN4KaC-fBujkDG1RciKNxsqx8CH7CUxngBwqGLg_ksijPMwNhV5yGTZQkKMwVpoUSBb_LRCpeSKOgH53_yNiFe4IMhJHH6ihe790XP82zwwGJCVZ8y5NgCJa7_zcpv7GatU5-SafzKTX-voHBjI0ovh7fMxRVy_D-8Q1j3-9l5gvqfuJ04iaWvA"/>
+</div>
+<div class="absolute inset-0 rounded-full bg-on-surface/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer">
+<span class="material-symbols-outlined text-surface text-headline-sm">photo_camera</span>
+</div>
+</div>
+<div class="flex-1 text-center sm:text-left space-y-1.5">
+<div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+<button class="px-3.5 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface font-label-md text-label-md font-semibold shadow-sm hover:bg-surface-container transition-colors inline-flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-label-md text-primary">upload_file</span>
+                Đổi logo
+              </button>
+<button class="px-3 py-1.5 rounded-lg text-error hover:bg-error-container/30 font-label-sm text-label-sm transition-colors" type="button">
+                Xóa ảnh
+              </button>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Định dạng JPG, PNG hoặc WEBP, tỉ lệ vuông chuẩn 1:1, dung lượng tối đa 2 MB.</p>
+</div>
+</div>
+<!-- Shop Profile Form -->
+<form class="space-y-4" id="shop-profile-form" onsubmit="event.preventDefault(); showSuccessToast();">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Tên Shop -->
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                Tên gian hàng / Shop <span class="text-error">*</span>
+</label>
+<div class="relative">
+<input class="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" required="" type="text" value="Vườn rau Tâm An"/>
+<span class="material-symbols-outlined absolute right-3 top-2.5 text-on-surface-variant text-label-lg">storefront</span>
+</div>
+</div>
+<!-- Tỉnh / Thành phố -->
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                Tỉnh / Thành phố <span class="text-error">*</span>
+</label>
+<div class="relative">
+<select class="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer">
+<option selected="" value="lam-dong">Lâm Đồng</option>
+<option value="dak-lak">Đắk Lắk</option>
+<option value="gia-lai">Gia Lai</option>
+<option value="dong-nai">Đồng Nai</option>
+<option value="hcm">TP. Hồ Chí Minh</option>
+<option value="ha-noi">Hà Nội</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-2.5 text-on-surface-variant text-label-lg pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Địa chỉ lấy hàng -->
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                Địa chỉ lấy hàng tập trung <span class="text-error">*</span>
+</label>
+<div class="relative">
+<input class="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" required="" type="text" value="Thôn Đa Quý, xã Xuân Thọ, TP. Đà Lạt"/>
+<span class="material-symbols-outlined absolute right-3 top-2.5 text-on-surface-variant text-label-lg">location_on</span>
+</div>
+</div>
+<!-- Số điện thoại -->
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1">
+                SĐT liên hệ xuất kho <span class="text-error">*</span>
+</label>
+<div class="relative">
+<input class="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" required="" type="text" value="0905 111 222"/>
+<span class="material-symbols-outlined absolute right-3 top-2.5 text-on-surface-variant text-label-lg">call</span>
+</div>
+</div>
+</div>
+<!-- Giới thiệu shop -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between">
+<label class="font-label-md text-label-md text-on-surface-variant">Giới thiệu nguồn gốc nông trại</label>
+<span class="font-label-sm text-label-sm text-outline">68/300 ký tự</span>
+</div>
+<textarea class="w-full p-3.5 rounded-lg bg-surface-container-low font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all resize-none" rows="3">Rau củ Đà Lạt trồng nhà kính, thu hoạch trong ngày, quy trình canh tác hữu cơ VietGAP hoàn toàn không dùng thuốc trừ sâu hóa học.</textarea>
+</div>
+<!-- Chứng chỉ canh tác an toàn (Visual Boost) -->
+<div class="p-3.5 rounded-xl bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-headline-sm">eco</span>
+<div>
+<p class="font-label-md text-label-md font-semibold text-on-surface">Chứng nhận VietGAP số: DAL-2023-8891</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Được cấp bởi Trung tâm Kiểm nghiệm Nông sản Lâm Đồng</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary text-label-lg">task_alt</span>
+</div>
+<!-- Actions -->
+<div class="pt-2 flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-primary opacity-0 transition-opacity duration-300 flex items-center gap-1" id="saved-indicator">
+<span class="material-symbols-outlined text-label-md">check_circle</span>
+              Đã đồng bộ thông tin lên máy chủ
+            </span>
+<button class="px-6 py-2.5 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md font-semibold hover:bg-primary transition-all duration-150 flex items-center gap-2 shadow-sm" type="submit">
+<span class="material-symbols-outlined text-label-lg">save</span>
+              Lưu thay đổi
+            </button>
+</div>
+</form>
+</div>
+<!-- RIGHT COLUMN: AI Quality Inspector & Attention Items (6 cols on desktop) -->
+<div class="xl:col-span-6 2xl:col-span-6 bg-surface-container-lowest rounded-full p-6 shadow-sm space-y-5">
+<!-- Card Header with Alert Summary -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-headline-sm">nest_cam_floodlight</span>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Kết quả AI của shop</h2>
+<p class="font-label-sm text-label-sm text-tertiary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-label-sm">warning</span>
+                2 ảnh nông sản cần người bán chú ý xử lý
+              </p>
+</div>
+</div>
+<!-- Filter Pill -->
+<div class="flex items-center gap-1 bg-surface-container-low px-2.5 py-1 rounded-full text-label-sm font-label-sm text-on-surface-variant">
+<span>Bộ lọc: Cần xử lý</span>
+<span class="material-symbols-outlined text-label-sm">filter_list</span>
+</div>
+</div>
+<!-- AI Crop Quality Table Container -->
+<div class="rounded-xl overflow-hidden bg-surface-container-low/40">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+<th class="py-3 px-3.5">Ảnh</th>
+<th class="py-3 px-3.5">Sản phẩm</th>
+<th class="py-3 px-3.5">Nhãn AI</th>
+<th class="py-3 px-3.5">Trạng thái Admin</th>
+<th class="py-3 px-3.5 text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high/40 font-body-sm text-body-sm">
+<!-- Row 1: Hỏng 85% -->
+<tr class="hover:bg-surface-container-low/70 transition-colors">
+<td class="py-3 px-3.5">
+<div class="relative w-12 h-12 rounded-lg overflow-hidden bg-surface-container group cursor-pointer shadow-sm">
+<img class="w-full h-full object-cover" data-alt="High angle macro photo of green oranges Citrus sinensis with dark skin blemishes and slight rot spots, farm lighting on wooden crate" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzbeJVNzTnyjU36IGqqm48IU8aalGos3JvOoDNbKF7_vrcdjYiG-JcXiP_su4dPt8rXTjfLg5hvhpZKyfckSXvA78h-C386DFiNP_O7W8j34mKObNdRmOD77NaIZ9kP7ZSXdd5sLCVMqj4-7nlFb6fnwfEU29pMNOuiKGIqStmcTY80cF_9A0xdVLlkHUajehGNdjb_MR4nxkDeFd9SQLdI-lj8yeW2H17Ybl80y2zo1fNjMeubjoImg"/>
+<div class="absolute inset-0 bg-tertiary-container/30 ring-2 ring-error flex items-center justify-center">
+<span class="material-symbols-outlined text-on-error text-label-sm drop-shadow">report_problem</span>
+</div>
+</div>
+</td>
+<td class="py-3 px-3.5">
+<div class="font-label-md text-label-md font-semibold text-on-surface">Cam sành loại 2</div>
+<div class="font-code text-code text-on-surface-variant">SKU: CS-L2-09</div>
+</td>
+<td class="py-3 px-3.5">
+<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                      Hỏng 85%
+                    </div>
+</td>
+<td class="py-3 px-3.5">
+<div class="flex items-center gap-1.5 text-error font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-label-md">cancel</span>
+                      Đã xác nhận hỏng
+                    </div>
+</td>
+<td class="py-3 px-3.5 text-right">
+<button class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest text-primary font-label-sm text-label-sm font-semibold hover:bg-primary-container hover:text-on-primary transition-all shadow-sm" onclick="openPhotoModal('Cam sành loại 2')" type="button">
+<span class="material-symbols-outlined text-label-md">add_photo_alternate</span>
+                      Thay ảnh
+                    </button>
+</td>
+</tr>
+<!-- Row 2: Không chắc 64% -->
+<tr class="hover:bg-surface-container-low/70 transition-colors">
+<td class="py-3 px-3.5">
+<div class="relative w-12 h-12 rounded-lg overflow-hidden bg-surface-container group cursor-pointer shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Close-up photograph of sweet tangerines Quýt đường with uneven natural yellow-green peel and slight shadow, high key produce photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAo8r1IhFA7Nki-hpUOoZpSrMZiBZgYvrJLM2x23tS54kEqWsVlywA0PrEbNusQcp-zBvb7xZv3zYGqtWD1CbDuwykVM6su1GXbcJCIuxwv-mZaeVAboU7dYn63_UwMMH6zsYr48jwoIyLbQCQGWBwf300s8LTorA8YeE8nv1OZbbX03ETx6XjBGKi4xWccHl51DkRtfia7v-7yyf23Muyn4Vrb27-ZrQjOXc_Ra92rkAdNY0asdjb0Tw"/>
+<div class="absolute inset-0 bg-tertiary-fixed/30 ring-2 ring-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-tertiary-container text-label-sm drop-shadow">help_outline</span>
+</div>
+</div>
+</td>
+<td class="py-3 px-3.5">
+<div class="font-label-md text-label-md font-semibold text-on-surface">Quýt đường</div>
+<div class="font-code text-code text-on-surface-variant">SKU: QD-DAL-01</div>
+</td>
+<td class="py-3 px-3.5">
+<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-tertiary-container/20 text-tertiary font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                      Không chắc 64%
+                    </div>
+</td>
+<td class="py-3 px-3.5">
+<div class="flex items-center gap-1.5 text-tertiary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-label-md">hourglass_top</span>
+                      Chờ admin duyệt
+                    </div>
+</td>
+<td class="py-3 px-3.5 text-right">
+<button class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest text-primary font-label-sm text-label-sm font-semibold hover:bg-primary-container hover:text-on-primary transition-all shadow-sm" onclick="openPhotoModal('Quýt đường')" type="button">
+<span class="material-symbols-outlined text-label-md">add_photo_alternate</span>
+                      Thay ảnh
+                    </button>
+</td>
+</tr>
+<!-- Row 3: Tươi 89% -->
+<tr class="hover:bg-surface-container-low/70 transition-colors">
+<td class="py-3 px-3.5">
+<div class="relative w-12 h-12 rounded-lg overflow-hidden bg-surface-container group cursor-pointer shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Macro vivid photograph of ripe fresh Da Lat strawberries with green calyx leaves, deep glossy red color and dew droplets on organic soil background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5ZMjxEpou81u-g9EeRuLRkQAmFG7M1NSpZBHnM1gjz30tK7OpF6-Y5kI8iXy3MqGxwGLko7kxnL2_knlppYnkPzoU1OVa_wkscYZBKsPoAaWM_b5Anrs9eJjPOLUOW4XfUgT8_oiJQ6yCt2xtxHFBjHLiZcaxyTehli4ixjRypNBxWFKrOSWeeqkKRdxWhABlgCA_axNFeT5RwbJYza6rnhfFCDcJEvF7Ef2SS2F8p7hkI_qbgEJQfw"/>
+<div class="absolute bottom-0 inset-x-0 bg-primary/80 py-0.5 flex justify-center">
+<span class="material-symbols-outlined text-on-primary text-[10px]">verified</span>
+</div>
+</div>
+</td>
+<td class="py-3 px-3.5">
+<div class="font-label-md text-label-md font-semibold text-on-surface">Dâu tây Đà Lạt</div>
+<div class="font-code text-code text-on-surface-variant">SKU: DT-DL-VIP</div>
+</td>
+<td class="py-3 px-3.5">
+<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-secondary-container/40 text-on-secondary-container font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      Tươi 89%
+                    </div>
+</td>
+<td class="py-3 px-3.5">
+<div class="flex items-center gap-1.5 text-primary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-label-md">check_circle</span>
+                      Tự chấp nhận
+                    </div>
+</td>
+<td class="py-3 px-3.5 text-right">
+<span class="font-body-sm text-body-sm text-outline px-3">—</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Metric Footer & Batch Freshness Meter -->
+<div class="p-4 rounded-xl bg-surface-container-low space-y-3">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="font-label-md text-label-md font-semibold text-on-surface">
+              Tổng 30 ngày: <strong class="text-on-surface">24 ảnh</strong>
+</span>
+<div class="flex items-center gap-3 font-label-sm text-label-sm">
+<span class="inline-flex items-center gap-1 text-primary font-semibold">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Tươi 22 (91.7%)
+              </span>
+<span class="inline-flex items-center gap-1 text-tertiary font-semibold">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span> Không chắc 1
+              </span>
+<span class="inline-flex items-center gap-1 text-error font-semibold">
+<span class="w-2 h-2 rounded-full bg-error"></span> Hỏng 1
+              </span>
+</div>
+</div>
+<!-- Segmented Micro-Progress Freshness Meter -->
+<div class="w-full h-2.5 rounded-full bg-surface-container-high overflow-hidden flex">
+<div class="h-full bg-primary transition-all duration-500" style="width: 91.66%" title="Tươi: 22 ảnh"></div>
+<div class="h-full bg-tertiary transition-all duration-500" style="width: 4.17%" title="Không chắc: 1 ảnh"></div>
+<div class="h-full bg-error transition-all duration-500" style="width: 4.17%" title="Hỏng: 1 ảnh"></div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center justify-between">
+<span>Tỷ lệ ảnh đạt chuẩn xuất kho tháng này rất cao (91.7%).</span>
+<a class="text-primary font-semibold hover:underline flex items-center gap-0.5" href="#">
+              Xem báo cáo tháng
+              <span class="material-symbols-outlined text-label-sm">arrow_forward</span>
+</a>
+</p>
+</div>
+</div>
+</div>
+<!-- Technical System Annotation / Helper Box -->
+<div class="p-4 rounded-xl bg-surface-container-low text-on-surface-variant space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-label-lg">info</span>
+<span class="font-label-md text-label-md font-semibold text-on-surface">Chú thích kỹ thuật &amp; Hướng dẫn vận hành</span>
+</div>
+<button class="font-label-sm text-label-sm text-outline hover:text-on-surface px-2 py-1 rounded bg-surface-container-lowest shadow-sm transition-colors" id="toggle-annotation-btn" onclick="toggleAnnotation()" type="button">
+          Ẩn chú thích
+        </button>
+</div>
+<div class="space-y-1 font-body-sm text-body-sm pt-1" id="annotation-content">
+<div class="flex items-start gap-2">
+<span class="font-code text-code text-primary font-semibold mt-0.5">1. Thông tin shop:</span>
+<span>Sử dụng phương thức <code class="px-1.5 py-0.5 rounded bg-surface-container font-code text-code">GET/PUT /seller/shop</code>. Trạng thái xác minh bảo chứng uy tín do Quản trị viên (Admin) phê duyệt sau khi đối soát giấy tờ HTX.</span>
+</div>
+<div class="flex items-start gap-2">
+<span class="font-code text-code text-primary font-semibold mt-0.5">2. Kết quả AI:</span>
+<span>Truy vấn endpoint <code class="px-1.5 py-0.5 rounded bg-surface-container font-code text-code">GET /seller/ai/results</code>. Hệ thống tự động lọc hiển thị ưu tiên các ảnh <strong class="text-error font-medium">Hỏng</strong> hoặc <strong class="text-tertiary font-medium">Không chắc</strong> để nhà vườn kịp thời đổi ảnh chất lượng trước thời hạn kiểm duyệt.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Interactive Modal: Replace Image Dialog -->
+<div class="fixed inset-0 z-50 hidden bg-inverse-surface/40 backdrop-blur-xs flex items-center justify-center p-4" id="replace-photo-modal">
+<div class="bg-surface-container-lowest rounded-full max-w-md w-full p-6 shadow-xl space-y-4">
+<div class="flex items-center justify-between pb-2">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-label-lg">cloud_upload</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Cập nhật ảnh sản phẩm</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant font-medium" id="modal-product-name">Cam sành loại 2</p>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container transition-colors text-on-surface-variant" onclick="closePhotoModal()">
+<span class="material-symbols-outlined text-headline-sm">close</span>
+</button>
+</div>
+<!-- Drag & Drop Visual Box -->
+<div class="p-6 rounded-xl bg-surface-container-low text-center space-y-3 cursor-pointer hover:bg-surface-container transition-colors">
+<div class="w-12 h-12 rounded-full bg-surface-container-lowest mx-auto flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-headline-sm">add_photo_alternate</span>
+</div>
+<div>
+<p class="font-label-md text-label-md font-semibold text-on-surface">Kéo thả ảnh chụp mới vào đây</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">hoặc nhấp để chọn tệp từ thiết bị</p>
+</div>
+<span class="inline-block px-2.5 py-1 rounded bg-surface-container-lowest text-outline font-label-sm text-label-sm">
+          Chụp rõ quả, đủ sáng, không bị mờ
+        </span>
+</div>
+<!-- Modal Action Buttons -->
+<div class="flex items-center justify-end gap-3 pt-2">
+<button class="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container font-label-md text-label-md transition-colors" onclick="closePhotoModal()" type="button">
+          Hủy bỏ
+        </button>
+<button class="px-5 py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold shadow-sm hover:bg-primary-container transition-all" onclick="submitNewPhoto()" type="button">
+          Gửi phân tích AI lại
+        </button>
+</div>
+</div>
+</div>
+<!-- Client-side Logic Script for Visual Interactivity -->
+<script>
+    function switchTab(type) {
+      const shopBtn = document.getElementById('tab-shop-btn');
+      const aiBtn = document.getElementById('tab-ai-btn');
+
+      if (type === 'shop') {
+        shopBtn.className = "tab-btn flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md font-semibold transition-all duration-200 bg-surface-container-lowest text-primary shadow-sm";
+        aiBtn.className = "tab-btn flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all duration-200";
+      } else {
+        aiBtn.className = "tab-btn flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md font-semibold transition-all duration-200 bg-surface-container-lowest text-primary shadow-sm";
+        shopBtn.className = "tab-btn flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all duration-200";
+      }
+    }
+
+    function showSuccessToast() {
+      const indicator = document.getElementById('saved-indicator');
+      if (indicator) {
+        indicator.classList.remove('opacity-0');
+        setTimeout(() => {
+          indicator.classList.add('opacity-0');
+        }, 3000);
+      }
+    }
+
+    function toggleAnnotation() {
+      const content = document.getElementById('annotation-content');
+      const btn = document.getElementById('toggle-annotation-btn');
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        btn.textContent = 'Ẩn chú thích';
+      } else {
+        content.classList.add('hidden');
+        btn.textContent = 'Hiện chú thích';
+      }
+    }
+
+    function openPhotoModal(productName) {
+      const modal = document.getElementById('replace-photo-modal');
+      const nameEl = document.getElementById('modal-product-name');
+      if (nameEl) nameEl.textContent = productName;
+      modal.classList.remove('hidden');
+    }
+
+    function closePhotoModal() {
+      const modal = document.getElementById('replace-photo-modal');
+      modal.classList.add('hidden');
+    }
+
+    function submitNewPhoto() {
+      closePhotoModal();
+      alert('Đã gửi ảnh mới lên hệ thống xử lý thị giác AI EcoFresh. Kết quả phân tích chất lượng sẽ có sau vài giây.');
+    }
+  </script>
+</div></main>
+<!-- END: MainContentArea -->
+</body></html>

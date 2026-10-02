@@ -57,8 +57,8 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-						// Khách vãng lai xem được sản phẩm & danh mục
-						.requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
+						// Khách vãng lai xem được sản phẩm, danh mục & shop
+						.requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/shops/**").permitAll()
 						// Ảnh upload (sản phẩm, logo) hiển thị công khai
 						.requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -1,41 +1,78 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { productApi } from "../../services/api";
+import { productApi, categoryApi } from "../../services/api";
 import ProductCard from "../../components/ProductCard";
-import { Camera, Store, Star, Play, ShieldCheck } from "lucide-react";
+import { Camera, Store, Star, Play } from "lucide-react";
 import "./HomePage.css";
+
+// Helper function to get an icon based on category slug/name
+const getCategoryIcon = (slug) => {
+  const iconMap = {
+    'rau-cu': '🥦',
+    'trai-cay': '🍎',
+    'nam': '🍄',
+    'thuc-pham-kho': '🌾',
+    'dac-san': '🍯',
+  };
+  return iconMap[slug] || '🍇';
+};
 
 export default function HomePage() {
   const [newProducts, setNewProducts] = useState([]);
   const [bestSellers, setBestSellers] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let ignore = false;
-    async function fetchProducts() {
+    async function fetchData() {
       try {
-        const res = await productApi.getAll({ size: 10 });
+        const [productsRes, categoriesRes] = await Promise.all([
+          productApi.getAll({ size: 10 }),
+          categoryApi.getAll()
+        ]);
+        
         if (!ignore) {
-          const products = res.content || [];
+          // Xử lý products
+          const products = productsRes.content || [];
           setNewProducts(products.slice(0, 4));
           
           if (products.length >= 8) {
             setBestSellers(products.slice(4, 8));
           } else if (products.length > 4) {
-            // Have 5-7 items, take the last 4
             setBestSellers(products.slice(products.length - 4, products.length));
           } else {
-            // Less than or equal to 4 items, reuse them to not show an empty section
             setBestSellers([...products].reverse());
           }
+
+          // Xử lý categories
+          const cats = categoriesRes || [];
+          // Lấy 5 danh mục đầu tiên để hiển thị, cái thứ 6 sẽ là "Tất cả"
+          const displayCats = cats.slice(0, 5).map(c => ({
+            id: c.slug || c.id,
+            name: c.name,
+            icon: getCategoryIcon(c.slug),
+            count: `${c.productCount || 0} sản phẩm`,
+            isAll: false
+          }));
+
+          // Thêm mục "Tất cả"
+          displayCats.push({
+            id: 'all',
+            name: "Tất cả mục",
+            icon: "🍇",
+            count: "Khám phá",
+            isAll: true
+          });
           
+          setCategories(displayCats);
           setLoading(false);
         }
       } catch (err) {
         if (!ignore) setLoading(false);
       }
     }
-    fetchProducts();
+    fetchData();
     return () => { ignore = true; };
   }, []);
 
@@ -63,15 +100,8 @@ export default function HomePage() {
           <Link to="/categories" className="sh-link">Xem tất cả &rarr;</Link>
         </div>
         <div className="categories-grid-new">
-          {[
-            { id: 'rau-cu', name: "Rau củ tươi", icon: "🥦", count: "85+ loại" },
-            { id: 'trai-cay', name: "Trái cây", icon: "🍎", count: "62+ loại" },
-            { id: 'nam', name: "Nấm hữu cơ", icon: "🍄", count: "24+ loại" },
-            { id: 'thuc-pham-kho', name: "Thực phẩm khô", icon: "🌾", count: "40+ loại" },
-            { id: 'dac-san', name: "Đặc sản vùng", icon: "🍯", count: "50+ món" },
-            { id: 'all', name: "Tất cả mục", icon: "🍇", count: "Khám phá" }
-          ].map((cat) => (
-            <Link to={cat.id === 'all' ? '/categories' : `/category/${cat.id}`} key={cat.id} className="category-card-new">
+          {categories.map((cat) => (
+            <Link to={cat.isAll ? '/categories' : `/category/${cat.id}`} key={cat.id} className="category-card-new">
               <div className="cat-icon-new">{cat.icon}</div>
               <h3 className="cat-name-new">{cat.name}</h3>
               <p className="cat-count-new">{cat.count}</p>
@@ -157,7 +187,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <Link to={`/shop/${shop.id}`} className="btn-outline-small">Xem shop</Link>
+              <Link to={`/shops/${shop.id}`} className="btn-outline-small">Xem shop</Link>
             </div>
           ))}
         </div>

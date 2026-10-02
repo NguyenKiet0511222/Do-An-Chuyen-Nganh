@@ -16,9 +16,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "Shop API", description = "Quản lý và tra cứu thông tin cửa hàng / gian hàng")
 public class ShopController {
-
     private final ShopRepository shopRepository;
-
+    private final com.nhom5.backend.service.ShopService shopService;
     @GetMapping
     @Operation(summary = "Tìm kiếm danh sách cửa hàng", description = "Lọc cửa hàng theo trạng thái, tỉnh thành, từ khóa tên shop hoặc email")
     public ResponseEntity<Page<Shop>> getShops(
@@ -32,11 +31,12 @@ public class ShopController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Xem chi tiết cửa hàng", description = "Lấy thông tin chi tiết cửa hàng theo Shop ID")
-    public ResponseEntity<Shop> getShopById(@PathVariable Long id) {
-        return shopRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @Operation(summary = "Trang shop công khai", description = "Lấy thông tin chi tiết cửa hàng + sản phẩm của shop (phân trang)")
+    public ResponseEntity<com.nhom5.backend.dto.product.ShopPublicPageDto> getShopPublicPage(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(shopService.getShopPublicPage(id, page, size));
     }
 
     @GetMapping("/user/{userId}")

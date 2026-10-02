@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-slate-50" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tổng quan shop - Kênh Người Bán</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="typography">
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden text-slate-800">
+<div class="flex h-full w-full">
+<!-- BEGIN: Sidebar -->
+<aside class="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between select-none" data-purpose="sidebar">
+<div>
+<!-- Logo Section -->
+<div class="h-16 flex items-center px-6 border-b border-slate-100 gap-3">
+<div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold shadow-sm">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<span class="text-sm font-semibold tracking-tight text-slate-900 block leading-tight">Kênh Người Bán</span>
+<span class="text-[11px] text-slate-400 font-medium">Nông sản sạch</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav aria-label="Main Navigation" class="p-3 space-y-1">
+<!-- Active item: Tổng quan -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-brand-50 text-brand-700 transition-colors" href="#">
+<svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Tổng quan</span>
+</a>
+<!-- Sản phẩm with badge -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<div class="flex items-center gap-3">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Sản phẩm</span>
+</div>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              2 cần sửa
+            </span>
+</a>
+<!-- Đơn hàng with badge -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<div class="flex items-center gap-3">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Đơn hàng</span>
+</div>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              4 mới
+            </span>
+</a>
+<!-- Thông tin shop & AI -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Thông tin shop &amp; AI</span>
+</a>
+</nav>
+</div>
+<!-- Secondary Links: Khác -->
+<div class="p-3 border-t border-slate-100 space-y-1">
+<p class="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Khác</p>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Về trang mua hàng</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors" href="#">
+<svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Đăng xuất</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+<!-- BEGIN: TopHeader -->
+<header class="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-10" data-purpose="top-header">
+<div class="flex items-center gap-3">
+<h1 class="text-lg font-bold text-slate-900">Tổng quan shop</h1>
+</div>
+<!-- Shop Owner Profile -->
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-sm font-semibold text-slate-800 leading-tight">Vườn rau Tâm An</p>
+<p class="text-xs text-slate-500">Nguyễn Thị Tâm</p>
+</div>
+<div class="w-9 h-9 rounded-full bg-brand-100 text-brand-700 font-bold flex items-center justify-center border border-brand-200 text-sm">
+            TA
+          </div>
+</div>
+</header>
+<!-- END: TopHeader -->
+<!-- BEGIN: ContentArea -->
+<main class="flex-1 p-8 max-w-7xl w-full mx-auto space-y-6">
+<!-- Verification Banner Notification -->
+<section aria-label="Trạng thái xác minh" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+<svg class="w-3.5 h-3.5 fill-current" viewbox="0 0 20 20">
+<path clip-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" fill-rule="evenodd"></path>
+</svg>
+              Đã xác minh
+            </span>
+<p class="text-sm text-slate-600">
+<strong class="font-medium text-slate-900">Vườn rau Tâm An</strong> đang hoạt động · Xác minh ngày 15/06/2026
+            </p>
+</div>
+<button aria-label="Thông tin bổ sung" class="w-6 h-6 rounded-full border border-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center text-xs font-semibold transition-colors" type="button">
+            ?
+          </button>
+</section>
+<!-- BEGIN: KPIStatsCards -->
+<section aria-label="Chỉ số hiệu quả" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-purpose="kpi-cards">
+<!-- Card 1: Doanh thu -->
+<article class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-shadow">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-medium text-slate-500 uppercase tracking-wide">Doanh thu hôm nay</span>
+<span class="w-5 h-5 rounded-full bg-slate-100 text-slate-400 text-[11px] font-semibold flex items-center justify-center cursor-default">1</span>
+</div>
+<div>
+<div class="text-2xl font-bold tracking-tight text-slate-900">1.240.000 <span class="text-lg font-normal text-slate-600 underline">đ</span></div>
+<p class="text-xs font-medium text-slate-500 mt-1 flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                3 đơn hoàn thành
+              </p>
+</div>
+</article>
+<!-- Card 2: Đơn chờ xác nhận -->
+<article class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-shadow">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-medium text-slate-500 uppercase tracking-wide">Đơn chờ xác nhận</span>
+</div>
+<div>
+<div class="text-2xl font-bold tracking-tight text-slate-900">4</div>
+<p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 font-medium inline-flex px-2 py-0.5 rounded mt-1">
+                xác nhận trong 24h
+              </p>
+</div>
+</article>
+<!-- Card 3: Sản phẩm chờ duyệt -->
+<article class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-shadow">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-medium text-slate-500 uppercase tracking-wide">Sản phẩm chờ duyệt</span>
+</div>
+<div>
+<div class="text-2xl font-bold tracking-tight text-slate-900">1</div>
+<p class="text-xs text-slate-500 mt-1 truncate">
+                Dưa chuột baby
+              </p>
+</div>
+</article>
+<!-- Card 4: Sản phẩm cần sửa -->
+<article class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-slate-300 transition-shadow">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-medium text-slate-500 uppercase tracking-wide">Sản phẩm cần sửa</span>
+<span class="w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold flex items-center justify-center">2</span>
+</div>
+<div>
+<div class="text-2xl font-bold tracking-tight text-rose-600">2</div>
+<p class="text-xs text-slate-500 mt-1">
+<span class="text-rose-600 font-medium">1 từ chối</span> · <span class="text-amber-600 font-medium">1 cần bổ sung</span>
+</p>
+</div>
+</article>
+</section>
+<!-- END: KPIStatsCards -->
+<!-- BEGIN: TwoColumnContent -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Left Column (Span 2): Recent Orders -->
+<section class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col" data-purpose="recent-orders">
+<!-- Table Header Bar -->
+<div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+<h2 class="text-base font-semibold text-slate-900">Đơn mới cần xử lý</h2>
+<a class="text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline" href="#">Xem tất cả</a>
+</div>
+<!-- Table of Orders -->
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left text-sm text-slate-600">
+<thead class="bg-slate-50/75 text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
+<tr>
+<th class="py-3 px-6" scope="col">Mã đơn</th>
+<th class="py-3 px-4" scope="col">Khách</th>
+<th class="py-3 px-3 text-center" scope="col">SP</th>
+<th class="py-3 px-4" scope="col">Tổng</th>
+<th class="py-3 px-4" scope="col">Đặt lúc</th>
+<th class="py-3 px-6 text-right" scope="col">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 text-xs">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="py-3.5 px-6 font-semibold text-slate-900">DH-2026-00003</td>
+<td class="py-3.5 px-4 text-slate-700">Lê Văn Nam</td>
+<td class="py-3.5 px-3 text-center font-medium">1</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">160.000 <span class="underline text-slate-500 font-normal">đ</span></td>
+<td class="py-3.5 px-4 text-slate-500">13/09 16:45</td>
+<td class="py-3.5 px-6 text-right">
+<button class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors" type="button">
+                        Xác nhận
+                      </button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="py-3.5 px-6 font-semibold text-slate-900">DH-2026-00006</td>
+<td class="py-3.5 px-4 text-slate-700">Phạm Thu Hà</td>
+<td class="py-3.5 px-3 text-center font-medium">2</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">165.000 <span class="underline text-slate-500 font-normal">đ</span></td>
+<td class="py-3.5 px-4 text-slate-500">13/09 18:10</td>
+<td class="py-3.5 px-6 text-right">
+<button class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors" type="button">
+                        Xác nhận
+                      </button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-slate-50/60 transition-colors">
+<td class="py-3.5 px-6 font-semibold text-slate-900">DH-2026-00007</td>
+<td class="py-3.5 px-4 text-slate-700">Ngô Minh Tuấn</td>
+<td class="py-3.5 px-3 text-center font-medium">1</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">200.000 <span class="underline text-slate-500 font-normal">đ</span></td>
+<td class="py-3.5 px-4 text-slate-500">14/09 07:45</td>
+<td class="py-3.5 px-6 text-right">
+<button class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors" type="button">
+                        Xác nhận
+                      </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Right Column (Span 1): Attention Products & AI Quality Stats -->
+<div class="space-y-6">
+<!-- Card: Sản phẩm cần sửa -->
+<section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5" data-purpose="items-to-fix">
+<div class="flex items-center justify-between pb-3 border-b border-slate-100">
+<h2 class="text-sm font-semibold text-slate-900">Sản phẩm cần sửa</h2>
+<a class="text-xs font-medium text-slate-400 hover:text-slate-600" href="#">Xem</a>
+</div>
+<div class="mt-4 space-y-4">
+<!-- Item 1: Cam sành loại 2 -->
+<div class="flex gap-3">
+<div class="w-14 h-14 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 flex-shrink-0">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-2">
+<h3 class="text-xs font-semibold text-slate-800 truncate">Cam sành loại 2</h3>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800">
+                        Từ chối
+                      </span>
+</div>
+<p class="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                      Ảnh có dấu hiệu hỏng (AI 85%), chụp lại ảnh thật
+                    </p>
+</div>
+</div>
+<!-- Item 2: Quýt đường -->
+<div class="flex gap-3 pt-3 border-t border-slate-50">
+<div class="w-14 h-14 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 flex-shrink-0">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-2">
+<h3 class="text-xs font-semibold text-slate-800 truncate">Quýt đường</h3>
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border border-dashed border-amber-300 bg-amber-50 text-amber-700">
+                        Cần bổ sung
+                      </span>
+</div>
+<p class="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                      Ảnh mờ, AI không chắc (64%)
+                    </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Card: AI Quality Ratio -->
+<section class="bg-white rounded-xl border border-slate-200 shadow-sm p-5" data-purpose="ai-stats">
+<h2 class="text-sm font-semibold text-slate-900 mb-3">Nhãn AI của shop (30 ngày)</h2>
+<!-- Percent Breakdown -->
+<div class="flex items-center justify-between text-xs text-slate-600 mb-2">
+<span class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                  Tươi: <strong class="text-slate-900 font-semibold">92%</strong>
+</span>
+<span class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+                  Không chắc: <strong class="text-slate-900 font-semibold">6%</strong>
+</span>
+<span class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>
+                  Hỏng: <strong class="text-slate-900 font-semibold">2%</strong>
+</span>
+</div>
+<!-- Multi-segment Progress Bar -->
+<div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex" title="92% Tươi, 6% Không chắc, 2% Hỏng">
+<div class="bg-emerald-500 h-full" style="width: 92%"></div>
+<div class="bg-amber-400 h-full" style="width: 6%"></div>
+<div class="bg-rose-500 h-full" style="width: 2%"></div>
+</div>
+</section>
+</div>
+<!-- END: Right Column -->
+</div>
+<!-- END: TwoColumnContent -->
+<!-- Note & Explanation Box -->
+<footer class="mt-8 border border-dashed border-slate-300 rounded-xl p-5 bg-white/60 text-xs text-slate-500 space-y-1.5 leading-relaxed" data-purpose="developer-notes">
+<p class="font-semibold text-slate-700">Chú thích – Tổng quan người bán</p>
+<p>1. <strong>KPI:</strong> GET <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono">/seller/dashboard/summary</code> – chỉ dữ liệu của shop mình.</p>
+<p>2. <strong>Sản phẩm cần sửa:</strong> gom REJECTED + NEED_INFO kèm lý do từ admin để người bán xử lý ngay.</p>
+<p>3. <strong>Banner xác minh:</strong> nếu shop PENDING_VERIFICATION thì toàn bộ menu bị khoá, chỉ hiện thông báo chờ.</p>
+</footer>
+</main>
+<!-- END: ContentArea -->
+</div>
+<!-- END: MainContentWrapper -->
+</div>
+</body></html>

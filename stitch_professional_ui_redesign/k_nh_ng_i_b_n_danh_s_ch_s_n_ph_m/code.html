@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-slate-50 font-sans" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kênh Người Bán - Quản lý Sản phẩm | Vườn rau Tâm An</title>
+<!-- Tailwind CSS CDN with forms and container-queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-scrollbar">
+    /* Subtle scrollbar for sleek modern UI */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="h-full text-slate-800 antialiased flex overflow-hidden">
+<!-- BEGIN: Sidebar -->
+<aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 select-none" data-purpose="seller-sidebar">
+<div>
+<!-- Brand Logo / Header -->
+<div class="h-16 px-6 border-b border-slate-100 flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold shadow-sm shadow-brand-500/20">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<div>
+<span class="text-xs font-semibold text-brand-700 uppercase tracking-wider block">Kênh Người Bán</span>
+<span class="text-sm font-bold text-slate-900 leading-tight">EcoFresh Partner</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav class="p-3 space-y-1">
+<!-- Tổng quan -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Tổng quan</span>
+</a>
+<!-- Sản phẩm (Active) -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold bg-brand-50 text-brand-700" href="#">
+<div class="flex items-center gap-3">
+<svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Sản phẩm</span>
+</div>
+<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200/60">2 cần sửa</span>
+</a>
+<!-- Đơn hàng -->
+<a class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<div class="flex items-center gap-3">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Đơn hàng</span>
+</div>
+<span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-600">4 mới</span>
+</a>
+<!-- Thông tin shop & AI -->
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Thông tin shop &amp; AI</span>
+</a>
+</nav>
+</div>
+<!-- Secondary Links -->
+<div class="p-3 border-t border-slate-100 space-y-1">
+<div class="px-3 py-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Khác</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Về trang mua hàng</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors" href="#">
+<svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+<span>Đăng xuất</span>
+</a>
+</div>
+</aside>
+<!-- END: Sidebar -->
+<!-- BEGIN: MainContentArea -->
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-y-auto">
+<!-- Top Header Bar -->
+<header class="h-16 px-8 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 sticky top-0 z-20">
+<div class="flex items-center gap-3">
+<h1 class="text-xl font-bold text-slate-900">Sản phẩm của shop</h1>
+</div>
+<!-- Store & Seller Account Info -->
+<div class="flex items-center gap-3 px-3.5 py-1.5 rounded-full border border-slate-200 bg-slate-50/70 hover:bg-slate-100 transition-colors cursor-pointer">
+<div class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs ring-2 ring-white">
+          TA
+        </div>
+<div class="text-xs">
+<span class="font-semibold text-slate-800">Vườn rau Tâm An</span>
+<span class="text-slate-400 mx-1">·</span>
+<span class="text-slate-500">Nguyễn Thị Tâm</span>
+</div>
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+</header>
+<!-- Main Content Container -->
+<div class="p-8 max-w-7xl w-full mx-auto space-y-6">
+<!-- Navigation Tabs (Status Filter) -->
+<nav class="border-b border-slate-200 flex items-center gap-8 -mb-px" data-purpose="status-tabs">
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+          Tất cả <span class="text-xs text-slate-400 ml-0.5">(11)</span>
+</button>
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+          Nháp <span class="text-xs text-slate-400 ml-0.5">(1)</span>
+</button>
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+          Chờ duyệt <span class="text-xs text-slate-400 ml-0.5">(1)</span>
+</button>
+<!-- Active Tab -->
+<button class="pb-3 text-sm font-semibold text-brand-600 border-b-2 border-brand-600 relative flex items-center gap-1.5">
+<span>Đã duyệt</span>
+<span class="px-1.5 py-0.2 rounded-full bg-brand-100 text-brand-700 text-xs font-bold">7</span>
+</button>
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5">
+<span>Từ chối / cần bổ sung</span>
+<span class="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">2</span>
+</button>
+<button class="pb-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+          Đang ẩn <span class="text-xs text-slate-400 ml-0.5">(0)</span>
+</button>
+</nav>
+<!-- Action Toolbar: Search, Filter & Add Button -->
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3" data-purpose="action-toolbar">
+<div class="flex flex-1 items-center gap-3 max-w-2xl">
+<!-- Search Input -->
+<div class="relative flex-1">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+<svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<input class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-sm" placeholder="Tìm sản phẩm của shop..." type="text"/>
+</div>
+<!-- Category Filter Dropdown -->
+<div class="w-48 shrink-0">
+<select class="w-full py-2.5 px-3 text-sm bg-white border border-slate-300 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all shadow-sm cursor-pointer">
+<option value="">Danh mục (Tất cả)</option>
+<option value="cu-qua">Củ quả</option>
+<option value="rau-an-la">Rau ăn lá</option>
+<option value="trai-cay">Trái cây NK</option>
+<option value="nhiet-doi">Nhiệt đới</option>
+</select>
+</div>
+</div>
+<!-- Add New Product Button -->
+<button class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg shadow-sm shadow-brand-600/30 transition-all duration-150 shrink-0 focus:ring-2 focus:ring-offset-2 focus:ring-brand-500">
+<svg class="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 4.5v15m7.5-7.5h-15" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Thêm sản phẩm</span>
+</button>
+</div>
+<!-- BEGIN: Products Table -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" data-purpose="products-table-card">
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm text-slate-600 divide-y divide-slate-200">
+<!-- Table Header -->
+<thead class="bg-slate-50/80 text-xs font-semibold text-slate-500 tracking-wider">
+<tr>
+<th class="py-3.5 pl-6 pr-4" scope="col">Sản phẩm</th>
+<th class="py-3.5 px-4" scope="col">Danh mục</th>
+<th class="py-3.5 px-4" scope="col">Giá bán</th>
+<th class="py-3.5 px-4" scope="col">
+<div class="flex items-center gap-1">
+<span>Tồn kho</span>
+<span class="text-slate-400 font-normal hover:text-slate-600 cursor-help" title="Nhấp số để sửa nhanh tồn kho">(?)</span>
+</div>
+</th>
+<th class="py-3.5 px-4" scope="col">Nhãn AI thẩm định</th>
+<th class="py-3.5 px-4" scope="col">Trạng thái duyệt</th>
+<th class="py-3.5 px-4 text-center" scope="col">Đã bán</th>
+<th class="py-3.5 pl-4 pr-6 text-right" scope="col">Thao tác</th>
+</tr>
+</thead>
+<!-- Table Body -->
+<tbody class="divide-y divide-slate-100 text-slate-700">
+<!-- Item 1: Cà chua bi Đà Lạt -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Cà chua bi Đà Lạt</div>
+<div class="text-xs text-slate-400">SP-01180</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Củ quả</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">45.000 <span class="text-xs text-slate-500 font-normal">đ/kg</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">120</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Tươi 92%
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                    Đã duyệt
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-600">214</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+<button class="text-slate-400 hover:text-slate-600 hover:underline">Ẩn</button>
+</td>
+</tr>
+<!-- Item 2: Khoai tây Đà Lạt -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Khoai tây Đà Lạt</div>
+<div class="text-xs text-slate-400">SP-01181</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Củ quả</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">28.000 <span class="text-xs text-slate-500 font-normal">đ/kg</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">495</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Tươi 97%
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                    Đã duyệt
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-600">98</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+<button class="text-slate-400 hover:text-slate-600 hover:underline">Ẩn</button>
+</td>
+</tr>
+<!-- Item 3: Ớt chuông Đà Lạt -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Ớt chuông Đà Lạt</div>
+<div class="text-xs text-slate-400">SP-01182</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Củ quả</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">55.000 <span class="text-xs text-slate-500 font-normal">đ/kg</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">90</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Tươi 91%
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                    Đã duyệt
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-600">73</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+<button class="text-slate-400 hover:text-slate-600 hover:underline">Ẩn</button>
+</td>
+</tr>
+<!-- Item 4: Rau muống hữu cơ -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Rau muống hữu cơ</div>
+<div class="text-xs text-slate-400">SP-01183</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Rau ăn lá</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">12.000 <span class="text-xs text-slate-500 font-normal">đ/bó</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">80</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                    Chưa kiểm định
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                    Đã duyệt
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-600">120</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+<button class="text-slate-400 hover:text-slate-600 hover:underline">Ẩn</button>
+</td>
+</tr>
+<!-- Item 5: Dâu tây Đà Lạt -->
+<tr class="hover:bg-slate-50/70 transition-colors">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Dâu tây Đà Lạt</div>
+<div class="text-xs text-slate-400">SP-01184</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Trái cây NK</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">180.000 <span class="text-xs text-slate-500 font-normal">đ/kg</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">30</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Tươi 89%
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                    Đã duyệt
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-600">22</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+<button class="text-slate-400 hover:text-slate-600 hover:underline">Ẩn</button>
+</td>
+</tr>
+<!-- Item 6: Dưa chuột baby (Chờ duyệt) -->
+<tr class="hover:bg-slate-50/70 transition-colors bg-slate-50/30">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Dưa chuột baby</div>
+<div class="text-xs text-slate-400">SP-01185</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Củ quả</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">30.000 <span class="text-xs text-slate-500 font-normal">đ/kg</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">150</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Tươi 90%
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-dashed border-amber-300">
+                    Chờ duyệt
+                  </span>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-400">0</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+</td>
+</tr>
+<!-- Item 7: Quýt đường (Cần bổ sung) -->
+<tr class="hover:bg-slate-50/70 transition-colors bg-amber-50/10">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Quýt đường</div>
+<div class="text-xs text-slate-400">SP-01186</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Nhiệt đới</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">40.000 <span class="text-xs text-slate-500 font-normal">đ/kg</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">120</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-dashed border-amber-300">
+                    Không chắc 64%
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<div>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100/70 text-amber-900 border border-amber-300/80">
+                      Cần bổ sung
+                    </span>
+<p class="text-[11px] text-amber-700 mt-1 max-w-[150px] leading-tight font-normal">
+                      Ảnh mờ, AI không chắc
+                    </p>
+</div>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-400">0</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+<button class="text-blue-600 hover:text-blue-700 hover:underline">Gửi duyệt</button>
+</td>
+</tr>
+<!-- Item 8: Cam sành loại 2 (Từ chối) -->
+<tr class="hover:bg-slate-50/70 transition-colors bg-rose-50/15">
+<td class="py-3.5 pl-6 pr-4">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300 shrink-0 overflow-hidden">
+<svg class="w-6 h-6 stroke-[1.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+<line x1="3" x2="21" y1="3" y2="21"></line>
+<line x1="21" x2="3" y1="3" y2="21"></line>
+</svg>
+</div>
+<div>
+<div class="font-semibold text-slate-900 hover:text-brand-600 cursor-pointer">Cam sành loại 2</div>
+<div class="text-xs text-slate-400">SP-01187</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4 text-slate-600 font-medium">Nhiệt đới</td>
+<td class="py-3.5 px-4 font-semibold text-slate-900">20.000 <span class="text-xs text-slate-500 font-normal">đ/kg</span></td>
+<td class="py-3.5 px-4">
+<button class="font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:text-brand-600 hover:decoration-brand-500">100</button>
+</td>
+<td class="py-3.5 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-500 text-white">
+                    Hỏng 85%
+                  </span>
+</td>
+<td class="py-3.5 px-4">
+<div>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-900 text-white">
+                      Từ chối
+                    </span>
+<p class="text-[11px] text-slate-500 mt-1 max-w-[170px] leading-tight font-normal">
+                      Ảnh có dấu hiệu hỏng, chụp lại
+                    </p>
+</div>
+</td>
+<td class="py-3.5 px-4 text-center font-medium text-slate-400">0</td>
+<td class="py-3.5 pl-4 pr-6 text-right space-x-3 font-medium text-sm">
+<button class="text-brand-600 hover:text-brand-700 hover:underline">Sửa</button>
+<button class="text-blue-600 hover:text-blue-700 hover:underline">Gửi duyệt</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- END: Products Table -->
+<!-- BEGIN: Business Notes & Specifications Accordion / Helper -->
+<section class="rounded-xl border border-dashed border-slate-300 bg-white/70 p-5 space-y-3" data-purpose="notes-box">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-slate-800 font-semibold text-sm">
+<svg class="w-4 h-4 text-brand-600" fill="currentColor" viewbox="0 0 20 20">
+<path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" fill-rule="evenodd"></path>
+</svg>
+<span>Chú thích &amp; Quy định kỹ thuật</span>
+</div>
+<button class="text-xs font-medium text-slate-500 hover:text-slate-800 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 transition-colors">
+            Ẩn / hiện chú thích
+          </button>
+</div>
+<ul class="text-xs text-slate-600 space-y-1.5 list-decimal pl-5 leading-relaxed">
+<li><strong>Tab trạng thái:</strong> <code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">DRAFT / PENDING / APPROVED / REJECTED+NEED_INFO / HIDDEN</code> qua API <code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">GET /seller/products?status=</code>.</li>
+<li><strong>Tồn kho sửa nhanh:</strong> Bấm trực tiếp vào số lượng để cập nhật ngay (<code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">PATCH /seller/products/{id}/stock</code>) – không yêu cầu duyệt lại.</li>
+<li><strong>Trạng thái + Lý do:</strong> Sản phẩm bị từ chối / cần bổ sung hiển thị lý do do Admin ghi chú ngay bên dưới badge.</li>
+<li><strong>Thao tác:</strong> Sửa (mở form), Gửi duyệt (<code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">DRAFT/REJECTED/NEED_INFO -&gt; PENDING</code>), Ẩn / Hiện (<code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">APPROVED &lt;-&gt; HIDDEN</code>). Sửa giá/tên/ảnh của SP đã duyệt sẽ phải duyệt lại và có hộp thoại cảnh báo trước khi lưu.</li>
+</ul>
+</section>
+<!-- END: Business Notes -->
+</div>
+</main>
+<!-- END: MainContentArea -->
+</body></html>

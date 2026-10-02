@@ -8,6 +8,7 @@ import RequireAuth from "./components/RequireAuth";
 import HomePage from "./pages/customer/HomePage";
 import ProductsPage from "./pages/customer/ProductsPage";
 import ProductDetailPage from "./pages/customer/ProductDetailPage";
+import ShopPage from "./pages/customer/ShopPage";
 import AIClassifierPage from "./pages/customer/AIClassifierPage";
 import CartPage from "./pages/customer/CartPage";
 import CheckoutPage from "./pages/customer/CheckoutPage";
@@ -17,7 +18,11 @@ import AccountPage from "./pages/customer/AccountPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import SellerDashboardPage from "./pages/seller/SellerDashboardPage";
-
+import SellerProductsPage from "./pages/seller/SellerProductsPage";
+import SellerProductFormPage from "./pages/seller/SellerProductFormPage";
+import SellerOrdersPage from "./pages/seller/SellerOrdersPage";
+import SellerOrderDetailPage from "./pages/seller/SellerOrderDetailPage";
+import SellerInfoAIPage from "./pages/seller/SellerInfoAIPage";
 // Admin Management Pages (Theo Wireframe Nhóm 5)
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
@@ -39,6 +44,7 @@ export default function App() {
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/category/:slug" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
+              <Route path="/shops/:id" element={<ShopPage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/my-orders" element={<MyOrdersPage />} />
@@ -59,6 +65,12 @@ export default function App() {
               }
             >
               <Route index element={<SellerDashboardPage />} />
+              <Route path="products" element={<SellerProductsPage />} />
+              <Route path="products/new" element={<SellerProductFormPage />} />
+              <Route path="products/:id/edit" element={<SellerProductFormPage />} />
+              <Route path="orders" element={<SellerOrdersPage />} />
+              <Route path="orders/:id" element={<SellerOrderDetailPage />} />
+              <Route path="info" element={<SellerInfoAIPage />} />
               <Route path="*" element={<ComingSoon />} />
             </Route>
 
