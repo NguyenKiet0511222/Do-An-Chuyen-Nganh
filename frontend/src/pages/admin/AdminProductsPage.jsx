@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -26,11 +26,12 @@ import {
 } from "@mui/material";
 import { Search, FileSpreadsheet } from "lucide-react";
 import WireframeNoteBox from "./components/WireframeNoteBox";
-import { ADMIN_PRODUCTS } from "../../data/adminMockData";
+import { getSharedProducts, updateProductStatus } from "../../data/productStore";
 
 export default function AdminProductsPage() {
   const navigate = useNavigate();
-  const [tabIndex, setTabIndex] = useState(1); // 1 = Chờ duyệt (14) mặc định
+  const [products, setProducts] = useState([]);
+  const [tabIndex, setTabIndex] = useState(1); // 1 = Chờ duyệt
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sellerFilter, setSellerFilter] = useState("all");
@@ -38,9 +39,13 @@ export default function AdminProductsPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [toastMsg, setToastMsg] = useState("");
 
+  useEffect(() => {
+    setProducts(getSharedProducts());
+  }, []);
+
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedIds(ADMIN_PRODUCTS.map((p) => p.id));
+      setSelectedIds(products.map((p) => p.id));
     } else {
       setSelectedIds([]);
     }
@@ -65,6 +70,26 @@ export default function AdminProductsPage() {
   };
 
   const getAiBadge = (aiLabel) => {
+    if (!aiLabel) {
+      return (
+        <Box
+          sx={{
+            bgcolor: "#f1f5f9",
+            color: "#64748b",
+            border: "1px solid #cbd5e1",
+            px: 1.2,
+            py: 0.4,
+            borderRadius: 1,
+            fontSize: 11.5,
+            fontWeight: 500,
+            display: "inline-block"
+          }}
+        >
+          Chưa kiểm định
+        </Box>
+      );
+    }
+    
     switch (aiLabel.type) {
       case "rotten":
         return (
@@ -141,7 +166,13 @@ export default function AdminProductsPage() {
     }
   };
 
-  const filteredProducts = ADMIN_PRODUCTS.filter((p) => {
+  const filteredProducts = products.filter((p) => {
+    // Filter by tab
+    if (tabIndex === 1 && p.status !== "PENDING") return false;
+    if (tabIndex === 2 && p.status !== "APPROVED") return false;
+    if (tabIndex === 3 && p.status !== "REJECTED") return false;
+    if (tabIndex === 4 && p.status !== "HIDDEN") return false;
+
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       const match =
@@ -152,7 +183,7 @@ export default function AdminProductsPage() {
     }
     if (categoryFilter !== "all" && !p.category.includes(categoryFilter)) return false;
     if (sellerFilter !== "all" && p.seller !== sellerFilter) return false;
-    if (aiFilter !== "all" && p.aiLabel.type !== aiFilter) return false;
+    if (aiFilter !== "all" && p.aiLabel?.type !== aiFilter) return false;
     return true;
   });
 
@@ -311,8 +342,8 @@ export default function AdminProductsPage() {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Checkbox
             size="small"
-            checked={selectedIds.length === ADMIN_PRODUCTS.length && ADMIN_PRODUCTS.length > 0}
-            indeterminate={selectedIds.length > 0 && selectedIds.length < ADMIN_PRODUCTS.length}
+            checked={selectedIds.length === products.length && products.length > 0}
+            indeterminate={selectedIds.length > 0 && selectedIds.length < products.length}
             onChange={handleSelectAll}
           />
           <Typography variant="body2" fontWeight={600} sx={{ color: "#334155", fontSize: 13 }}>
@@ -363,8 +394,8 @@ export default function AdminProductsPage() {
               <TableCell padding="checkbox">
                 <Checkbox
                   size="small"
-                  checked={selectedIds.length === ADMIN_PRODUCTS.length && ADMIN_PRODUCTS.length > 0}
-                  indeterminate={selectedIds.length > 0 && selectedIds.length < ADMIN_PRODUCTS.length}
+                  checked={selectedIds.length === products.length && products.length > 0}
+                  indeterminate={selectedIds.length > 0 && selectedIds.length < products.length}
                   onChange={handleSelectAll}
                 />
               </TableCell>
@@ -479,7 +510,11 @@ export default function AdminProductsPage() {
                       </Typography>
                       <Button
                         size="small"
-                        onClick={() => setToastMsg(`Đã duyệt sản phẩm ${prod.name}`)}
+                        onClick={() => {
+                          updateProductStatus(prod.id, "APPROVED");
+                          setProducts(getSharedProducts());
+                          setToastMsg(`Đã duyệt sản phẩm ${prod.name}`);
+                        }}
                         sx={{ fontSize: 12, p: 0, minWidth: "auto", textTransform: "none", color: "#16a34a", fontWeight: 600 }}
                       >
                         Duyệt
@@ -489,7 +524,11 @@ export default function AdminProductsPage() {
                       </Typography>
                       <Button
                         size="small"
-                        onClick={() => setToastMsg(`Đã từ chối sản phẩm ${prod.name}`)}
+                        onClick={() => {
+                          updateProductStatus(prod.id, "REJECTED", "Không đạt chuẩn chất lượng");
+                          setProducts(getSharedProducts());
+                          setToastMsg(`Đã từ chối sản phẩm ${prod.name}`);
+                        }}
                         sx={{ fontSize: 12, p: 0, minWidth: "auto", textTransform: "none", color: "#dc2626", fontWeight: 600 }}
                       >
                         Từ chối
@@ -511,8 +550,7 @@ export default function AdminProductsPage() {
         <Pagination count={2} page={1} shape="rounded" size="small" />
       </Box>
 
-      {/* Wireframe Notes Box at Bottom */}
-      <WireframeNoteBox title="Chú thích – Màn Quản lý sản phẩm" notes={wireframeNotes} />
+
 
       {/* Snackbar feedback */}
       <Snackbar

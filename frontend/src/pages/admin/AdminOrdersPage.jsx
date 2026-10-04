@@ -272,8 +272,7 @@ export default function AdminOrdersPage() {
         <Pagination count={151} page={1} shape="rounded" size="small" />
       </Box>
 
-      {/* Wireframe Notes Box at Bottom */}
-      <WireframeNoteBox title="Chú thích – Màn Quản lý đơn hàng" notes={wireframeNotes} />
+
 
       {/* Toast */}
       <Snackbar

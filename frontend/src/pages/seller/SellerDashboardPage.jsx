@@ -1,208 +1,311 @@
-import { Box, Typography, Grid, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, Divider, IconButton, Tooltip, Avatar } from "@mui/material";
-import { Info, DollarSign, Package, ClipboardList, AlertTriangle, ArrowRight, ShieldCheck, TrendingUp, TrendingDown, EyeOff } from "lucide-react";
+import { Box, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
+import { CheckCircle2, TrendingUp } from "lucide-react";
+import { useState, useMemo } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { getSharedProducts } from "../../data/productStore";
+
+const chartData = [
+  { name: 'T2', doanhThu: 4200000, donHang: 24 },
+  { name: 'T3', doanhThu: 3800000, donHang: 18 },
+  { name: 'T4', doanhThu: 5100000, donHang: 35 },
+  { name: 'T5', doanhThu: 4780000, donHang: 29 },
+  { name: 'T6', doanhThu: 6890000, donHang: 48 },
+  { name: 'T7', doanhThu: 8390000, donHang: 60 },
+  { name: 'CN', doanhThu: 10490000, donHang: 75 },
+];
 
 export default function SellerDashboardPage() {
+  const [confirmedOrders, setConfirmedOrders] = useState({});
+
+  const products = useMemo(() => getSharedProducts(), []);
+  
+  // Real stats
+  const pendingProducts = products.filter(p => p.status === "PENDING");
+  const rejectedProducts = products.filter(p => p.status === "REJECTED" || p.status === "NEED_INFO" || p.aiLabel?.type === "rotten");
+
+  // Orders from local storage
+  const pendingOrders = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("customer_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.slice(0, 4);
+        }
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    return [
+      { id: "DH-2026-00003", customer: { fullName: "Lê Văn Nam" }, items: [{ name: "Khoai tây Đà Lạt" }], total: 160000, date: "13/09 16:45", status: "PENDING" },
+      { id: "DH-2026-00006", customer: { fullName: "Phạm Thu Hà" }, items: [{ name: "Cà chua bi" }, { name: "Ớt chuông" }], total: 165000, date: "13/09 18:10", status: "PENDING" },
+      { id: "DH-2026-00007", customer: { fullName: "Ngô Minh Tuấn" }, items: [{ name: "Dâu tây" }], total: 200000, date: "14/09 07:45", status: "PENDING" }
+    ];
+  }, []);
+
+  const handleConfirmOrder = (id) => {
+    setConfirmedOrders(prev => ({ ...prev, [id]: true }));
+    try {
+      const stored = localStorage.getItem("customer_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const idx = parsed.findIndex(o => o.id === id);
+        if (idx !== -1) {
+          parsed[idx].status = "PROCESSING";
+          localStorage.setItem("customer_orders", JSON.stringify(parsed));
+        }
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  const cardStyle = {
+    bgcolor: "#fff",
+    borderRadius: "16px",
+    border: "1px solid #E5E7EB",
+    p: "24px",
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+  };
+
   return (
-    <Box sx={{ pb: 4, maxWidth: 1200, margin: "0 auto" }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, color: "#111827", display: "flex", alignItems: "center", gap: 1.5 }}>
-          Tổng quan cửa hàng
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "100%" }}>
+      {/* Header Info */}
+      <Box>
+        <Typography sx={{ fontSize: "24px", fontWeight: 700, color: "#111827", mb: "8px", letterSpacing: "-0.02em" }}>
+          Tổng quan shop
+        </Typography>
+        <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
+          Theo dõi hoạt động kinh doanh và kiểm định chất lượng nông sản thời gian thực
         </Typography>
       </Box>
 
-      {/* Info Banner */}
-      <Paper
-        elevation={0}
+      {/* Main Grid: 12 Columns */}
+      <Box
         sx={{
-          p: 2.5,
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          mb: 4,
-          bgcolor: "#f0fdf4",
-          border: "1px solid #bbf7d0",
-          borderRadius: 3
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "repeat(12, 1fr)" },
+          gap: "24px",
+          alignItems: "stretch",
         }}
       >
-        <Chip icon={<ShieldCheck size={16} />} label="Đã xác minh" size="small" sx={{ bgcolor: "#10b981", color: "#fff", fontWeight: 700, borderRadius: 1.5, ".MuiChip-icon": { color: "#fff" } }} />
-        <Typography variant="body1" sx={{ color: "#166534", fontWeight: 500, flex: 1 }}>
-          <strong style={{ fontWeight: 700 }}>Vườn rau Tâm An</strong> đang hoạt động tốt · Xác minh từ ngày 15/06/2026
-        </Typography>
-        <Tooltip title="Cửa hàng của bạn đã gửi giấy tờ chứng nhận an toàn thực phẩm.">
-          <IconButton size="small" sx={{ color: "#15803d", bgcolor: "#dcfce7", "&:hover": { bgcolor: "#bbf7d0" } }}>
-            <Info size={18} />
-          </IconButton>
-        </Tooltip>
-      </Paper>
-
-      {/* KPI Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {[
-          { title: "Doanh thu hôm nay", value: "1.240.000 ₫", sub: "Tăng 12% so với hôm qua", icon: <DollarSign size={24} color="#10b981" />, trend: "up", color: "#10b981", bg: "#dcfce7" },
-          { title: "Đơn chờ xác nhận", value: "4", sub: "Cần xác nhận trong 24h", icon: <ClipboardList size={24} color="#f59e0b" />, trend: "neutral", color: "#f59e0b", bg: "#fef3c7" },
-          { title: "Sản phẩm chờ duyệt", value: "1", sub: "Dưa chuột baby", icon: <Package size={24} color="#3b82f6" />, trend: "neutral", color: "#3b82f6", bg: "#dbeafe" },
-          { title: "Sản phẩm cần sửa", value: "2", sub: "1 từ chối · 1 cần bổ sung", icon: <AlertTriangle size={24} color="#ef4444" />, trend: "down", color: "#ef4444", bg: "#fee2e2" }
-        ].map((card, idx) => (
-          <Grid item xs={12} sm={6} md={3} key={idx}>
-            <Paper elevation={0} sx={{ p: 3, height: "100%", borderRadius: 4, border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)", position: "relative", overflow: "hidden" }}>
-              <Box sx={{ position: "absolute", top: -15, right: -15, width: 80, height: 80, borderRadius: "50%", bgcolor: card.bg, opacity: 0.5, zIndex: 0 }} />
-              
-              <Box sx={{ position: "relative", zIndex: 1 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-                  <Typography variant="body2" fontWeight={600} color="text.secondary">
-                    {card.title}
-                  </Typography>
-                  <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: card.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {card.icon}
-                  </Box>
-                </Box>
-                <Typography variant="h4" fontWeight={800} sx={{ my: 1, color: "#111827" }}>
-                  {card.value}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  {card.trend === "up" && <TrendingUp size={14} color="#10b981" />}
-                  {card.trend === "down" && <TrendingDown size={14} color="#ef4444" />}
-                  <Typography variant="caption" sx={{ color: card.trend === "up" ? "#10b981" : card.trend === "down" ? "#ef4444" : "#6b7280", fontWeight: 600 }}>
-                    {card.sub}
-                  </Typography>
-                </Box>
-              </Box>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Two Columns Area */}
-      <Grid container spacing={3}>
-        {/* Left Column: Orders */}
-        <Grid item xs={12} md={7} lg={8}>
-          <Paper elevation={0} sx={{ height: "100%", borderRadius: 4, border: "1px solid #e5e7eb", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-            <Box sx={{ p: 2.5, display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-              <Typography variant="h6" fontWeight={700} sx={{ color: "#111827" }}>
-                Đơn hàng mới cần xử lý
-              </Typography>
-              <Button component={Link} to="/seller/orders" size="small" endIcon={<ArrowRight size={16} />} sx={{ textTransform: "none", color: "#10b981", fontWeight: 700 }}>
-                Xem tất cả
-              </Button>
-            </Box>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "#fff" }}>
-                    <TableCell sx={{ fontWeight: 600, color: "#6b7280", py: 2 }}>Mã đơn</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: "#6b7280" }}>Khách hàng</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: "#6b7280" }}>Số SP</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: "#6b7280" }}>Tổng tiền</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: "#6b7280" }}>Đặt lúc</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, color: "#6b7280" }}>Thao tác</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {[
-                    { id: "DH-2026-00003", customer: "Lê Văn Nam", qty: 1, total: "160.000 ₫", time: "Hôm nay, 16:45" },
-                    { id: "DH-2026-00006", customer: "Phạm Thu Hà", qty: 2, total: "165.000 ₫", time: "Hôm nay, 18:10" },
-                    { id: "DH-2026-00007", customer: "Ngô Minh Tuấn", qty: 1, total: "200.000 ₫", time: "Hôm qua, 07:45" }
-                  ].map((row) => (
-                    <TableRow key={row.id} sx={{ "&:hover": { bgcolor: "#f9fafb" }, transition: "background 0.2s" }}>
-                      <TableCell sx={{ borderBottom: "1px solid #f3f4f6", fontWeight: 700, color: "#111827" }}>{row.id}</TableCell>
-                      <TableCell sx={{ borderBottom: "1px solid #f3f4f6", fontWeight: 600, color: "#4b5563" }}>{row.customer}</TableCell>
-                      <TableCell sx={{ borderBottom: "1px solid #f3f4f6" }}>
-                        <Chip label={`${row.qty} món`} size="small" sx={{ bgcolor: "#f3f4f6", color: "#4b5563", fontWeight: 600 }} />
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: "1px solid #f3f4f6", fontWeight: 700, color: "#ef4444" }}>{row.total}</TableCell>
-                      <TableCell sx={{ borderBottom: "1px solid #f3f4f6", color: "#6b7280" }}>{row.time}</TableCell>
-                      <TableCell sx={{ borderBottom: "1px solid #f3f4f6" }} align="right">
-                        <Button variant="contained" size="small" sx={{ textTransform: "none", bgcolor: "#10b981", boxShadow: "none", borderRadius: 2, px: 2 }}>
-                          Xác nhận
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Grid>
-
-        {/* Right Column */}
-        <Grid item xs={12} md={5} lg={4}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, height: "100%" }}>
-            
-            {/* Sản phẩm cần sửa */}
-            <Paper elevation={0} sx={{ borderRadius: 4, border: "1px solid #e5e7eb", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-              <Box sx={{ p: 2.5, display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-                <Typography variant="h6" fontWeight={700} sx={{ color: "#111827" }}>
-                  Sản phẩm cần sửa
-                </Typography>
-                <Button component={Link} to="/seller/products" size="small" sx={{ textTransform: "none", color: "#10b981", fontWeight: 700 }}>
-                  Quản lý
-                </Button>
-              </Box>
-              <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 3 }}>
-                {[
-                  { name: "Cam sành loại 2", image: "https://images.unsplash.com/photo-1557800636-894a64c1696f?w=100", badge: "Từ chối", badgeColor: "error", desc: "Ảnh có dấu hiệu hỏng (AI 85%), cần chụp lại." },
-                  { name: "Quýt đường", image: "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=100", badge: "Cần bổ sung", badgeColor: "warning", desc: "Ảnh mờ, AI không thể nhận diện chính xác." }
-                ].map((item, idx) => (
-                  <Box key={idx} sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                    <Avatar variant="rounded" src={item.image} sx={{ width: 64, height: 64, borderRadius: 2, border: "1px solid #e5e7eb" }} />
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
-                        <Typography variant="subtitle2" fontWeight={700} color="#111827">{item.name}</Typography>
-                        <Chip label={item.badge} size="small" color={item.badgeColor} sx={{ height: 20, fontSize: 11, fontWeight: 700 }} />
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.4 }}>
-                        {item.desc}
-                      </Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Paper>
-
-            {/* Nhãn AI của shop */}
-            <Paper elevation={0} sx={{ flexGrow: 1, borderRadius: 4, border: "1px solid #e5e7eb", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)" }}>
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h6" fontWeight={700} gutterBottom sx={{ color: "#111827" }}>
-                  Đánh giá AI (30 ngày)
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 2.5, color: "#4b5563" }}>
-                  Phân tích trên tổng số 120 ảnh sản phẩm
-                </Typography>
-                
-                {/* Progress bar simulation */}
-                <Box sx={{ height: 16, bgcolor: "#e5e7eb", borderRadius: 8, display: "flex", overflow: "hidden", mb: 2 }}>
-                  <Tooltip title="Tươi: 92%">
-                    <Box sx={{ width: "92%", bgcolor: "#10b981", "&:hover": { opacity: 0.9 } }}></Box>
-                  </Tooltip>
-                  <Tooltip title="Không chắc: 6%">
-                    <Box sx={{ width: "6%", bgcolor: "#f59e0b", "&:hover": { opacity: 0.9 } }}></Box>
-                  </Tooltip>
-                  <Tooltip title="Hỏng: 2%">
-                    <Box sx={{ width: "2%", bgcolor: "#ef4444", "&:hover": { opacity: 0.9 } }}></Box>
-                  </Tooltip>
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#10b981" }} />
-                    <Typography variant="caption" fontWeight={600} color="#374151">Tươi (92%)</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#f59e0b" }} />
-                    <Typography variant="caption" fontWeight={600} color="#374151">Mờ (6%)</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: "#ef4444" }} />
-                    <Typography variant="caption" fontWeight={600} color="#374151">Hỏng (2%)</Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Paper>
-
+        {/* Row 1: Status Bar */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 12" }, p: "16px 24px", flexDirection: "row", alignItems: "center", gap: "16px" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 600, color: "#059669", bgcolor: "#ECFDF5", px: "12px", py: "6px", borderRadius: "8px" }}>
+            <CheckCircle2 size={16} />
+            Đã xác minh
           </Box>
-        </Grid>
-      </Grid>
+          <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
+            Đang hoạt động · Xác minh ngày <Box component="span" sx={{ color: "#111827", fontWeight: 600 }}>27/9/2026</Box>
+          </Typography>
+        </Box>
+
+        {/* Row 2: 4 KPI Cards */}
+        {/* KPI 1 */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 3" } }}>
+          <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Doanh thu hôm nay</Typography>
+          <Typography sx={{ mt: "16px", fontSize: "28px", fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
+            1.240.000 <Box component="span" sx={{ fontSize: "18px", color: "#6B7280" }}>₫</Box>
+          </Typography>
+          <Box sx={{ mt: "auto", pt: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <Typography sx={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", color: "#059669", fontWeight: 600 }}>
+              <TrendingUp size={16} /> +18.5%
+            </Typography>
+            <Typography sx={{ fontSize: "13px", color: "#6B7280" }}>so hôm qua</Typography>
+          </Box>
+        </Box>
+
+        {/* KPI 2 */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 3" } }}>
+          <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Đơn chờ xác nhận</Typography>
+          <Box sx={{ mt: "16px", display: "flex", alignItems: "baseline", gap: "12px" }}>
+            <Typography sx={{ fontSize: "28px", fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
+              {pendingOrders.filter(o => o.status === "PENDING" && !confirmedOrders[o.id]).length}
+            </Typography>
+            <Box sx={{ width: "10px", height: "10px", borderRadius: "50%", bgcolor: "#F59E0B" }} />
+          </Box>
+          <Typography sx={{ mt: "auto", pt: "16px", fontSize: "13px", color: "#6B7280" }}>
+            xác nhận trong <Box component="span" sx={{ color: "#D97706", fontWeight: 600 }}>24h</Box>
+          </Typography>
+        </Box>
+
+        {/* KPI 3 */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 3" } }}>
+          <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Sản phẩm chờ duyệt</Typography>
+          <Typography sx={{ mt: "16px", fontSize: "28px", fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
+            {pendingProducts.length}
+          </Typography>
+          <Typography sx={{ mt: "auto", pt: "16px", fontSize: "13px", color: "#6B7280" }}>
+            {pendingProducts[0]?.name || "Nông sản mới"}
+          </Typography>
+        </Box>
+
+        {/* KPI 4 */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 3" } }}>
+          <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Sản phẩm cần sửa</Typography>
+          <Typography sx={{ mt: "16px", fontSize: "28px", fontWeight: 700, color: rejectedProducts.length > 0 ? "#DC2626" : "#059669", letterSpacing: "-0.02em" }}>
+            {rejectedProducts.length}
+          </Typography>
+          <Typography sx={{ mt: "auto", pt: "16px", fontSize: "13px", color: "#6B7280" }}>
+            {rejectedProducts.length > 0 ? `${rejectedProducts.length} cần cập nhật` : "Tất cả đã đạt chuẩn"}
+          </Typography>
+        </Box>
+
+        {/* Row 3: Trend Chart (8 columns) + AI Products (4 columns) */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 8" } }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: "24px" }}>
+            <Box>
+              <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: "12px" }}>
+                Xu hướng doanh thu & đơn hàng
+                <Box component="span" sx={{ fontSize: "12px", color: "#059669", bgcolor: "#ECFDF5", px: "8px", py: "4px", borderRadius: "16px", fontWeight: 600 }}>
+                  +24% tuần này
+                </Box>
+              </Typography>
+              <Typography sx={{ fontSize: "13px", color: "#6B7280", mt: "4px" }}>Thống kê hiệu quả bán hàng 7 ngày gần nhất</Typography>
+            </Box>
+          </Box>
+          <Box sx={{ flex: 1, minHeight: "300px", pt: 2, display: "flex", flexDirection: "column" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }} dy={10} />
+                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }} tickFormatter={(value) => `${value / 1000000}tr`} />
+                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                  formatter={(value, name) => [name === 'doanhThu' ? `${Number(value).toLocaleString('vi-VN')} đ` : value, name === 'doanhThu' ? 'Doanh thu' : 'Đơn hàng']}
+                  labelStyle={{ fontWeight: 700, color: '#111827', marginBottom: '8px' }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '13px', fontWeight: 600 }} formatter={(value) => value === 'doanhThu' ? 'Doanh thu' : 'Đơn hàng'} />
+                <Line yAxisId="left" type="monotone" dataKey="doanhThu" stroke="#059669" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                <Line yAxisId="right" type="monotone" dataKey="donHang" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Box>
+        </Box>
+
+        {/* AI List Block */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 4" }, p: 0, overflow: "hidden" }}>
+          {/* Sub-section 1: Products fixing */}
+          <Box sx={{ p: "24px", borderBottom: "1px solid #E5E7EB" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: "16px" }}>
+              <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
+                Sản phẩm cần sửa
+                <Box sx={{ width: "8px", height: "8px", borderRadius: "50%", bgcolor: rejectedProducts.length > 0 ? "#DC2626" : "#059669" }} />
+              </Typography>
+              <Typography component={Link} to="/seller/products" sx={{ fontSize: "13px", fontWeight: 600, color: "#059669", textDecoration: "none" }}>Xem</Typography>
+            </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {rejectedProducts.length > 0 ? rejectedProducts.slice(0, 2).map(prod => (
+                <Box key={prod.id} component={Link} to={`/seller/products/${prod.id}/edit`} sx={{ display: "flex", gap: "12px", p: "12px", bgcolor: "#FEF2F2", borderRadius: "8px", border: "1px solid #FEE2E2", textDecoration: "none", transition: "all 0.2s", "&:hover": { bgcolor: "#fee2e2" } }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: "4px" }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#111827" }}>{prod.name}</Typography>
+                      <Box sx={{ fontSize: "11px", fontWeight: 600, bgcolor: "#DC2626", color: "#fff", px: "6px", py: "2px", borderRadius: "4px" }}>Cần sửa</Box>
+                    </Box>
+                    <Typography sx={{ fontSize: "13px", color: "#991B1B" }}>
+                      {prod.rejectReason || "Cần chụp lại ảnh rõ nét để AI kiểm định độ tươi."}
+                    </Typography>
+                  </Box>
+                </Box>
+              )) : (
+                <Typography sx={{ fontSize: "13px", color: "#059669", py: 1 }}>
+                  Hiện không có sản phẩm nào bị từ chối kiểm định.
+                </Typography>
+              )}
+            </Box>
+          </Box>
+
+          {/* Sub-section 2: AI Label Stats */}
+          <Box sx={{ p: "24px", flex: 1 }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", mb: "16px" }}>
+              <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#111827" }}>Nhãn AI (30 ngày)</Typography>
+              <Typography sx={{ fontSize: "13px", color: "#6B7280" }}>Độ tin cậy cao</Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 500, mb: "16px" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}><Box sx={{ width: "10px", height: "10px", borderRadius: "50%", bgcolor: "#059669" }} /> Tươi: <Typography component="span" sx={{ fontWeight: 700, color: "#111827" }}>92%</Typography></Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}><Box sx={{ width: "10px", height: "10px", borderRadius: "50%", bgcolor: "#F59E0B" }} /> K.chắc: <Typography component="span" sx={{ fontWeight: 700, color: "#111827" }}>6%</Typography></Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}><Box sx={{ width: "10px", height: "10px", borderRadius: "50%", bgcolor: "#DC2626" }} /> Hỏng: <Typography component="span" sx={{ fontWeight: 700, color: "#111827" }}>2%</Typography></Box>
+            </Box>
+            <Box sx={{ width: "100%", height: "8px", display: "flex", borderRadius: "8px", overflow: "hidden" }}>
+              <Box sx={{ width: "92%", bgcolor: "#059669" }} />
+              <Box sx={{ width: "6%", bgcolor: "#F59E0B" }} />
+              <Box sx={{ width: "2%", bgcolor: "#DC2626" }} />
+            </Box>
+            <Typography sx={{ mt: "16px", fontSize: "13px", color: "#6B7280" }}>
+              Tỷ lệ hàng tươi trên 90% giúp shop được ưu tiên gắn huy hiệu <Box component="span" sx={{ fontWeight: 600, color: "#059669" }}>Nông sản sạch AI Verified</Box>.
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Row 4: New Orders Table (12 columns) */}
+        <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 12" }, p: 0, overflow: "hidden" }}>
+          <Box sx={{ p: "24px", borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#111827" }}>Đơn mới cần xử lý</Typography>
+              <Box sx={{ fontSize: "13px", fontWeight: 600, color: "#059669", bgcolor: "#ECFDF5", px: "12px", py: "4px", borderRadius: "16px" }}>
+                {pendingOrders.length} đơn
+              </Box>
+            </Box>
+            <Typography component={Link} to="/seller/orders" sx={{ fontSize: "14px", fontWeight: 600, color: "#059669", textDecoration: "none" }}>Xem tất cả</Typography>
+          </Box>
+          <Box sx={{ overflowX: "auto" }}>
+            <Box component="table" sx={{ width: "100%", minWidth: "800px", borderCollapse: "collapse", textAlign: "left", fontSize: "14px" }}>
+              <Box component="thead" sx={{ bgcolor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                <tr>
+                  <Box component="th" sx={{ p: "16px 24px", fontWeight: 500, color: "#6B7280" }}>Mã đơn</Box>
+                  <Box component="th" sx={{ p: "16px 24px", fontWeight: 500, color: "#6B7280" }}>Khách hàng</Box>
+                  <Box component="th" sx={{ p: "16px 24px", fontWeight: 500, color: "#6B7280", textAlign: "center" }}>Sản phẩm</Box>
+                  <Box component="th" sx={{ p: "16px 24px", fontWeight: 500, color: "#6B7280" }}>Tổng tiền</Box>
+                  <Box component="th" sx={{ p: "16px 24px", fontWeight: 500, color: "#6B7280" }}>Đặt lúc</Box>
+                  <Box component="th" sx={{ p: "16px 24px", fontWeight: 500, color: "#6B7280", textAlign: "right" }}>Thao tác</Box>
+                </tr>
+              </Box>
+              <Box component="tbody">
+                {pendingOrders.map((order) => {
+                  const isDone = confirmedOrders[order.id] || order.status !== "PENDING";
+                  const customerName = order.customer?.fullName || order.customer?.name || "Khách hàng";
+                  const productCount = order.items?.length || 1;
+                  const totalStr = Number(order.total || 0).toLocaleString("vi-VN");
+
+                  return (
+                    <Box component="tr" key={order.id} sx={{ borderBottom: "1px solid #E5E7EB", "&:last-child": { borderBottom: "none" }, transition: "background 0.2s", "&:hover": { bgcolor: "#F9FAFB" } }}>
+                      <Box component="td" sx={{ p: "16px 24px", fontWeight: 600, color: "#111827" }}>
+                        <Link to={`/seller/orders/${order.id}`} style={{ textDecoration: 'none', color: '#111827' }}>
+                          {order.id}
+                        </Link>
+                      </Box>
+                      <Box component="td" sx={{ p: "16px 24px", color: "#4B5563" }}>{customerName}</Box>
+                      <Box component="td" sx={{ p: "16px 24px", textAlign: "center", color: "#6B7280" }}>{productCount}</Box>
+                      <Box component="td" sx={{ p: "16px 24px", fontWeight: 600, color: "#111827" }}>{totalStr} ₫</Box>
+                      <Box component="td" sx={{ p: "16px 24px", color: "#6B7280" }}>{order.date || "Hôm nay"}</Box>
+                      <Box component="td" sx={{ p: "16px 24px", textAlign: "right" }}>
+                        <Box 
+                          component="button" 
+                          onClick={() => handleConfirmOrder(order.id)}
+                          disabled={isDone}
+                          sx={{ 
+                            px: "16px", py: "8px", fontSize: "14px", fontWeight: 600, borderRadius: "8px", 
+                            bgcolor: isDone ? "#E5E7EB" : "#059669", 
+                            color: isDone ? "#6B7280" : "#fff", 
+                            border: "none", cursor: isDone ? "default" : "pointer", 
+                            transition: "all 0.2s", "&:hover": { bgcolor: isDone ? "#E5E7EB" : "#047857" } 
+                          }}
+                        >
+                          {isDone ? "Đã xác nhận" : "Xác nhận"}
+                        </Box>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 }

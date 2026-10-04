@@ -23,6 +23,7 @@ import SellerProductFormPage from "./pages/seller/SellerProductFormPage";
 import SellerOrdersPage from "./pages/seller/SellerOrdersPage";
 import SellerOrderDetailPage from "./pages/seller/SellerOrderDetailPage";
 import SellerInfoAIPage from "./pages/seller/SellerInfoAIPage";
+import ProfilePage from "./pages/shared/ProfilePage";
 // Admin Management Pages (Theo Wireframe Nhóm 5)
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
@@ -71,6 +72,7 @@ export default function App() {
               <Route path="orders" element={<SellerOrdersPage />} />
               <Route path="orders/:id" element={<SellerOrderDetailPage />} />
               <Route path="info" element={<SellerInfoAIPage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="*" element={<ComingSoon />} />
             </Route>
 
@@ -96,6 +98,8 @@ export default function App() {
 
               {/* Kiểm định AI (điều hướng nhanh tới danh sách sản phẩm) */}
               <Route path="ai-review" element={<AdminProductsPage />} />
+              
+              <Route path="profile" element={<ProfilePage />} />
 
               <Route path="*" element={<ComingSoon />} />
             </Route>

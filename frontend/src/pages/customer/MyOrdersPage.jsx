@@ -92,7 +92,21 @@ const STATUS_MAP = {
 
 export default function MyOrdersPage() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState(MOCK_ORDERS);
+  const [orders, setOrders] = useState(() => {
+    try {
+      const stored = localStorage.getItem("customer_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingIds = new Set(parsed.map(o => o.id));
+          return [...parsed, ...MOCK_ORDERS.filter(m => !existingIds.has(m.id))];
+        }
+      }
+    } catch (e) {
+      console.warn("Error reading customer_orders", e);
+    }
+    return MOCK_ORDERS;
+  });
   const [activeTab, setActiveTab] = useState("ALL");
   const [expandedOrderId, setExpandedOrderId] = useState(null);
 

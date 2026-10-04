@@ -18,7 +18,9 @@ import {
   TextField,
   Toolbar,
   Typography,
-  Badge
+  Badge,
+  Menu as MuiMenu,
+  MenuItem
 } from "@mui/material";
 import {
   Menu,
@@ -38,7 +40,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/useAuth";
 
-const DRAWER_WIDTH = 260;
+const DRAWER_WIDTH = 240;
 
 // Menu điều hướng theo vai trò
 const NAV_BY_ROLE = {
@@ -72,20 +74,28 @@ const NAV_BY_ROLE = {
 export default function DashboardLayout({ role }) {
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
   const location = useLocation();
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.admin;
+
+  const handleProfileClick = (event) => setAnchorEl(event.currentTarget);
+  const handleProfileClose = () => setAnchorEl(null);
+  const handleLogoutClick = () => {
+    handleProfileClose();
+    logout();
+  };
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#fff" }}>
       {/* Brand Header */}
-      <Toolbar sx={{ px: 3, height: 96, flexDirection: "column", alignItems: "flex-start", justifyContent: "center" }}>
+      <Toolbar sx={{ px: 2, height: 130, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 0.5 }}>
         <Box
           component="img"
           src="/nongsanviet-logo.png"
           alt="Nông sản Việt Logo"
-          sx={{ height: 64, objectFit: "contain", mb: 0.5, transform: "scale(1.1)", transformOrigin: "left center" }}
+          sx={{ height: 72, objectFit: "contain", transform: "scale(1.25)", transformOrigin: "center" }}
         />
-        <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <Typography variant="caption" sx={{ fontSize: 13, fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: 1.5, textAlign: "center", mt: 1 }}>
           {nav.title}
         </Typography>
       </Toolbar>
@@ -207,7 +217,7 @@ export default function DashboardLayout({ role }) {
   );
 
   return (
-    <ScopedCssBaseline sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
+    <ScopedCssBaseline sx={{ display: "flex", minHeight: "100vh", bgcolor: "#F8FAFB" }}>
       {/* Top Header */}
       <AppBar
         position="fixed"
@@ -266,7 +276,7 @@ export default function DashboardLayout({ role }) {
           </IconButton>
 
           {/* User Profile */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", pl: 1, borderLeft: "1px solid #f1f5f9" }}>
+          <Box onClick={handleProfileClick} sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", pl: 1, borderLeft: "1px solid #f1f5f9" }}>
             <Avatar
               sx={{
                 width: 40,
@@ -291,6 +301,41 @@ export default function DashboardLayout({ role }) {
             </Box>
             <ChevronDown size={16} color="#94a3b8" style={{ marginLeft: 4 }} />
           </Box>
+
+          {/* User Dropdown Menu */}
+          <MuiMenu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleProfileClose}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            PaperProps={{
+              sx: {
+                mt: 1.5,
+                minWidth: 220,
+                borderRadius: 2,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                border: "1px solid #f1f5f9"
+              }
+            }}
+          >
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="body2" fontWeight={700} color="#1e293b">
+                {user?.fullName || "Nguyễn Thu Hà"}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {user?.email || "thuha@example.com"}
+              </Typography>
+            </Box>
+            <Divider sx={{ my: 0.5 }} />
+            <MenuItem component={Link} to={role === "seller" ? "/seller/shop-info" : "/admin/settings"} onClick={handleProfileClose} sx={{ fontSize: 14, py: 1 }}>
+              {role === "seller" ? "Hồ sơ cửa hàng" : "Cài đặt hệ thống"}
+            </MenuItem>
+            <Divider sx={{ my: 0.5 }} />
+            <MenuItem onClick={handleLogoutClick} sx={{ fontSize: 14, py: 1, color: "error.main" }}>
+              Đăng xuất
+            </MenuItem>
+          </MuiMenu>
         </Toolbar>
       </AppBar>
 

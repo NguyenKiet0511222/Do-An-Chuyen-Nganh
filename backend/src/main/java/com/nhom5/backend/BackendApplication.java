@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
-@ConfigurationPropertiesScan // tự đăng ký các record @ConfigurationProperties (vd: AppProperties)
+@ConfigurationPropertiesScan
 public class BackendApplication {
 
 	public static void main(String[] args) {

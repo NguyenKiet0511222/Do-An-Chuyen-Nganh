@@ -7,24 +7,33 @@ export default function ProductCard({ product }) {
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = useState(false);
 
-  const imageUrl = product.primaryImageUrl || product.image || "/placeholder.jpg";
+  const imageUrl = product.imageUrl || product.primaryImageUrl || product.image || "https://placehold.co/400x400?text=No+Image";
   const originName = product.origin || product.shop?.province || "Việt Nam";
-  const confidencePercent = product.aiOverallConfidence != null ? Math.round(Number(product.aiOverallConfidence) * 100) : product.freshnessScore;
+  const confidencePercent = 
+    product.aiOverallConfidence != null 
+      ? Math.round(Number(product.aiOverallConfidence) * 100) 
+      : (product.aiLabel?.confidence 
+          ? Math.round(product.aiLabel.confidence * 100) 
+          : product.freshnessScore);
   const unit = product.unit || "kg";
 
   const handleAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
 
+    const isFresh = 
+      product.aiOverallLabel === "FRESH" || 
+      product.aiLabel?.type === "fresh" || 
+      (!product.aiOverallLabel && !product.aiLabel);
+
     const normalizedProduct = {
       ...product,
       image: imageUrl,
-      aiGrade:
-        product.aiOverallLabel === "FRESH"
-          ? `Tươi sạch AI${confidencePercent ? ` (${confidencePercent}%)` : ""}`
-          : product.aiOverallLabel === "UNCERTAIN"
-          ? "Cần kiểm tra"
-          : product.aiGrade || "Kiểm định AI",
+      aiGrade: isFresh
+        ? `Tươi sạch AI${confidencePercent ? ` (${confidencePercent}%)` : ""}`
+        : product.aiOverallLabel === "UNCERTAIN" || product.aiLabel?.type === "uncertain"
+        ? "Cần kiểm tra"
+        : product.aiGrade || "Kiểm định AI",
       origin: originName,
       certification: product.certification || "VietGAP",
       unit
@@ -43,16 +52,18 @@ export default function ProductCard({ product }) {
   };
 
   const renderAiBadge = () => {
-    const label = product.aiOverallLabel;
-    const pct = confidencePercent || 98;
-    if (label === "FRESH" || !label) {
+    const isRotten = product.aiOverallLabel === "ROTTEN" || product.aiLabel?.type === "rotten";
+    const isUncertain = product.aiOverallLabel === "UNCERTAIN" || product.aiLabel?.type === "uncertain";
+    const pct = confidencePercent || 95;
+
+    if (isRotten) {
       return (
-        <div className="card-ai-badge fresh">
-          <span>AI FRESH {pct}%</span>
+        <div className="card-ai-badge rotten">
+          <span>AI ALERT</span>
         </div>
       );
     }
-    if (label === "UNCERTAIN") {
+    if (isUncertain) {
       return (
         <div className="card-ai-badge uncertain">
           <span>AI REVIEW {pct}%</span>
@@ -60,8 +71,8 @@ export default function ProductCard({ product }) {
       );
     }
     return (
-      <div className="card-ai-badge rotten">
-        <span>AI ALERT</span>
+      <div className="card-ai-badge fresh">
+        <span>AI FRESH {pct}%</span>
       </div>
     );
   };

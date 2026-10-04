@@ -17,6 +17,14 @@ const getCategoryIcon = (slug) => {
   return iconMap[slug] || '🍇';
 };
 
+const DEFAULT_CATEGORIES = [
+  { slug: 'rau-cu', id: 'rau-cu', name: 'Rau củ', productCount: 68 },
+  { slug: 'trai-cay', id: 'trai-cay', name: 'Trái cây', productCount: 112 },
+  { slug: 'nam', id: 'nam', name: 'Nấm tươi', productCount: 18 },
+  { slug: 'thuc-pham-kho', id: 'thuc-pham-kho', name: 'Thực phẩm khô', productCount: 40 },
+  { slug: 'dac-san', id: 'dac-san', name: 'Đặc sản vùng miền', productCount: 25 },
+];
+
 export default function HomePage() {
   const [newProducts, setNewProducts] = useState([]);
   const [bestSellers, setBestSellers] = useState([]);
@@ -27,14 +35,29 @@ export default function HomePage() {
     let ignore = false;
     async function fetchData() {
       try {
-        const [productsRes, categoriesRes] = await Promise.all([
-          productApi.getAll({ size: 10 }),
-          categoryApi.getAll()
-        ]);
+        const { getSharedProducts } = await import("../../data/productStore");
+        let allProducts = getSharedProducts().filter(p => p.status === "APPROVED");
+        allProducts = allProducts.map(p => ({
+          ...p,
+          price: p.price,
+          originalPrice: p.originalPrice || Math.floor(p.price * 1.2)
+        }));
+
+        let categoriesRes = null;
+        try {
+          categoriesRes = await categoryApi.getAll();
+        } catch (e) {
+          // Backend might not be running, use fallback categories
+          categoriesRes = DEFAULT_CATEGORIES;
+        }
+
+        if (!categoriesRes || categoriesRes.length === 0) {
+          categoriesRes = DEFAULT_CATEGORIES;
+        }
         
         if (!ignore) {
           // Xử lý products
-          const products = productsRes.content || [];
+          const products = allProducts;
           setNewProducts(products.slice(0, 4));
           
           if (products.length >= 8) {
@@ -47,7 +70,6 @@ export default function HomePage() {
 
           // Xử lý categories
           const cats = categoriesRes || [];
-          // Lấy 5 danh mục đầu tiên để hiển thị, cái thứ 6 sẽ là "Tất cả"
           const displayCats = cats.slice(0, 5).map(c => ({
             id: c.slug || c.id,
             name: c.name,
@@ -97,11 +119,11 @@ export default function HomePage() {
             <h2 className="sh-title">Danh mục sản phẩm</h2>
             <p className="sh-subtitle">Tuyển chọn các mặt hàng sạch được phân loại theo nông hộ</p>
           </div>
-          <Link to="/categories" className="sh-link">Xem tất cả &rarr;</Link>
+          <Link to="/products" className="sh-link">Xem tất cả &rarr;</Link>
         </div>
         <div className="categories-grid-new">
           {categories.map((cat) => (
-            <Link to={cat.isAll ? '/categories' : `/category/${cat.id}`} key={cat.id} className="category-card-new">
+            <Link to={cat.isAll ? '/products' : `/category/${cat.id}`} key={cat.id} className="category-card-new">
               <div className="cat-icon-new">{cat.icon}</div>
               <h3 className="cat-name-new">{cat.name}</h3>
               <p className="cat-count-new">{cat.count}</p>

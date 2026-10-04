@@ -414,8 +414,7 @@ export default function AdminDashboardPage() {
         </Grid>
       </Grid>
 
-      {/* Wireframe Notes Box at Bottom */}
-      <WireframeNoteBox title="Chú thích – Màn Tổng quan" notes={wireframeNotes} />
+
     </Box>
   );
 }

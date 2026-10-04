@@ -3,13 +3,15 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { productApi } from "../../services/api";
 import { useCart } from "../../context/useCart";
 import ProductCard from "../../components/ProductCard";
-import { Star, Plus, Minus } from "lucide-react";
+import { Star, Plus, Minus, Store, ShieldCheck } from "lucide-react";
+import { getSharedProducts } from "../../data/productStore";
 
 export default function ProductDetailPage() {
   const { id } = useParams();
   const { addToCart } = useCart();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -19,10 +21,23 @@ export default function ProductDetailPage() {
     let ignore = false;
     async function loadProduct() {
       try {
-        const data = await productApi.getById(id);
+        const products = getSharedProducts();
+        const data = products.find(p => String(p.id) === String(id));
+        
         if (!ignore) {
           if (data) {
             setProduct(data);
+            // Load related products
+            const related = products.filter(p => p.status === "APPROVED" && String(p.id) !== String(id)).slice(0, 4);
+            setRelatedProducts(related);
+          } else {
+            // Fallback if not found in local storage
+            try {
+              const apiData = await productApi.getById(id);
+              if (apiData) setProduct(apiData);
+            } catch (err) {
+              console.warn("Product not found in API fallback");
+            }
           }
         }
       } catch (err) {
@@ -36,26 +51,40 @@ export default function ProductDetailPage() {
   }, [id]);
 
   if (loading || !product) {
-    return <div className="detail-page-container">Loading...</div>;
+    return (
+      <div className="detail-page-container" style={{ textAlign: "center", padding: "80px 20px" }}>
+        <p style={{ fontSize: "18px", color: "#666" }}>Đang tải thông tin sản phẩm...</p>
+      </div>
+    );
   }
 
+  const mainImageUrl = product.imageUrl || product.primaryImageUrl || "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&q=80&w=400";
+  
   const images = Array.isArray(product.images) && product.images.length > 0
     ? product.images
     : [
-        { url: product.primaryImageUrl || "/placeholder.jpg", ai: { label: "FRESH", confidence: 0.96 } },
-        { url: "/placeholder.jpg", ai: { label: "FRESH", confidence: 0.91 } },
-        { url: "/placeholder.jpg", ai: { label: "FRESH", confidence: 0.89 } }
+        { url: mainImageUrl, ai: { label: "FRESH", confidence: product.aiLabel?.confidence || 0.95 } }
       ];
 
   const currentImage = images[selectedImageIndex] || images[0];
   const unit = product.unit || "kg";
+  const sellerName = product.seller || product.shop?.shopName || "Vườn rau Tâm An";
+  const locationName = product.location || product.origin || product.shop?.province || "Đà Lạt, Lâm Đồng";
+  const stockNum = product.inventory || product.stockQuantity || product.stock || 120;
+
+  // AI confidence & status
+  const aiConfidence = product.aiLabel?.confidence 
+    ? Math.round(product.aiLabel.confidence * 100) 
+    : (product.freshnessScore || 95);
+  const aiType = product.aiLabel?.type || (product.aiOverallLabel === "FRESH" ? "fresh" : product.aiOverallLabel === "ROTTEN" ? "rotten" : "fresh");
+  const isAiFresh = aiType === "fresh";
 
   const handleAddToCart = () => {
     const normalizedProduct = {
       ...product,
-      image: product.primaryImageUrl || currentImage.url || "/placeholder.jpg",
-      aiGrade: "Tươi sạch AI",
-      origin: product.origin || "Đà Lạt",
+      image: currentImage.url || mainImageUrl,
+      aiGrade: isAiFresh ? `Tươi sạch AI (${aiConfidence}%)` : "Kiểm định AI",
+      origin: locationName,
       unit
     };
     addToCart(normalizedProduct, quantity);
@@ -72,9 +101,7 @@ export default function ProductDetailPage() {
       <div className="breadcrumb-container">
         <Link to="/" className="breadcrumb-link">Trang chủ</Link>
         <span className="breadcrumb-separator">/</span>
-        <Link to="/products" className="breadcrumb-link">Rau củ</Link>
-        <span className="breadcrumb-separator">/</span>
-        <Link to="/products" className="breadcrumb-link">Củ quả</Link>
+        <Link to="/products" className="breadcrumb-link">{product.category || "Nông sản sạch"}</Link>
         <span className="breadcrumb-separator">/</span>
         <span className="breadcrumb-current">{product.name}</span>
       </div>
@@ -84,20 +111,22 @@ export default function ProductDetailPage() {
         <div className="detail-gallery">
           <div className="main-image-wrapper">
             <img src={currentImage.url} alt={product.name} className="main-image" />
-            <div className="image-watermark">Ảnh chính 800x600</div>
+            <div className="image-watermark">Ảnh thực tế kiểm định</div>
           </div>
-          <div className="thumbnail-list">
-            {images.map((img, idx) => (
-              <button
-                key={idx}
-                className={`thumbnail-btn ${selectedImageIndex === idx ? "active" : ""}`}
-                onClick={() => setSelectedImageIndex(idx)}
-              >
-                <img src={img.url} alt={`Thumb ${idx}`} />
-                <div className="thumb-ai-label">Tươi {Math.round((img.ai?.confidence || 0.9) * 100)}%</div>
-              </button>
-            ))}
-          </div>
+          {images.length > 1 && (
+            <div className="thumbnail-list">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  className={`thumbnail-btn ${selectedImageIndex === idx ? "active" : ""}`}
+                  onClick={() => setSelectedImageIndex(idx)}
+                >
+                  <img src={img.url} alt={`Thumb ${idx}`} />
+                  <div className="thumb-ai-label">Tươi {Math.round((img.ai?.confidence || 0.9) * 100)}%</div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right Info */}
@@ -109,38 +138,41 @@ export default function ProductDetailPage() {
                 <Star key={i} size={14} className={i < 4 ? "star-filled" : i === 4 ? "star-half" : "star-empty"} />
               ))}
             </div>
-            <span>4.6 (18 đánh giá)</span>
+            <span>4.8 (24 đánh giá)</span>
             <span className="dot">•</span>
-            <span>Đã bán 214</span>
+            <span>Đã bán {product.soldCount || 158}</span>
             <span className="dot">•</span>
-            <span>Mã SP-01187</span>
+            <span>Mã {product.id}</span>
           </div>
 
           <div className="product-price">
-            {product.price.toLocaleString("vi-VN")} ₫ <span>/ {unit}</span>
+            {Number(product.price || 0).toLocaleString("vi-VN")} ₫ <span>/ {unit}</span>
           </div>
 
           <div className="ai-quality-box">
             <div className="ai-box-header">
               <span className="ai-label">Nhãn chất lượng AI</span>
-              <span className="ai-badge">Tươi • 92% <span className="info-icon">i</span></span>
+              <span className="ai-badge" style={{ backgroundColor: isAiFresh ? '#E8F8F0' : '#FFF3CD', color: isAiFresh ? '#00A651' : '#856404' }}>
+                <ShieldCheck size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                {isAiFresh ? `Tươi • ${aiConfidence}%` : "Chờ xác nhận"}
+              </span>
             </div>
             <div className="ai-progress-bar">
-              <div className="ai-progress-fill" style={{ width: "92%" }}></div>
+              <div className="ai-progress-fill" style={{ width: `${aiConfidence}%`, backgroundColor: isAiFresh ? '#00A651' : '#ffc107' }}></div>
             </div>
             <p className="ai-box-desc">
-              3/3 ảnh sản phẩm được AI đánh giá tươi (độ tin cậy trung bình 92%). Kết quả do mô hình phân loại ảnh, đã qua admin kiểm duyệt.
+              Hình ảnh nông sản được mô hình phân loại thị giác máy tính AI đánh giá đạt độ tươi mới {aiConfidence}%, đã được kiểm duyệt an toàn trước khi mở bán.
             </p>
           </div>
 
           <div className="product-specs">
             <div className="spec-row">
               <span className="spec-name">Xuất xứ</span>
-              <span className="spec-value">Đà Lạt, Lâm Đồng</span>
+              <span className="spec-value">{locationName}</span>
             </div>
             <div className="spec-row">
               <span className="spec-name">Còn hàng</span>
-              <span className="spec-value">{product.stockQuantity || 120} {unit}</span>
+              <span className="spec-value">{stockNum} {unit}</span>
             </div>
             <div className="spec-row align-center">
               <span className="spec-name">Số lượng</span>
@@ -160,15 +192,19 @@ export default function ProductDetailPage() {
 
           <div className="shop-card-mini">
             <div className="shop-info-left">
-              <div className="shop-avatar">
-                {(product.shop?.logoUrl) && <img src={product.shop.logoUrl} alt={product.shop.shopName} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />}
+              <div className="shop-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8F8F0', borderRadius: '50%', width: '44px', height: '44px' }}>
+                {product.shop?.logoUrl ? (
+                  <img src={product.shop.logoUrl} alt={sellerName} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
+                ) : (
+                  <Store size={22} color="#00A651" />
+                )}
               </div>
               <div className="shop-details-mini">
-                <h4>{product.shop?.shopName || "Vườn rau Tâm An"} <span className="verified-badge">Đã xác minh</span></h4>
-                <p>{product.shop?.province || "Lâm Đồng"} • {product.shop?.ratingAvg || "4.6"} • Tham gia 2026</p>
+                <h4>{sellerName} <span className="verified-badge">Đã xác minh</span></h4>
+                <p>{locationName.split(",")[0]} • 4.8 ★ • Thành viên uy tín</p>
               </div>
             </div>
-            <button className="btn-view-shop" onClick={() => navigate(`/shops/${product.shop?.id || 3}`)}>Xem shop</button>
+            <button className="btn-view-shop" onClick={() => navigate(`/shops/${product.shop?.id || 1}`)}>Xem shop</button>
           </div>
         </div>
       </div>
@@ -180,19 +216,19 @@ export default function ProductDetailPage() {
             className={`tab-btn ${activeTab === "description" ? "active" : ""}`}
             onClick={() => setActiveTab("description")}
           >
-            Mô tả
+            Mô tả sản phẩm
           </button>
           <button 
             className={`tab-btn ${activeTab === "reviews" ? "active" : ""}`}
             onClick={() => setActiveTab("reviews")}
           >
-            Đánh giá (18)
+            Đánh giá khách hàng (24)
           </button>
         </div>
         <div className="tab-content">
           {activeTab === "description" && (
-            <div className="description-content">
-              Cà chua bi trồng nhà kính, thu hoạch trong ngày, không thuốc trừ sâu. Bảo quản ngăn mát 5–7 ngày...
+            <div className="description-content" style={{ whiteSpace: "pre-line", lineHeight: "1.7" }}>
+              {product.description || `${product.name} được nuôi trồng và chăm sóc theo tiêu chuẩn an toàn sinh học. Thu hoạch trực tiếp trong ngày từ nông trại, bảo quản nhiệt độ mát tiêu chuẩn giúp giữ trọn dưỡng chất, hương vị thơm ngon và vị ngọt tự nhiên.`}
             </div>
           )}
           {activeTab === "reviews" && (
@@ -203,16 +239,16 @@ export default function ProductDetailPage() {
                   <div className="reviewer-avatar"></div>
                   <div className="review-details">
                     <div className="reviewer-name">Trần Thị Mai <div className="stars"><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/></div></div>
-                    <div className="review-date">13/09/2026 • Đã mua đơn DH-2026-00001</div>
-                    <p className="review-text">Cà chua rất tươi, đúng như nhãn AI đánh giá.</p>
+                    <div className="review-date">13/09/2026 • Đã mua hàng</div>
+                    <p className="review-text">Sản phẩm rất tươi ngon, đóng gói cẩn thận, đúng như nhãn AI kiểm định.</p>
                   </div>
                 </div>
                 <div className="review-item">
                   <div className="reviewer-avatar"></div>
                   <div className="review-details">
-                    <div className="reviewer-name">Lê Văn N. <div className="stars"><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-empty"/></div></div>
-                    <div className="review-date">10/09/2026</div>
-                    <p className="review-text">Ngon, giao hơi muộn.</p>
+                    <div className="reviewer-name">Lê Văn Nam <div className="stars"><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-filled"/><Star size={12} className="star-empty"/></div></div>
+                    <div className="review-date">10/09/2026 • Đã mua hàng</div>
+                    <p className="review-text">Nông sản sạch, ăn thơm ngọt. Giao hàng nhanh và thân thiện.</p>
                   </div>
                 </div>
               </div>
@@ -222,15 +258,16 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Related Products */}
-      <div className="related-products-section">
-        <h3 className="section-title">Sản phẩm cùng shop</h3>
-        <div className="products-grid-4">
-          <ProductCard product={{id: 2, name: "Khoai tây Đà Lạt", price: 28000, unit: "kg", shop: {shopName: "Vườn rau Tâm An"}, aiOverallLabel: "FRESH", aiOverallConfidence: 0.97}} />
-          <ProductCard product={{id: 3, name: "Ớt chuông Đà Lạt", price: 55000, unit: "kg", shop: {shopName: "Vườn rau Tâm An"}, aiOverallLabel: "FRESH", aiOverallConfidence: 0.91}} />
-          <ProductCard product={{id: 4, name: "Rau muống hữu cơ", price: 12000, unit: "bó", shop: {shopName: "Vườn rau Tâm An"}, aiOverallLabel: "UNCERTAIN"}} />
-          <ProductCard product={{id: 5, name: "Cà rốt Đà Lạt", price: 22000, unit: "kg", shop: {shopName: "Vườn rau Tâm An"}, aiOverallLabel: "FRESH", aiOverallConfidence: 0.95}} />
+      {relatedProducts.length > 0 && (
+        <div className="related-products-section">
+          <h3 className="section-title">Nông sản cùng loại gợi ý</h3>
+          <div className="products-grid-4">
+            {relatedProducts.map(rel => (
+              <ProductCard key={rel.id} product={rel} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

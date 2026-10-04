@@ -530,8 +530,7 @@ export default function AdminProductDetailPage() {
         </Grid>
       </Grid>
 
-      {/* Wireframe Notes Box at Bottom */}
-      <WireframeNoteBox title="Chú thích – Màn Chi tiết & duyệt sản phẩm" notes={wireframeNotes} />
+
 
       {/* Feedback Toast */}
       <Snackbar

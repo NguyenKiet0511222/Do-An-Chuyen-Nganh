@@ -1,35 +1,72 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { shopApi } from "../../services/api";
-import { Star } from "lucide-react";
+import { useCart } from "../../context/useCart";
+import { getSharedProducts } from "../../data/productStore";
+import { Star, Store, Check, Plus } from "lucide-react";
 import "./ShopPage.css";
 
 // Custom Product Card specifically for Shop Wireframe
 function ShopProductCard({ product }) {
-  const imageUrl = product.primaryImageUrl || product.image || "/placeholder.jpg";
-  const confidencePercent = product.aiOverallConfidence != null ? Math.round(Number(product.aiOverallConfidence) * 100) : product.freshnessScore || 95;
-  const label = product.aiOverallLabel === "UNCERTAIN" ? "Chưa kiểm định" : `Tươi ${confidencePercent}%`;
+  const { addToCart } = useCart();
+  const [isAdded, setIsAdded] = useState(false);
+
+  const imageUrl = product.imageUrl || product.primaryImageUrl || product.image || "https://placehold.co/400x400?text=No+Image";
+  const confidencePercent = 
+    product.aiOverallConfidence != null 
+      ? Math.round(Number(product.aiOverallConfidence) * 100) 
+      : (product.aiLabel?.confidence 
+          ? Math.round(product.aiLabel.confidence * 100) 
+          : product.freshnessScore || 95);
+  
+  const isFresh = product.aiOverallLabel === "FRESH" || product.aiLabel?.type === "fresh" || (!product.aiOverallLabel && !product.aiLabel);
+  const label = isFresh ? `Tươi ${confidencePercent}%` : "Chưa kiểm định";
   
   const formatPrice = (amount) => {
     return new Intl.NumberFormat("vi-VN").format(amount || 0);
   };
 
+  const handleAdd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const normalizedProduct = {
+      ...product,
+      image: imageUrl,
+      aiGrade: isFresh ? `Tươi sạch AI (${confidencePercent}%)` : "Kiểm định AI",
+      origin: product.location || product.origin || "Việt Nam",
+      unit: product.unit || "kg"
+    };
+
+    addToCart(normalizedProduct, 1);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 1200);
+  };
+
   return (
     <div className="shop-product-card-wf">
-      <div className="shop-product-img-box">
-        <div className="shop-product-ai-badge">{label}</div>
-        <img src={imageUrl} alt={product.name} onError={(e) => e.target.style.display = 'none'} />
-        {/* Placeholder X cross lines handled by CSS if img fails or is transparent */}
-        <div className="shop-product-img-ph"></div>
-      </div>
+      <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div className="shop-product-img-box">
+          <div className="shop-product-ai-badge">{label}</div>
+          <img src={imageUrl} alt={product.name} />
+        </div>
+      </Link>
       <div className="shop-product-info">
-        <div className="shop-product-title">{product.name}</div>
-        <div className="shop-product-shopname">{product.shop?.shopName || "Vườn rau Tâm An"}</div>
+        <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="shop-product-title">{product.name}</div>
+        </Link>
+        <div className="shop-product-shopname">{product.seller || product.shop?.shopName || "Vườn rau Tâm An"}</div>
         <div className="shop-product-price">{formatPrice(product.price)} đ/{product.unit || "kg"}</div>
         <div className="shop-product-stats">
-          Đã bán {product.soldCount || Math.floor(Math.random() * 200) + 10} • <Star size={10} fill="currentColor" className="shop-star-icon" /> {Number(product.ratingAvg || 4.6).toFixed(1)}
+          Đã bán {product.soldCount || 128} • <Star size={10} fill="currentColor" className="shop-star-icon" /> {Number(product.ratingAvg || 4.8).toFixed(1)}
         </div>
-        <button className="shop-product-btn-add">Thêm vào giỏ</button>
+        <button 
+          className="shop-product-btn-add" 
+          onClick={handleAdd}
+          style={{ backgroundColor: isAdded ? '#00A651' : '', color: isAdded ? '#fff' : '' }}
+        >
+          {isAdded ? "Đã thêm vào giỏ" : "Thêm vào giỏ"}
+        </button>
       </div>
     </div>
   );
@@ -43,8 +80,8 @@ export default function ShopPage() {
   const [pagination, setPagination] = useState({
     page: 0,
     size: 8,
-    totalElements: 18, // Mocked total elements based on wireframe
-    totalPages: 3
+    totalElements: 0,
+    totalPages: 1
   });
 
   useEffect(() => {
@@ -52,22 +89,50 @@ export default function ShopPage() {
     async function loadShopData() {
       setLoading(true);
       try {
-        const data = await shopApi.getShopPublicPage(id, pagination.page, 8);
-        if (!ignore) {
-          if (data) {
-            setShop(data.shop);
-            if (data.products) {
-              setProducts(data.products.content || []);
-              setPagination(prev => ({
-                ...prev,
-                totalElements: data.products.totalElements || data.products.content?.length || 18,
-                totalPages: data.products.totalPages || Math.ceil((data.products.totalElements || 18) / 8)
-              }));
+        let shopData = null;
+        let productList = [];
+
+        try {
+          const apiData = await shopApi.getShopPublicPage(id, pagination.page, 8);
+          if (apiData) {
+            shopData = apiData.shop;
+            if (apiData.products?.content?.length) {
+              productList = apiData.products.content;
             }
           }
+        } catch (apiErr) {
+          console.warn("Shop API fallback:", apiErr.message);
+        }
+
+        // Fallback to shared products from store
+        const allShared = getSharedProducts().filter(p => p.status === "APPROVED");
+        if (productList.length === 0) {
+          productList = allShared;
+        }
+
+        if (!shopData) {
+          const firstProduct = productList[0];
+          shopData = {
+            id: id || 1,
+            shopName: firstProduct?.seller || "Vườn rau Tâm An",
+            province: firstProduct?.location?.split(",")[0] || "Lâm Đồng",
+            ratingAvg: 4.8,
+            ratingCount: 214,
+            description: "Chuyên cung cấp các loại rau củ quả hữu cơ, thu hoạch trong ngày, kiểm định AI nghiêm ngặt."
+          };
+        }
+
+        if (!ignore) {
+          setShop(shopData);
+          setProducts(productList);
+          setPagination(prev => ({
+            ...prev,
+            totalElements: productList.length,
+            totalPages: Math.ceil(productList.length / 8) || 1
+          }));
         }
       } catch (err) {
-        if (!ignore) console.error("API Error when fetching shop:", err);
+        if (!ignore) console.error("Error in loadShopData:", err);
       } finally {
         if (!ignore) setLoading(false);
       }
@@ -84,14 +149,20 @@ export default function ShopPage() {
   };
 
   const shopName = shop?.shopName || "Vườn rau Tâm An";
-  const shopRating = shop?.ratingAvg ? Number(shop.ratingAvg).toFixed(1) : "4,6";
+  const shopRating = shop?.ratingAvg ? Number(shop.ratingAvg).toFixed(1) : "4.8";
   const shopRatingCount = shop?.ratingCount || 214;
   const shopProvince = shop?.province || "Lâm Đồng";
-  const shopProductsCount = pagination.totalElements || 18;
+  const shopProductsCount = pagination.totalElements || products.length;
 
   if (loading && !shop) {
-    return <div className="shop-page-wf-container">Loading...</div>;
+    return (
+      <div className="shop-page-wf-container" style={{ textAlign: "center", padding: "80px 20px", color: "#666" }}>
+        Đang tải thông tin cửa hàng...
+      </div>
+    );
   }
+
+  const pagedProducts = products.slice(pagination.page * pagination.size, (pagination.page + 1) * pagination.size);
 
   return (
     <div className="shop-page-wf-container">
@@ -102,9 +173,12 @@ export default function ShopPage() {
 
       {/* Header Card */}
       <div className="shop-wf-header-card">
-        <div className="shop-wf-avatar-box">
-          <img src={shop?.logoUrl} alt={shopName} onError={(e) => e.target.style.display = 'none'} />
-          <div className="shop-wf-avatar-ph"></div>
+        <div className="shop-wf-avatar-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8F8F0' }}>
+          {shop?.logoUrl ? (
+            <img src={shop.logoUrl} alt={shopName} />
+          ) : (
+            <Store size={44} color="#00A651" />
+          )}
         </div>
         <div className="shop-wf-header-info">
           <div className="shop-wf-title-row">
@@ -112,10 +186,10 @@ export default function ShopPage() {
             <span className="shop-wf-badge">Đã xác minh <span className="shop-wf-info-icon">i</span></span>
           </div>
           <div className="shop-wf-meta-row">
-            {shopProvince} • Tham gia 06/2026 • ★ {shopRating} ({shopRatingCount} đánh giá) • {shopProductsCount} sản phẩm • 96% sản phẩm được AI đánh giá tươi
+            {shopProvince} • Tham gia 2026 • ★ {shopRating} ({shopRatingCount} đánh giá) • {shopProductsCount} sản phẩm • Cam kết AI độ tươi &gt; 90%
           </div>
           <div className="shop-wf-desc-row">
-            Rau củ Đà Lạt trồng nhà kính, thu hoạch trong ngày, không thuốc trừ sâu.
+            {shop?.description || "Nông sản tươi ngon, thu hoạch tại vườn trong ngày, đạt tiêu chuẩn VietGAP."}
           </div>
         </div>
       </div>
@@ -123,80 +197,63 @@ export default function ShopPage() {
       {/* Tabs */}
       <div className="shop-wf-tabs">
         <div className="shop-wf-tab active">Sản phẩm ({shopProductsCount})</div>
-        <div className="shop-wf-tab">Giới thiệu</div>
-        <div className="shop-wf-tab">Đánh giá</div>
+        <div className="shop-wf-tab">Giới thiệu cửa hàng</div>
+        <div className="shop-wf-tab">Đánh giá khách hàng</div>
       </div>
 
       {/* Filters */}
       <div className="shop-wf-filter-bar">
         <div className="shop-wf-search">
-          <input type="text" placeholder="Tìm trong shop..." />
+          <input type="text" placeholder="Tìm kiếm nông sản trong shop..." />
         </div>
         <div className="shop-wf-dropdowns">
           <select>
-            <option>Danh mục của shop</option>
+            <option>Tất cả danh mục</option>
           </select>
           <select>
+            <option>Sắp xếp: Mới nhất</option>
             <option>Sắp xếp: Bán chạy</option>
+            <option>Giá: Thấp đến cao</option>
           </select>
         </div>
       </div>
 
       {/* Product Grid */}
       <div className="shop-wf-products-grid">
-        {products.length > 0 ? (
-          products.map(product => (
-            <ShopProductCard key={product.id} product={product} />
-          ))
-        ) : (
-          [...Array(8)].map((_, idx) => (
-            <div key={idx} className="shop-product-card-wf">
-               <div className="shop-product-img-box">
-                 <div className="shop-product-ai-badge">Tươi 92%</div>
-                 <div className="shop-product-img-ph"></div>
-               </div>
-               <div className="shop-product-info">
-                 <div className="shop-product-title">Sản phẩm {idx + 1}</div>
-                 <div className="shop-product-shopname">{shopName}</div>
-                 <div className="shop-product-price">45.000 đ/kg</div>
-                 <div className="shop-product-stats">
-                   Đã bán 214 • <Star size={10} fill="currentColor" className="shop-star-icon" /> 4,6
-                 </div>
-                 <button className="shop-product-btn-add">Thêm vào giỏ</button>
-               </div>
-            </div>
-          ))
-        )}
+        {pagedProducts.map(product => (
+          <ShopProductCard key={product.id} product={product} />
+        ))}
       </div>
 
       {/* Pagination */}
-      <div className="shop-wf-pagination">
-        <span className="shop-wf-page-info">
-          Hiển thị {pagination.page * pagination.size + 1}–{Math.min((pagination.page + 1) * pagination.size, pagination.totalElements)} / {pagination.totalElements}
-        </span>
-        <button 
-          className="shop-wf-page-btn" 
-          disabled={pagination.page === 0} 
-          onClick={() => handlePageChange(pagination.page - 1)}
-        >&lt;</button>
-        
-        {[...Array(pagination.totalPages)].map((_, idx) => (
+      {pagination.totalPages > 1 && (
+        <div className="shop-wf-pagination">
+          <span className="shop-wf-page-info">
+            Hiển thị {pagination.page * pagination.size + 1}–{Math.min((pagination.page + 1) * pagination.size, pagination.totalElements)} / {pagination.totalElements}
+          </span>
           <button 
-            key={idx} 
-            className={`shop-wf-page-btn ${pagination.page === idx ? 'active' : ''}`}
-            onClick={() => handlePageChange(idx)}
-          >
-            {idx + 1}
-          </button>
-        ))}
-        
-        <button 
-          className="shop-wf-page-btn" 
-          disabled={pagination.page >= pagination.totalPages - 1}
-          onClick={() => handlePageChange(pagination.page + 1)}
-        >&gt;</button>
-      </div>
-
+            className="shop-wf-page-btn" 
+            disabled={pagination.page === 0} 
+            onClick={() => handlePageChange(pagination.page - 1)}
+          >&lt;</button>
+          
+          {[...Array(pagination.totalPages)].map((_, idx) => (
+            <button 
+              key={idx} 
+              className={`shop-wf-page-btn ${pagination.page === idx ? 'active' : ''}`}
+              onClick={() => handlePageChange(idx)}
+            >
+              {idx + 1}
+            </button>
+          ))}
+          
+          <button 
+            className="shop-wf-page-btn" 
+            disabled={pagination.page >= pagination.totalPages - 1}
+            onClick={() => handlePageChange(pagination.page + 1)}
+          >&gt;</button>
+        </div>
+      )}
     </div>
   );
 }

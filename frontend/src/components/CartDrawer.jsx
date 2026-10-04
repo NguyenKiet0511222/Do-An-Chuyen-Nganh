@@ -96,7 +96,7 @@ export default function CartDrawer() {
               {cart.map((item) => (
                 <div key={item.product.id} className="cart-item-row">
                   <img
-                    src={item.product.image || item.product.primaryImageUrl || "/placeholder.jpg"}
+                    src={item.product.image || item.product.imageUrl || item.product.primaryImageUrl || "https://placehold.co/100x100?text=No+Image"}
                     alt={item.product.name}
                     className="cart-item-thumb"
                   />

@@ -22,7 +22,7 @@ export default function Footer() {
           {/* Center: Links */}
           <div className="ft-links">
             <Link to="/">Về chúng tôi</Link>
-            <Link to="/">Sản phẩm</Link>
+            <Link to="/products">Sản phẩm</Link>
             <Link to="/">Chính sách</Link>
             <Link to="/">Hỗ trợ</Link>
             <span className="ft-hotline">Hotline: <strong>1800 6868</strong></span>

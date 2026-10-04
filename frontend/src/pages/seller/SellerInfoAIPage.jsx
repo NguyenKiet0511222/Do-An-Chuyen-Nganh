@@ -1,6 +1,6 @@
-import { Box, Typography, Paper, Grid, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, TextField, Chip, Divider, Avatar, IconButton } from "@mui/material";
+import { Box, Typography, Paper, Grid, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, TextField, Chip, Avatar } from "@mui/material";
 import { useState } from "react";
-import { UploadCloud, CheckCircle2, AlertCircle, AlertTriangle, Store, MapPin, Phone, Edit3 } from "lucide-react";
+import { Upload, Save, CheckCircle2, Check } from "lucide-react";
 
 export default function SellerInfoAIPage() {
   const [tabValue, setTabValue] = useState(0);
@@ -10,186 +10,225 @@ export default function SellerInfoAIPage() {
   };
 
   const aiResults = [
-    { image: "https://images.unsplash.com/photo-1557800636-894a64c1696f?w=100", name: "Cam sành loại 2", badge: "Hỏng 85%", badgeColor: "error", admin: "Đã xác nhận hỏng", action: "Thay ảnh ngay" },
-    { image: "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=100", name: "Quýt đường", badge: "Không chắc 64%", badgeColor: "warning", admin: "Chờ admin duyệt", action: "Cập nhật ảnh" },
-    { image: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=100", name: "Dâu tây Đà Lạt", badge: "Tươi 89%", badgeColor: "success", admin: "Hệ thống duyệt", action: "—" }
+    { image: "https://images.unsplash.com/photo-1557800636-894a64c1696f?w=100", name: "Cam sành loại 2", badge: "Hỏng 85%", badgeStyle: { bgcolor: "#f43f5e", color: "#fff", border: "none" }, admin: "Đã xác nhận hỏng", action: "Thay ảnh" },
+    { image: "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=100", name: "Quýt đường", badge: "Không chắc 64%", badgeStyle: { bgcolor: "#fffbeb", color: "#d97706", border: "1px solid #fcd34d" }, admin: "Chờ admin duyệt", action: "Thay ảnh" },
+    { image: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=100", name: "Dâu tây Đà Lạt", badge: "Tươi 89%", badgeStyle: { bgcolor: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" }, admin: "Tự chấp nhận", action: "—" }
   ];
 
   return (
-    <Box sx={{ pb: 4, maxWidth: 1000, margin: "0 auto" }}>
-      <Box sx={{ mb: 4, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="h5" sx={{ fontWeight: 800, color: "#111827", display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Store size={28} color="#10b981" />
-          Hồ sơ Cửa hàng & Kiểm định AI
+    <Box sx={{ pb: 4, display: "flex", flexDirection: "column", gap: 3 }}>
+      {/* Page Title & Description */}
+      <Box sx={{ spaceY: 1 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em" }}>
+          Thông tin shop & kết quả AI
+        </Typography>
+        <Typography sx={{ fontSize: 13, color: "#64748b", mt: 0.5 }}>
+          Quản lý định danh cơ sở, thông tin liên lạc và báo cáo xếp hạng chất lượng AI.
         </Typography>
       </Box>
 
-      <Paper sx={{ mb: 4, borderRadius: 3, p: 1, display: "inline-block", bgcolor: "#f9fafb", border: "1px solid #e5e7eb" }} elevation={0}>
+      {/* Navigation Tabs */}
+      <Box sx={{ borderBottom: "1px solid #e2e8f0" }}>
         <Tabs 
           value={tabValue} 
           onChange={handleTabChange} 
-          TabIndicatorProps={{ style: { display: "none" } }}
-          sx={{ minHeight: 40 }}
+          TabIndicatorProps={{ sx: { bgcolor: "#059669", height: 2 } }}
         >
           <Tab 
             disableRipple
-            label="Thông tin chung" 
+            label={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                Thông tin shop
+                <Box sx={{ px: 1, py: 0.25, borderRadius: 10, fontSize: 11, fontWeight: 600, bgcolor: tabValue === 0 ? "#d1fae5" : "#f1f5f9", color: tabValue === 0 ? "#065f46" : "#64748b" }}>
+                  1
+                </Box>
+              </Box>
+            } 
             sx={{ 
               textTransform: "none", 
-              fontWeight: 600, 
-              minHeight: 40,
-              borderRadius: 2,
+              fontWeight: tabValue === 0 ? 700 : 500, 
+              color: tabValue === 0 ? "#047857 !important" : "#64748b",
+              fontSize: 14,
               px: 3,
-              color: tabValue === 0 ? "#fff !important" : "#6b7280",
-              bgcolor: tabValue === 0 ? "#111827" : "transparent",
-              transition: "all 0.3s",
+              minHeight: "auto",
+              py: 2
             }} 
           />
           <Tab 
             disableRipple
-            label="Kết quả quét AI" 
+            label={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                Kết quả AI của shop
+                <Box sx={{ px: 1, py: 0.25, borderRadius: 10, fontSize: 11, fontWeight: 600, bgcolor: tabValue === 1 ? "#d1fae5" : "#f1f5f9", color: tabValue === 1 ? "#065f46" : "#64748b" }}>
+                  2
+                </Box>
+              </Box>
+            } 
             sx={{ 
               textTransform: "none", 
-              fontWeight: 600, 
-              minHeight: 40,
-              borderRadius: 2,
+              fontWeight: tabValue === 1 ? 700 : 500, 
+              color: tabValue === 1 ? "#047857 !important" : "#64748b",
+              fontSize: 14,
               px: 3,
-              color: tabValue === 1 ? "#fff !important" : "#6b7280",
-              bgcolor: tabValue === 1 ? "#10b981" : "transparent",
-              transition: "all 0.3s",
+              minHeight: "auto",
+              py: 2
             }} 
           />
         </Tabs>
-      </Paper>
+      </Box>
 
       {/* Tab 0: Thông tin shop */}
       {tabValue === 0 && (
-        <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: "1px solid #e5e7eb", bgcolor: "#fff", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)" }}>
-          
-          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 3, mb: 5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-              <Box sx={{ position: "relative" }}>
+        <Grid container spacing={3}>
+          {/* Left/Main Form */}
+          <Grid item xs={12} lg={8}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#fff", display: "flex", flexDirection: "column", gap: 3, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+              {/* Card Header With Status */}
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 2, borderBottom: "1px solid #f1f5f9" }}>
+                <Box>
+                  <Typography sx={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Thông tin shop</Typography>
+                  <Typography sx={{ fontSize: 12, color: "#94a3b8", mt: 0.5 }}>Cập nhật hồ sơ hiển thị công khai với khách hàng</Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, px: 1.5, py: 0.5, borderRadius: 10, fontSize: 12, fontWeight: 600, bgcolor: "#ecfdf5", color: "#047857", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                    <CheckCircle2 size={14} />
+                    Đã xác minh
+                  </Box>
+                  <Typography sx={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>15/06/2026</Typography>
+                </Box>
+              </Box>
+
+              {/* Logo Upload Section */}
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "center" }, gap: 3 }}>
                 <Avatar 
                   src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=200" 
-                  sx={{ width: 100, height: 100, border: "4px solid #f3f4f6", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}
+                  variant="rounded"
+                  sx={{ width: 80, height: 80, border: "2px solid #f1f5f9", borderRadius: 3 }}
                 />
-                <IconButton 
-                  size="small" 
-                  sx={{ position: "absolute", bottom: -4, right: -4, bgcolor: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 2px 5px rgba(0,0,0,0.1)", "&:hover": { bgcolor: "#f9fafb" } }}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Button variant="outlined" size="small" startIcon={<Upload size={14} />} sx={{ color: "#334155", borderColor: "#cbd5e1", textTransform: "none", borderRadius: 2, fontWeight: 600, "&:hover": { bgcolor: "#f8fafc", borderColor: "#94a3b8" } }}>
+                      Đổi logo
+                    </Button>
+                    <Typography sx={{ fontSize: 12, color: "#94a3b8" }}>PNG/JPG, vuông, ≤ 2 MB</Typography>
+                  </Box>
+                  <Typography sx={{ fontSize: 12, color: "#64748b" }}>Hình ảnh rõ nét giúp nhận diện thương hiệu tốt hơn trong báo cáo AI.</Typography>
+                </Box>
+              </Box>
+
+              {/* Main Input Fields Grid */}
+              <Grid container spacing={2.5}>
+                <Grid item xs={12} sm={6}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#334155", mb: 0.75 }}>Tên shop</Typography>
+                  <TextField fullWidth size="small" defaultValue="Vườn rau Tâm An" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 13, fontWeight: 500 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#334155", mb: 0.75 }}>Tỉnh / thành</Typography>
+                  <TextField fullWidth size="small" select SelectProps={{ native: true }} defaultValue="Lâm Đồng" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 13, fontWeight: 500 } }}>
+                    <option value="Lâm Đồng">Lâm Đồng</option>
+                    <option value="Hà Nội">Hà Nội</option>
+                    <option value="TP. HCM">TP. Hồ Chí Minh</option>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#334155", mb: 0.75 }}>Địa chỉ lấy hàng</Typography>
+                  <TextField fullWidth size="small" defaultValue="Thôn Đa Quý, xã Xuân Thọ, TP. Đà Lạt" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 13, fontWeight: 500 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#334155", mb: 0.75 }}>SĐT shop</Typography>
+                  <TextField fullWidth size="small" defaultValue="0905 111 222" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 13, fontWeight: 500 } }} />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#334155", mb: 0.75 }}>Giới thiệu shop</Typography>
+                  <TextField fullWidth multiline rows={3} defaultValue="Rau củ Đà Lạt trồng nhà kính, thu hoạch trong ngày, không thuốc trừ sâu." sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 13, fontWeight: 500 } }} />
+                  <Typography sx={{ fontSize: 11, color: "#94a3b8", mt: 0.5 }}>Tối đa 250 ký tự hiển thị trên danh thiếp shop.</Typography>
+                </Grid>
+              </Grid>
+
+              {/* Save CTA */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, pt: 1 }}>
+                <Button 
+                  variant="contained" 
+                  onClick={() => alert("Đã lưu thông tin shop thành công!")}
+                  startIcon={<Save size={16} />} 
+                  sx={{ bgcolor: "#065f46", "&:hover": { bgcolor: "#064e3b" }, textTransform: "none", fontWeight: 600, borderRadius: 2, px: 3 }}
                 >
-                  <UploadCloud size={16} color="#4b5563" />
-                </IconButton>
+                  Lưu thay đổi
+                </Button>
+                <Button variant="text" sx={{ color: "#64748b", textTransform: "none", fontWeight: 600, "&:hover": { bgcolor: "#f1f5f9" } }}>
+                  Hủy
+                </Button>
               </Box>
-              <Box>
-                <Typography variant="h6" fontWeight={700}>Vườn rau Tâm An</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Đã tham gia từ 15/06/2026</Typography>
-                <Chip 
-                  icon={<CheckCircle2 size={16} />} 
-                  label="Đã xác minh danh tính" 
-                  size="small" 
-                  sx={{ bgcolor: "#ecfdf5", color: "#059669", fontWeight: 600, px: 0.5, ".MuiChip-icon": { color: "#059669" } }} 
-                />
-              </Box>
-            </Box>
-            <Button variant="outlined" color="primary" startIcon={<Edit3 size={18} />} sx={{ borderRadius: "8px" }}>
-              Đổi mật khẩu
-            </Button>
-          </Box>
-
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#374151", mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                <Store size={16} color="#9ca3af" /> Tên cửa hàng
-              </Typography>
-              <TextField fullWidth defaultValue="Vườn rau Tâm An" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#374151", mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                <MapPin size={16} color="#9ca3af" /> Tỉnh / thành phố
-              </Typography>
-              <TextField fullWidth select SelectProps={{ native: true }} defaultValue="Lâm Đồng">
-                <option value="Lâm Đồng">Lâm Đồng</option>
-                <option value="Hà Nội">Hà Nội</option>
-                <option value="TP. HCM">TP. Hồ Chí Minh</option>
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#374151", mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                <MapPin size={16} color="#9ca3af" /> Địa chỉ kho hàng / lấy hàng
-              </Typography>
-              <TextField fullWidth defaultValue="Thôn Đa Quý, xã Xuân Thọ, TP. Đà Lạt" />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#374151", mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                <Phone size={16} color="#9ca3af" /> Số điện thoại liên hệ
-              </Typography>
-              <TextField fullWidth defaultValue="0905 111 222" />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "#374151", mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                <Edit3 size={16} color="#9ca3af" /> Giới thiệu cửa hàng
-              </Typography>
-              <TextField fullWidth multiline rows={3} defaultValue="Rau củ Đà Lạt trồng nhà kính, thu hoạch trong ngày, không thuốc trừ sâu. Đảm bảo chất lượng tươi xanh khi đến tay khách hàng." />
-            </Grid>
+            </Paper>
           </Grid>
-
-          <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid #f3f4f6", display: "flex", justifyContent: "flex-end", gap: 2 }}>
-            <Button variant="text" color="inherit" sx={{ color: "#6b7280" }}>Hủy</Button>
-            <Button variant="contained" color="primary" sx={{ px: 4, py: 1.5, borderRadius: "10px", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)" }}>
-              Lưu thay đổi
-            </Button>
-          </Box>
-        </Paper>
+          
+          {/* Right Side: AI Trust Guidelines */}
+          <Grid item xs={12} lg={4}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#fff", display: "flex", flexDirection: "column", gap: 2, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#64748b" }}>Tiêu chí hồ sơ nhà vườn</Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                  <Check size={16} color="#059669" style={{ marginTop: 2 }} />
+                  <Typography sx={{ fontSize: 12, color: "#475569" }}>Tên vườn khớp với giấy chứng nhận VietGAP / GlobalGAP đã đăng ký.</Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                  <Check size={16} color="#059669" style={{ marginTop: 2 }} />
+                  <Typography sx={{ fontSize: 12, color: "#475569" }}>Địa chỉ kho lấy hàng chuẩn xác để AI tối ưu tuyến đường vận chuyển nhanh.</Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                  <Check size={16} color="#059669" style={{ marginTop: 2 }} />
+                  <Typography sx={{ fontSize: 12, color: "#475569" }}>Hotline hoạt động 24/7 phục vụ xác thực đơn nông sản thu hoạch sớm.</Typography>
+                </Box>
+              </Box>
+              <Box sx={{ pt: 2, borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Typography sx={{ fontSize: 12, color: "#94a3b8" }}>Trạng thái hồ sơ:</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#047857" }}>Hợp lệ & Sẵn sàng</Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
       )}
 
       {/* Tab 1: Kết quả AI */}
       {tabValue === 1 && (
-        <Paper elevation={0} sx={{ borderRadius: 4, border: "1px solid #e5e7eb", bgcolor: "#fff", overflow: "hidden", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.05)" }}>
-          <Box sx={{ p: 3, bgcolor: "#f9fafb", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="h6" fontWeight={700} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <AlertCircle size={20} color="#f59e0b" />
-              Hình ảnh cần lưu ý
-            </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-              Tổng 30 ngày: <strong style={{ color: "#111827" }}>24</strong> ảnh được quét
+        <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#fff", overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+          <Box sx={{ p: 3, borderBottom: "1px solid #f1f5f9" }}>
+            <Typography sx={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
+              Kết quả AI của shop (ảnh cần chú ý)
             </Typography>
           </Box>
           
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>Ảnh sản phẩm</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>Tên sản phẩm</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>Kết quả AI</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: "#6b7280", borderBottom: "1px solid #e5e7eb" }}>Trạng thái duyệt</TableCell>
-                  <TableCell sx={{ borderBottom: "1px solid #e5e7eb", textAlign: "right" }}></TableCell>
+                <TableRow sx={{ bgcolor: "rgba(248, 250, 252, 0.75)" }}>
+                  <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 2, pl: 4, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Ảnh</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Sản phẩm</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Nhãn AI</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Admin</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9", pr: 4 }} align="right"></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {aiResults.map((row, idx) => (
-                  <TableRow key={idx} sx={{ "&:hover": { bgcolor: "#f9fafb" }, transition: "background 0.2s" }}>
-                    <TableCell sx={{ borderBottom: "1px solid #f3f4f6" }}>
-                      <Avatar src={row.image} variant="rounded" sx={{ width: 52, height: 52, border: "1px solid #e5e7eb" }} />
+                  <TableRow key={idx} sx={{ "&:hover": { bgcolor: "rgba(248, 250, 252, 0.8)" } }}>
+                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", py: 2, pl: 4 }}>
+                      <Avatar src={row.image} variant="rounded" sx={{ width: 64, height: 64, border: "1px solid #e2e8f0", borderRadius: 2 }} />
                     </TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f3f4f6", fontWeight: 600, color: "#111827" }}>{row.name}</TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f3f4f6" }}>
-                      <Chip 
-                        icon={row.badgeColor === "error" ? <AlertTriangle size={14} /> : row.badgeColor === "warning" ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
-                        label={row.badge} 
-                        color={row.badgeColor}
-                        size="small"
-                        sx={{ fontWeight: 700, borderRadius: "6px", px: 0.5 }} 
-                      />
+                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", color: "#1e293b", fontSize: 13, fontWeight: 600 }}>{row.name}</TableCell>
+                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <Box sx={{ display: "inline-flex", px: 1.5, py: 0.5, borderRadius: 10, fontSize: 11, fontWeight: 600, ...row.badgeStyle }}>
+                        {row.badge}
+                      </Box>
                     </TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f3f4f6", color: "#4b5563" }}>{row.admin}</TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f3f4f6", textAlign: "right" }}>
+                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", color: "#475569", fontSize: 13, fontWeight: 500 }}>{row.admin}</TableCell>
+                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", pr: 4 }} align="right">
                       {row.action !== "—" ? (
-                        <Button size="small" variant="outlined" color="primary" sx={{ borderRadius: "8px", textTransform: "none", py: 0.5 }}>
+                        <Typography component="span" sx={{ fontSize: 13, color: "#059669", textDecoration: "none", cursor: "pointer", fontWeight: 600, "&:hover": { textDecoration: "underline", color: "#047857" } }}>
                           {row.action}
-                        </Button>
+                        </Typography>
                       ) : (
-                        <Typography variant="body2" color="text.secondary">—</Typography>
+                        <Typography sx={{ fontSize: 13, color: "#94a3b8" }}>—</Typography>
                       )}
                     </TableCell>
                   </TableRow>
@@ -198,12 +237,10 @@ export default function SellerInfoAIPage() {
             </Table>
           </TableContainer>
           
-          <Box sx={{ p: 2, bgcolor: "#ecfdf5", m: 3, borderRadius: 2, border: "1px solid #a7f3d0", display: "flex", gap: 2 }}>
-            <CheckCircle2 size={24} color="#059669" />
-            <Box>
-              <Typography variant="subtitle2" sx={{ color: "#065f46", fontWeight: 700 }}>Tỷ lệ chất lượng rất tốt!</Typography>
-              <Typography variant="body2" sx={{ color: "#047857" }}>92% sản phẩm của bạn được AI đánh giá là Tươi (Tươi &gt; 85%). Hãy tiếp tục phát huy nhé.</Typography>
-            </Box>
+          <Box sx={{ p: 3, borderTop: "1px solid #f1f5f9", bgcolor: "rgba(248, 250, 252, 0.5)" }}>
+            <Typography sx={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>
+              Tổng 30 ngày: <Box component="span" sx={{ color: "#0f172a", fontWeight: 600 }}>24 ảnh</Box> · Tươi 22 · Không chắc 1 · Hỏng 1
+            </Typography>
           </Box>
         </Paper>
       )}

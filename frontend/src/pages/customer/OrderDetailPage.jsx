@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle, Package, Truck, FileText, Check } from "lucide-react";
 import "./OrderDetailPage.css";
@@ -56,16 +56,68 @@ const MOCK_ORDER = {
 
 export default function OrderDetailPage() {
   const { id } = useParams();
-  const [order] = useState(MOCK_ORDER);
   const [reviewingItem, setReviewingItem] = useState(null);
-  const [rating, setRating] = useState(4);
+  const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
 
+  const order = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("customer_orders");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const match = parsed.find(o => String(o.id) === String(id));
+        if (match) {
+          const stepVal = match.status === "PENDING" ? 1 : match.status === "PROCESSING" ? 3 : match.status === "DELIVERING" ? 4 : 5;
+          const statusTextVal = match.status === "PENDING" ? "Chờ xác nhận" : match.status === "PROCESSING" ? "Đang chuẩn bị" : match.status === "DELIVERING" ? "Đang giao" : "Hoàn thành";
+          return {
+            id: match.id,
+            status: match.status,
+            statusText: statusTextVal,
+            step: stepVal,
+            shopName: match.shop?.name || "Vườn rau Tâm An",
+            orderDate: match.date || "Vừa xong",
+            customer: match.customer ? {
+              name: match.customer.fullName || "Khách hàng",
+              phone: match.customer.phone || "0912 345 678",
+              address: match.customer.address || "Việt Nam",
+              note: match.customer.note || "Không có ghi chú"
+            } : MOCK_ORDER.customer,
+            payment: {
+              method: match.paymentMethod || "COD",
+              status: match.paymentStatus || "Chưa thanh toán"
+            },
+            history: [
+              { status: "Đơn hàng đang chờ shop xử lý", time: match.date || "Hôm nay" },
+              { status: "Bạn đã đặt hàng thành công", time: match.date || "Hôm nay" }
+            ],
+            items: (match.items || []).map(it => ({
+              id: it.id,
+              name: it.name,
+              image: it.image,
+              aiLabel: "Tươi",
+              qty: it.quantity || 1,
+              unit: it.unit || "kg",
+              price: it.price || 0,
+              reviewed: false,
+              rating: 0
+            })),
+            subtotal: (match.total || 0) - (match.shippingFee || 0),
+            shippingFee: match.shippingFee || 0,
+            total: match.total || 0
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Error finding order:", e);
+    }
+    return { ...MOCK_ORDER, id: id || MOCK_ORDER.id, step: 5 };
+  }, [id]);
+
   const formatPrice = (amount) => {
-    return new Intl.NumberFormat("vi-VN").format(amount) + " đ";
+    return new Intl.NumberFormat("vi-VN").format(amount || 0) + " đ";
   };
 
-  const currentStep = 5; // 1: Đặt hàng, 2: Đã xác nhận, 3: Đang chuẩn bị, 4: Đang giao, 5: Hoàn thành
+  const currentStep = order.step || 5;
 
   return (
     <div className="order-detail-page page-container">
@@ -86,15 +138,15 @@ export default function OrderDetailPage() {
             </span>
           </div>
           <div className="od-actions">
-            <button className="btn-outline-disabled" disabled>Huỷ đơn</button>
-            <button className="btn-outline">Mua lại</button>
+            <button className="btn-outline-disabled" disabled={currentStep > 2}>Huỷ đơn</button>
+            <Link to="/products" className="btn-outline" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Mua thêm</Link>
           </div>
         </div>
 
         {/* Timeline */}
         <div className="od-timeline-container">
           <div className="timeline-track">
-            <div className="timeline-progress" style={{ width: "100%" }}></div>
+            <div className="timeline-progress" style={{ width: `${Math.min(100, Math.max(10, (currentStep - 1) * 25))}%` }}></div>
             
             <div className={`timeline-step ${currentStep >= 1 ? 'active' : ''}`}>
               <div className="step-icon"><FileText size={16} /></div>
@@ -139,10 +191,14 @@ export default function OrderDetailPage() {
                   <tr key={item.id}>
                     <td className="td-product">
                       <div className="od-product-info">
-                        <div className="od-product-img-placeholder">
-                          <div className="cross-line"></div>
-                          <div className="cross-line-2"></div>
-                        </div>
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} style={{ width: "48px", height: "48px", objectFit: "cover", borderRadius: "6px", flexShrink: 0 }} />
+                        ) : (
+                          <div className="od-product-img-placeholder">
+                            <div className="cross-line"></div>
+                            <div className="cross-line-2"></div>
+                          </div>
+                        )}
                         <div className="od-product-details">
                           <p className="od-product-name">{item.name}</p>
                           {item.aiLabel && (

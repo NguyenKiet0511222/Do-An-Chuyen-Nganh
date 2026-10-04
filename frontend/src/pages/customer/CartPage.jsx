@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../../context/useCart";
-import { Trash2, Plus, Minus, ArrowRight } from "lucide-react";
+import { Trash2, Plus, Minus, ArrowRight, ShoppingBag } from "lucide-react";
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, totalAmount, totalCount } = useCart();
@@ -28,10 +28,12 @@ export default function CartPage() {
       </div>
 
       {cart.length === 0 ? (
-        <div className="empty-cart-view">
-          <img src="/empty-cart.png" alt="Empty Cart" className="empty-cart-img" />
+        <div className="empty-cart-view" style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div style={{ margin: "0 auto 20px", width: "90px", height: "90px", borderRadius: "50%", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ShoppingBag size={48} color="#9CA3AF" />
+          </div>
           <h2>Giỏ hàng trống</h2>
-          <p>Chưa có sản phẩm nào trong giỏ hàng của bạn.</p>
+          <p style={{ color: "#666", marginBottom: "20px" }}>Chưa có sản phẩm nào trong giỏ hàng của bạn.</p>
           <Link to="/products" className="btn-primary">Tiếp tục mua sắm</Link>
         </div>
       ) : (
@@ -51,7 +53,7 @@ export default function CartPage() {
                 <div key={item.product.id} className="cart-item-row-large">
                   <div className="col-product cart-item-details">
                     <img
-                      src={item.product.image || item.product.primaryImageUrl || "/placeholder.jpg"}
+                      src={item.product.image || item.product.imageUrl || item.product.primaryImageUrl || "https://placehold.co/100x100?text=No+Image"}
                       alt={item.product.name}
                       className="cart-item-img"
                     />

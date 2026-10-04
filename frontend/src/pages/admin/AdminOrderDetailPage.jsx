@@ -533,8 +533,7 @@ export default function AdminOrderDetailPage() {
         </Grid>
       </Grid>
 
-      {/* Wireframe Notes Box at Bottom */}
-      <WireframeNoteBox title="Chú thích – Màn Chi tiết đơn hàng" notes={wireframeNotes} />
+
 
       {/* Toast Feedback */}
       <Snackbar

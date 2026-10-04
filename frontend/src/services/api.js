@@ -46,13 +46,6 @@ const unwrap = (response) => response.data?.data ?? response.data;
 export const authApi = {
   // -> { token, user: { id, fullName, email, roles: [...] } }
   login: async (payload) => {
-    if (payload.email === "seller@shop.com") {
-      console.warn("Dùng tài khoản mock SELLER do backend chưa sẵn sàng auth");
-      return {
-        token: "mock-token-seller",
-        user: { id: 2, fullName: "Nguyễn Thị Tâm", email: "seller@shop.com", roles: ["SELLER"], role: "SELLER" }
-      };
-    }
     const response = await apiClient.post("/auth/login", payload);
     return unwrap(response);
   },
@@ -185,3 +178,47 @@ export const orderApi = {
     }
   }
 };
+
+// ==========================================
+// 5. API Người bán (Seller)
+// ==========================================
+export const sellerApi = {
+  // --- Shop ---
+  register: (payload) => apiClient.post("/seller/register", payload).then(unwrap),
+  getShop: () => apiClient.get("/seller/shop").then(unwrap),
+  updateShop: (payload) => apiClient.put("/seller/shop", payload).then(unwrap),
+  updateLogo: (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiClient.put("/seller/shop/logo", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    }).then(unwrap);
+  },
+
+  // --- Products ---
+  product: {
+    getAll: (params = {}) => apiClient.get("/seller/products", { params }).then(unwrap),
+    getById: (id) => apiClient.get(`/seller/products/${id}`).then(unwrap),
+    create: (payload) => apiClient.post("/seller/products", payload).then(unwrap),
+    update: (id, payload) => apiClient.put(`/seller/products/${id}`, payload).then(unwrap),
+    delete: (id) => apiClient.delete(`/seller/products/${id}`).then(unwrap),
+    submit: (id) => apiClient.post(`/seller/products/${id}/submit`).then(unwrap),
+    uploadImages: (id, formData) => apiClient.post(`/seller/products/${id}/images`, formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    }).then(unwrap),
+    deleteImage: (id, imageId) => apiClient.delete(`/seller/products/${id}/images/${imageId}`).then(unwrap)
+  },
+
+  // --- Orders ---
+  order: {
+    getAll: (params = {}) => apiClient.get("/seller/orders", { params }).then(unwrap),
+    getById: (id) => apiClient.get(`/seller/orders/${id}`).then(unwrap),
+  },
+
+  // --- Dashboard ---
+  dashboard: {
+    getSummary: () => apiClient.get("/seller/dashboard/summary").then(unwrap),
+    getAiResults: () => apiClient.get("/seller/ai/results").then(unwrap)
+  }
+};
+
