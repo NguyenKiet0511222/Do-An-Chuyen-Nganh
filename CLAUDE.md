@@ -86,6 +86,7 @@ Quy tắc:
   - `POST /api/auth/google` `{idToken}` → giống login; email mới → tạo user `provider=GOOGLE`, email đã có → đăng nhập + liên kết `provider_id`. Cần `GOOGLE_CLIENT_ID`, thiếu thì 503.
   - `GET /api/auth/me` → `data: user`. `user = { id, fullName, email, phone, role, accountTier, provider, avatarUrl, active, createdAt, shopId, shopStatus }` (`shopId/shopStatus` null nếu chưa đăng ký bán; sau khi admin xác minh shop phải đăng nhập lại để JWT mang role SELLER).
   - Google login: frontend lấy ID token từ Google Identity Services, backend xác minh bằng JWKS của Google (`GoogleTokenVerifier`), không dùng OAuth2 redirect flow, không thêm google-api-client.
+  - OAuth Client (loại Web) nằm ở project Google Cloud **AgriFresh AI** (`agrifresh-ai`), tạo 05/10/2026. Authorized JavaScript origins: `http://localhost:5173`, `http://localhost` — deploy domain khác thì thêm origin. App đang ở chế độ *Testing*: chỉ Gmail trong **Audience → Test users** đăng nhập được, thành viên mới phải được thêm vào. Client ID điền **giống nhau** ở `app.google.client-id` (backend) và `VITE_GOOGLE_CLIENT_ID` (frontend); không cần client secret.
 - Test: `@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")` (H2), MockMvc. Mẫu: `AuthControllerTest`, `HealthControllerTest`. `AdminSeeder` cũng chạy trong test → có sẵn `admin@nongsan.local / Admin@123`.
 
 ## 6. Frontend — quy ước
@@ -108,7 +109,7 @@ src/
 - Icon: `lucide-react` ở mọi nơi (kể cả trong MUI).
 - Text giao diện + comment: tiếng Việt. Tên biến/hàm/file: tiếng Anh. Component `PascalCase.jsx`, hook `useXxx.js`.
 - Gọi API: thêm hàm vào `services/api.js` theo nhóm (`authApi`, `productApi`, `orderApi`, `aiApi`, sắp tới `sellerApi`, `adminApi`), dùng `unwrap` để lấy `data` từ `ApiResponse`. Interceptor đã tự gắn Bearer token và tự logout khi 401.
-- Auth: `useAuth()` → `{ user, token, isAuthenticated, login, logout, hasRole }`; token trong `localStorage["agri_token"]`. Route cần quyền bọc bằng `<RequireAuth roles={[...]}>` (không truyền `roles` = chỉ cần đăng nhập). `LoginPage` gọi API thật — **không thêm lại "đăng nhập giả"/mock login** (đã gỡ 05/10).
+- Auth: `useAuth()` → `{ user, token, isAuthenticated, login, logout, hasRole }`; token trong `localStorage["agri_token"]`. Nút Google: `components/GoogleLoginButton.jsx` (dùng ở Login + Register) — phải là nút do Google tự vẽ (`renderButton`) vì chỉ nó trả **ID token**; nút tự vẽ/`useGoogleLogin` trả access token, backend từ chối. Route cần quyền bọc bằng `<RequireAuth roles={[...]}>` (không truyền `roles` = chỉ cần đăng nhập). `LoginPage` gọi API thật — **không thêm lại "đăng nhập giả"/mock login** (đã gỡ 05/10).
 - **Người xem chưa đăng nhập** xem được trang chủ, sản phẩm, chi tiết, trang shop. Thao tác cần tài khoản (thêm giỏ, mua ngay, giỏ hàng, thanh toán, đơn của tôi, tài khoản, Kiểm tra AI) phải đăng nhập: route bọc `RequireAuth`, nút bấm dùng `useRequireLogin()` (đã gắn sẵn trong `CartContext.addToCart`, trả `false` khi chưa đăng nhập). Đăng nhập xong `LoginPage` đưa về trang cũ (`location.state.from`).
 - Giỏ hàng tạm lưu `localStorage["agri_cart_<userId>"]` (mỗi tài khoản một giỏ) cho tới khi có `/api/cart` (tuần 5).
 - Thêm trang dashboard mới: tạo file trong `pages/seller|admin/`, thêm `<Route>` con trong `App.jsx`, thêm mục menu trong `NAV_BY_ROLE` của `DashboardLayout.jsx`.
@@ -185,6 +186,6 @@ Phân công chi tiết từng tuần: file sheet của nhóm (ngoài repo).
 - **AI chưa nối**: ảnh sản phẩm mới vào hàng chờ admin (UNCERTAIN/PENDING_REVIEW) qua `ProductAiLabeler` — nối AI thì chỉ sửa class này. Hợp đồng AI thực tế (`POST /classify`, field `image`) lệch api.md mục 5 (`/predict`) — chốt khi nối.
 - Còn trả entity ra ngoài: `ShopController` (`/api/shops/**`) — cần đổi sang DTO khi làm trang shop công khai (§4.4).
 - Lịch sử (13/09): khung config/security/JWT/Swagger/exception + auth hoàn chỉnh phía backend, test pass trên H2.
-- Frontend: khu khách hàng hoàn chỉnh với mock data; khung MUI cho seller/admin/auth; **chưa gắn API auth thật** (xem TODO mục 6).
+- Frontend: khu khách hàng hoàn chỉnh với mock data; khung MUI cho seller/admin/auth. Auth đã gắn API thật: đăng nhập mật khẩu + **đăng nhập/đăng ký Google** (05/10, đã test end-to-end trên localhost).
 - AI: khung FastAPI chạy mock; chưa có model.
 - Việc tiếp theo: chạy script SQL + test Postman auth → gắn auth vào FE (mốc tuần 3) → ERD các bảng còn lại (tuần 2) → API sản phẩm/danh mục (tuần 4).

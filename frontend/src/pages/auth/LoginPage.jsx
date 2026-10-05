@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { authApi } from "../../services/api";
 import { useAuth } from "../../context/useAuth";
+import GoogleLoginButton from "../../components/GoogleLoginButton";
 
 // Trang mặc định sau đăng nhập theo vai trò
 function homeFor(user) {
@@ -37,14 +38,18 @@ export default function LoginPage() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+  // Dùng chung cho đăng nhập mật khẩu và Google: data = { accessToken, tokenType, expiresIn, user }
+  const finishLogin = (data) => {
+    login(data);
+    navigate(backTo || homeFor(data.user), { replace: true });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const data = await authApi.login(form); // { accessToken, tokenType, expiresIn, user }
-      login(data);
-      navigate(backTo || homeFor(data.user), { replace: true });
+      finishLogin(await authApi.login(form));
     } catch (err) {
       setError(
         err.response?.data?.message || "Không kết nối được máy chủ. Vui lòng thử lại sau."
@@ -102,10 +107,7 @@ export default function LoginPage() {
 
         <Divider sx={{ my: 3 }}>hoặc</Divider>
 
-        {/* TODO (tuần 3): Google Identity Services -> lấy ID token -> authApi.loginWithGoogle(idToken) */}
-        <Button variant="outlined" fullWidth disabled>
-          Đăng nhập với Google (sắp có)
-        </Button>
+        <GoogleLoginButton onSuccess={finishLogin} onError={setError} />
 
         <Typography variant="body2" sx={{ mt: 3, textAlign: "center" }}>
           Chưa có tài khoản?{" "}

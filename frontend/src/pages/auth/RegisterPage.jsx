@@ -5,14 +5,18 @@ import {
   Box,
   Button,
   Container,
+  Divider,
   Link,
   Paper,
   TextField,
   Typography
 } from "@mui/material";
 import { authApi } from "../../services/api";
+import { useAuth } from "../../context/useAuth";
+import GoogleLoginButton from "../../components/GoogleLoginButton";
 
 export default function RegisterPage() {
+  const { login } = useAuth();
   const navigate = useNavigate();
   // Trang cần quay lại sau khi đăng nhập (đi từ LoginPage sang)
   const from = useLocation().state?.from;
@@ -26,6 +30,12 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  // Google: email mới -> backend tự tạo tài khoản CUSTOMER và trả JWT luôn, không cần qua trang đăng nhập
+  const handleGoogleSuccess = (data) => {
+    login(data);
+    navigate(from ? `${from.pathname}${from.search ?? ""}` : "/", { replace: true });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -116,6 +126,10 @@ export default function RegisterPage() {
             {loading ? "Đang tạo tài khoản..." : "Đăng ký"}
           </Button>
         </Box>
+
+        <Divider sx={{ my: 3 }}>hoặc</Divider>
+
+        <GoogleLoginButton text="signup_with" onSuccess={handleGoogleSuccess} onError={setError} />
 
         <Typography variant="body2" sx={{ mt: 3, textAlign: "center" }}>
           Đã có tài khoản?{" "}
