@@ -108,8 +108,9 @@ src/
 - Icon: `lucide-react` ở mọi nơi (kể cả trong MUI).
 - Text giao diện + comment: tiếng Việt. Tên biến/hàm/file: tiếng Anh. Component `PascalCase.jsx`, hook `useXxx.js`.
 - Gọi API: thêm hàm vào `services/api.js` theo nhóm (`authApi`, `productApi`, `orderApi`, `aiApi`, sắp tới `sellerApi`, `adminApi`), dùng `unwrap` để lấy `data` từ `ApiResponse`. Interceptor đã tự gắn Bearer token và tự logout khi 401.
-- Auth: `useAuth()` → `{ user, token, isAuthenticated, login, logout, hasRole }`; token trong `localStorage["agri_token"]`. Route cần quyền bọc bằng `<RequireAuth roles={[...]}>` (đang TODO trong `App.jsx`).
-- **TODO khi gắn API auth vào FE**: backend trả `accessToken` (không phải `token`) và `user.role` là **chuỗi** (không phải mảng `roles`) → sửa `AuthContext.login/hasRole`, `LoginPage`, `Navbar`, `RequireAuth` cho khớp mục 5.
+- Auth: `useAuth()` → `{ user, token, isAuthenticated, login, logout, hasRole }`; token trong `localStorage["agri_token"]`. Route cần quyền bọc bằng `<RequireAuth roles={[...]}>` (không truyền `roles` = chỉ cần đăng nhập). `LoginPage` gọi API thật — **không thêm lại "đăng nhập giả"/mock login** (đã gỡ 05/10).
+- **Người xem chưa đăng nhập** xem được trang chủ, sản phẩm, chi tiết, trang shop. Thao tác cần tài khoản (thêm giỏ, mua ngay, giỏ hàng, thanh toán, đơn của tôi, tài khoản, Kiểm tra AI) phải đăng nhập: route bọc `RequireAuth`, nút bấm dùng `useRequireLogin()` (đã gắn sẵn trong `CartContext.addToCart`, trả `false` khi chưa đăng nhập). Đăng nhập xong `LoginPage` đưa về trang cũ (`location.state.from`).
+- Giỏ hàng tạm lưu `localStorage["agri_cart_<userId>"]` (mỗi tài khoản một giỏ) cho tới khi có `/api/cart` (tuần 5).
 - Thêm trang dashboard mới: tạo file trong `pages/seller|admin/`, thêm `<Route>` con trong `App.jsx`, thêm mục menu trong `NAV_BY_ROLE` của `DashboardLayout.jsx`.
 - Fallback mock trong `api.js` (products/orders/ai) chỉ để dev không bị chặn — **xoá khi backend có API tương ứng**.
 - Chạy `npm run lint` trước khi PR (oxlint: rules-of-hooks, only-export-components → vì thế context tách 3 file).

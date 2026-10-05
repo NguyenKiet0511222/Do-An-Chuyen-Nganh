@@ -87,12 +87,12 @@ export default function ProductDetailPage() {
       origin: locationName,
       unit
     };
-    addToCart(normalizedProduct, quantity);
+    return addToCart(normalizedProduct, quantity);
   };
 
   const handleBuyNow = () => {
-    handleAddToCart();
-    navigate("/checkout");
+    // Chưa đăng nhập thì addToCart đã chuyển tới /login, không được đè bằng /checkout
+    if (handleAddToCart()) navigate("/checkout");
   };
 
   return (

@@ -38,7 +38,7 @@ function ShopProductCard({ product }) {
       unit: product.unit || "kg"
     };
 
-    addToCart(normalizedProduct, 1);
+    if (!addToCart(normalizedProduct, 1)) return; // chưa đăng nhập -> đã chuyển tới /login
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1200);
   };

@@ -30,69 +30,25 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Bị chuyển tới từ thao tác cần đăng nhập (useRequireLogin / RequireAuth) -> nhắc lý do, xong quay lại trang đó
+  const from = location.state?.from;
+  const backTo = from ? `${from.pathname}${from.search ?? ""}` : null;
+  const notice = location.state?.message || (from ? "Vui lòng đăng nhập để tiếp tục." : "");
+
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    
-    // Đăng nhập ảo cho admin
-    if (form.email === "admin@nongsan.local") {
-      const mockAdminData = {
-        token: "mock-admin-token-123",
-        user: {
-          id: 999,
-          fullName: "Admin Nông Sản",
-          email: "admin@nongsan.local",
-          role: "ADMIN",
-          roles: ["ADMIN"]
-        }
-      };
-      login(mockAdminData);
-      setLoading(false);
-      navigate("/admin", { replace: true });
-      return;
-    }
-
-    // Đăng nhập ảo cho seller
-    if (form.email === "seller@nongsan.local" || form.email.toLowerCase().includes("seller")) {
-      const mockSellerData = {
-        token: "mock-seller-token-123",
-        user: {
-          id: 888,
-          fullName: "Vườn rau Tâm An (Seller)",
-          email: form.email,
-          role: "SELLER",
-          roles: ["SELLER"]
-        }
-      };
-      login(mockSellerData);
-      setLoading(false);
-      navigate("/seller", { replace: true });
-      return;
-    }
-
     try {
-      const data = await authApi.login(form); // { token, user }
+      const data = await authApi.login(form); // { accessToken, tokenType, expiresIn, user }
       login(data);
-      const from = location.state?.from?.pathname;
-      navigate(from || homeFor(data.user), { replace: true });
+      navigate(backTo || homeFor(data.user), { replace: true });
     } catch (err) {
-      // Mock login fallback if backend is offline
-      const role = form.email.includes("admin") ? "ADMIN" : form.email.includes("seller") ? "SELLER" : "CUSTOMER";
-      const fallbackData = {
-        token: "mock-token-fallback",
-        user: {
-          id: 777,
-          fullName: role === "ADMIN" ? "Quản trị viên" : role === "SELLER" ? "Nông hộ Tâm An" : "Khách hàng",
-          email: form.email,
-          role,
-          roles: [role]
-        }
-      };
-      login(fallbackData);
-      navigate(homeFor(fallbackData.user), { replace: true });
+      setError(
+        err.response?.data?.message || "Không kết nối được máy chủ. Vui lòng thử lại sau."
+      );
     } finally {
       setLoading(false);
     }
@@ -107,6 +63,12 @@ export default function LoginPage() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Dành cho khách hàng, người bán và quản trị viên.
         </Typography>
+
+        {notice && !error && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {notice}
+          </Alert>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -147,7 +109,8 @@ export default function LoginPage() {
 
         <Typography variant="body2" sx={{ mt: 3, textAlign: "center" }}>
           Chưa có tài khoản?{" "}
-          <Link component={RouterLink} to="/register" fontWeight={600}>
+          {/* Giữ trang cần quay lại qua bước đăng ký */}
+          <Link component={RouterLink} to="/register" state={{ from }} fontWeight={600}>
             Đăng ký ngay
           </Link>
         </Typography>

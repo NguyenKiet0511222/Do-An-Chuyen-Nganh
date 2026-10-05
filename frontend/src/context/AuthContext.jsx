@@ -9,6 +9,8 @@ function readStoredAuth() {
   try {
     const token = localStorage.getItem(TOKEN_KEY);
     const user = JSON.parse(localStorage.getItem(USER_KEY) || "null");
+    // Phiên của bản "đăng nhập giả" cũ (token "mock-...", đã bỏ) -> coi như chưa đăng nhập
+    if (token?.startsWith("mock-")) return { token: null, user: null };
     return token && user ? { token, user } : { token: null, user: null };
   } catch {
     return { token: null, user: null };

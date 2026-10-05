@@ -41,19 +41,24 @@ export default function App() {
           <Routes>
             {/* Khu khách hàng + trang đăng nhập/đăng ký (CSS thuần, có Navbar/Footer/Giỏ hàng) */}
             <Route element={<CustomerLayout />}>
+              {/* Người xem chưa đăng nhập vẫn xem được */}
               <Route path="/" element={<HomePage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/category/:slug" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
               <Route path="/shops/:id" element={<ShopPage />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/my-orders" element={<MyOrdersPage />} />
-              <Route path="/my-orders/:id" element={<OrderDetailPage />} />
-              <Route path="/account" element={<AccountPage />} />
-              <Route path="/ai-check" element={<AIClassifierPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+
+              {/* Cần đăng nhập (mọi vai trò) — khớp api.md 1.5: /api/cart, /api/orders, /api/users/me, /api/ai */}
+              <Route element={<RequireAuth />}>
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
+                <Route path="/my-orders" element={<MyOrdersPage />} />
+                <Route path="/my-orders/:id" element={<OrderDetailPage />} />
+                <Route path="/account" element={<AccountPage />} />
+                <Route path="/ai-check" element={<AIClassifierPage />} />
+              </Route>
             </Route>
 
             {/* Khu người bán (MUI dashboard, yêu cầu vai trò SELLER hoặc ADMIN) */}

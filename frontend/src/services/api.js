@@ -44,7 +44,7 @@ const unwrap = (response) => response.data?.data ?? response.data;
 // 1. API Xác thực (Auth) — backend làm ở tuần 3
 // ==========================================
 export const authApi = {
-  // -> { token, user: { id, fullName, email, roles: [...] } }
+  // -> { accessToken, tokenType: "Bearer", expiresIn, user: { id, fullName, email, role, ... } }
   login: async (payload) => {
     const response = await apiClient.post("/auth/login", payload);
     return unwrap(response);

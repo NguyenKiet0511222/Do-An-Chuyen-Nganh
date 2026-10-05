@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -14,6 +14,8 @@ import { authApi } from "../../services/api";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  // Trang cần quay lại sau khi đăng nhập (đi từ LoginPage sang)
+  const from = useLocation().state?.from;
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -42,7 +44,10 @@ export default function RegisterPage() {
         password: form.password,
         confirmPassword: form.confirmPassword
       });
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+        state: { from, message: "Đăng ký thành công! Mời bạn đăng nhập." }
+      });
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -114,7 +119,7 @@ export default function RegisterPage() {
 
         <Typography variant="body2" sx={{ mt: 3, textAlign: "center" }}>
           Đã có tài khoản?{" "}
-          <Link component={RouterLink} to="/login" fontWeight={600}>
+          <Link component={RouterLink} to="/login" state={{ from }} fontWeight={600}>
             Đăng nhập
           </Link>
         </Typography>
