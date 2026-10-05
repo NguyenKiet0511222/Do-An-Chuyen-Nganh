@@ -28,7 +28,7 @@ React (frontend) ──HTTP/JSON──▶ Spring Boot (backend = cổng duy nh�
 ## 3. Cấu trúc repo
 
 ```
-backend/   Spring Boot 4.1.1, Java 21 (pom), Maven wrapper       ← xem mục 5
+backend/   Spring Boot 4.1.1, Java 17+ (pom), Maven wrapper      ← xem mục 5
 frontend/  React 19 + Vite 8, react-router 7, axios, MUI 9         ← xem mục 6
 ai/        Python FastAPI + TensorFlow/Keras (MobileNetV2)          ← xem mục 7
 CLAUDE.md  file này
@@ -50,7 +50,7 @@ CLAUDE.md  file này
 - Frontend: copy `frontend/.env.example` → `.env`.
 - AI: đặt model vào `ai/models/` (gitignore).
 
-**JDK:** pom đặt `java.version=21`; máy có JDK 24/25 vẫn build được (`--release 21`). Không tự đổi `java.version` khi chưa thống nhất nhóm. Branch `appmod/java-upgrade-*` là của tool nâng cấp Java tự tạo, không làm việc trên đó.
+**JDK:** pom đặt `java.version=17` (đổi từ 21 ở commit `c2ad04f`, 02/10). Nhóm **không ràng buộc** phiên bản: máy dùng JDK nào ≥ 17 cũng được (17/21/24/25 đều build — `--release 17`). Branch `appmod/java-upgrade-*` là của tool nâng cấp Java tự tạo, không làm việc trên đó.
 
 **⚠️ `mvnw.cmd spring-boot:run` có thể lỗi `Could not find or load main class ...BackendApplication`** trên máy có đường dẫn project chứa dấu tiếng Việt/khoảng trắng (VD `D:\Đồ án chuyên ngành\Nhom5`) — nghi do Maven build classpath argfile bị vỡ trên Windows với path dạng này (đã xác nhận 28/09/2026, thử cả `-Dspring-boot.run.fork=false` cũng không hết). Class vẫn compile ra bình thường (`target/classes` có đủ `.class`). **Cách chạy ổn định đã test thật**: đóng gói jar rồi chạy trực tiếp bằng `java -jar` (lệnh ở bảng trên) — né hoàn toàn bước tính classpath của plugin. `run_backend.bat` / `backend/run.bat` hiện vẫn gọi `spring-boot:run` nên có thể dính lỗi này — nếu máy bạn gặp, đổi 2 file đó sang cách `java -jar` ở trên.
 
@@ -142,7 +142,7 @@ src/
 ## 8. Database
 
 - SQL Server, DB `nongsan_db`. ERD do **Duy & Hà** thiết kế — **mọi thay đổi bảng/cột phải báo nhóm** trước khi sửa entity.
-- ⚠️ 27–28/09/2026: `pom.xml`/`application.properties` từng bị đổi ngầm sang MySQL (commit `dd58cd6`) rồi đổi lại SQL Server (đã chốt lại với cả nhóm: **giữ SQL Server**, khớp `docs/api.md` và ERD gốc). Không tự đổi engine DB lần nữa mà không hỏi — kể cả khi máy cá nhân cài sẵn MySQL cho tiện.
+- ⚠️ 27–28/09/2026: `pom.xml`/`application.properties` từng bị đổi ngầm sang MySQL (commit `dd58cd6`) rồi đổi lại SQL Server (đã chốt lại với cả nhóm: **giữ SQL Server**, khớp `docs/api.md` và ERD gốc). Không tự đổi engine DB lần nữa mà không hỏi — kể cả khi máy cá nhân cài sẵn MySQL cho tiện. **Lần 2** (02/10, commit `c2ad04f`): mặc định trong `application.properties` lại bị đổi sang MySQL → 05/10 đổi về SQL Server, nhóm chốt lại **giữ SQL Server**. Máy nào muốn thử DB khác thì chỉ ghi đè trong `application-local.properties` của mình, không sửa `application.properties`.
 - Instance SQL Server phải **bật TCP/IP cổng 1433** (SQL Server Configuration Manager → Protocols → Enable → restart service) thì backend mới connect được — mặc định cài đặt để tắt. Nếu backend báo `TCP/IP connection ... has failed`, đây là nguyên nhân số 1.
 - Script tạo DB/bảng: `backend/src/main/resources/db/` — chạy theo số thứ tự trong SSMS **trước khi** start backend (`01_create_database.sql`, `02_users.sql`, `03_catalog.sql` shop/danh mục/sản phẩm/ảnh/ai_results, `04_orders.sql` đơn hàng). Thêm bảng mới = thêm file `05_xxx.sql` + entity tương ứng. ⚠️ `02_users.sql` chưa có cột `phone`, `status`, `account_tier` mà entity `User` đã có (ddl-auto tự thêm) — cần cập nhật script.
 - Kiểm tra script bằng sqlcmd: dùng `-S tcp:localhost,1433` (máy có thể có nhiều instance; `-S localhost` đi shared memory vào instance khác → "Login failed").

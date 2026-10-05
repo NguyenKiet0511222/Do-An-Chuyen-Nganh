@@ -1,13 +1,17 @@
 # Copy file nay thanh application-local.properties (da duoc gitignore) roi sua theo may minh.
-# Chay voi profile local:
-#   Windows:  mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
-#   Mac/Linux: ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-# (Hoac dat bien moi truong SPRING_PROFILES_ACTIVE=local)
+# Chay voi profile local (file nay duoc dong goi vao jar -> sua xong phai build lai):
+#   mvnw.cmd -DskipTests package
+#   java -jar target\backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
+# (hoac double-click run_backend.bat). KHONG dung "mvnw.cmd spring-boot:run": loi
+# "Could not find or load main class" tren duong dan co dau tieng Viet/khoang trang.
 
 # --- SQL Server (chay resources/db/01_create_database.sql + 02_users.sql truoc) ---
 spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=nongsan_db;encrypt=true;trustServerCertificate=true
 spring.datasource.username=sa
 spring.datasource.password=YourStrong!Passw0rd
+# Ghi ro driver + dialect SQL Server (nhom da chot SQL Server, KHONG dung MySQL)
+spring.datasource.driver-class-name=com.microsoft.sqlserver.jdbc.SQLServerDriver
+spring.jpa.database-platform=org.hibernate.dialect.SQLServerDialect
 # Neu dung Windows Authentication thay cho sa:
 #spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=nongsan_db;encrypt=true;trustServerCertificate=true;integratedSecurity=true
 
