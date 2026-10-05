@@ -40,7 +40,7 @@ CLAUDE.md  file này
 |------|------|
 | Backend chạy | `cd backend && mvnw.cmd -DskipTests package && java -jar target\backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=local` → http://localhost:8080 (xem cảnh báo `spring-boot:run` bên dưới) |
 | Backend test | `cd backend && mvnw.cmd test` (chạy trên H2, không cần SQL Server) |
-| Swagger | http://localhost:8080/swagger-ui.html — Health: http://localhost:8080/api/health |
+| Swagger | http://localhost:8080/swagger-ui (không phải `/swagger-ui.html`) — Health: http://localhost:8080/api/health |
 | Frontend | `cd frontend && npm install && npm run dev` → http://localhost:5173 |
 | Frontend lint/build | `npm run lint` · `npm run build` |
 | AI service | `cd ai && python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000` → http://localhost:8000/docs |

@@ -16,7 +16,7 @@ import io.swagger.v3.oas.models.servers.Server;
 
 /**
  * Cấu hình Swagger UI (springdoc). Có nút "Authorize" để dán JWT khi test API cần đăng nhập.
- * Truy cập Swagger UI tại: http://localhost:8080/swagger-ui hoặc /swagger-ui.html
+ * Truy cập Swagger UI tại: http://localhost:8080/swagger-ui (tự chuyển sang /swagger-ui/index.html; /swagger-ui.html KHÔNG dùng được)
  */
 @Configuration
 public class OpenApiConfig {
