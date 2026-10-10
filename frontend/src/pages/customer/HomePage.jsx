@@ -35,12 +35,25 @@ export default function HomePage() {
     let ignore = false;
     async function fetchData() {
       try {
-        const { getSharedProducts } = await import("../../data/productStore");
-        let allProducts = getSharedProducts().filter(p => p.status === "APPROVED");
+        let allProducts = [];
+        try {
+          const res = await productApi.getAll({ size: 50, sort: "newest" });
+          allProducts = res?.content || (Array.isArray(res) ? res : []);
+        } catch (apiErr) {
+          console.warn("Lỗi gọi productApi /products, fallback mock data:", apiErr.message);
+          const { getSharedProducts } = await import("../../data/productStore");
+          allProducts = getSharedProducts().filter(p => p.status === "APPROVED");
+        }
+
         allProducts = allProducts.map(p => ({
           ...p,
-          price: p.price,
-          originalPrice: p.originalPrice || Math.floor(p.price * 1.2)
+          price: Number(p.price) || 0,
+          originalPrice: p.originalPrice || Math.floor((Number(p.price) || 0) * 1.2),
+          category: typeof p.category === 'object' ? p.category?.name : (p.category || ""),
+          seller: p.shop?.shopName || p.seller || "Nông sản sạch",
+          origin: p.origin || p.shop?.province || "Việt Nam",
+          imageUrl: p.primaryImageUrl || p.imageUrl,
+          aiGrade: p.aiGrade || (p.aiOverallLabel === "FRESH" ? "Tươi sạch AI" : (p.aiOverallLabel === "ROTTEN" ? "Hỏng" : "Kiểm định AI")),
         }));
 
         let categoriesRes = null;

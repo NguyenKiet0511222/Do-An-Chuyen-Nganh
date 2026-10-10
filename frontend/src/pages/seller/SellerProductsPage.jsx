@@ -2,7 +2,7 @@ import { Box, Typography, Paper, Tabs, Tab, TextField, InputAdornment, Button, T
 import { Search, Plus, CheckCircle2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getSharedProducts, updateProductStatus } from "../../data/productStore";
+import { getSharedProducts, updateProductStatus, syncSharedProductsWithApi } from "../../data/productStore";
 
 export default function SellerProductsPage() {
   const navigate = useNavigate();
@@ -16,10 +16,13 @@ export default function SellerProductsPage() {
 
   useEffect(() => {
     setLoading(true);
-    setTimeout(() => {
-      setProducts(getSharedProducts());
+    setProducts(getSharedProducts());
+    syncSharedProductsWithApi().then((synced) => {
+      if (synced && synced.length > 0) setProducts(synced);
       setLoading(false);
-    }, 300);
+    }).catch(() => {
+      setLoading(false);
+    });
   }, []);
 
   const handleTabChange = (event, newValue) => {
@@ -51,7 +54,7 @@ export default function SellerProductsPage() {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(p => 
         (p.name || "").toLowerCase().includes(q) || 
-        (p.id || "").toLowerCase().includes(q)
+        String(p.id || "").toLowerCase().includes(q)
       );
     }
     if (categoryFilter !== "all") {

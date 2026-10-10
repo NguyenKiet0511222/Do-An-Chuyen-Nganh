@@ -26,7 +26,7 @@ import {
 } from "@mui/material";
 import { Search, FileSpreadsheet } from "lucide-react";
 import WireframeNoteBox from "./components/WireframeNoteBox";
-import { getSharedProducts, updateProductStatus } from "../../data/productStore";
+import { getSharedProducts, updateProductStatus, syncSharedProductsWithApi } from "../../data/productStore";
 
 export default function AdminProductsPage() {
   const navigate = useNavigate();
@@ -41,6 +41,9 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     setProducts(getSharedProducts());
+    syncSharedProductsWithApi().then((synced) => {
+      if (synced && synced.length > 0) setProducts(synced);
+    });
   }, []);
 
   const handleSelectAll = (e) => {
@@ -176,12 +179,13 @@ export default function AdminProductsPage() {
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       const match =
-        p.name.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q) ||
-        p.seller.toLowerCase().includes(q);
+        (p.name || "").toLowerCase().includes(q) ||
+        String(p.id || "").toLowerCase().includes(q) ||
+        (p.seller || "").toLowerCase().includes(q);
       if (!match) return false;
     }
-    if (categoryFilter !== "all" && !p.category.includes(categoryFilter)) return false;
+    const catStr = typeof p.category === 'string' ? p.category : (p.category?.name || "");
+    if (categoryFilter !== "all" && !catStr.includes(categoryFilter)) return false;
     if (sellerFilter !== "all" && p.seller !== sellerFilter) return false;
     if (aiFilter !== "all" && p.aiLabel?.type !== aiFilter) return false;
     return true;

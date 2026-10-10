@@ -38,10 +38,19 @@ export default function LoginPage() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  // Dùng chung cho đăng nhập mật khẩu và Google: data = { accessToken, tokenType, expiresIn, user }
   const finishLogin = (data) => {
     login(data);
-    navigate(backTo || homeFor(data.user), { replace: true });
+    const role = data.user?.role;
+    const isAdmin = role === "ADMIN" || data.user?.roles?.includes("ADMIN");
+    const isSeller = role === "SELLER" || data.user?.roles?.includes("SELLER");
+    
+    if (isAdmin) {
+      navigate("/admin", { replace: true });
+    } else if (isSeller) {
+      navigate("/seller", { replace: true });
+    } else {
+      navigate(backTo || homeFor(data.user), { replace: true });
+    }
   };
 
   const handleSubmit = async (e) => {

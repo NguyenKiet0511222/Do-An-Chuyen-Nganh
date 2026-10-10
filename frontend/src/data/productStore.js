@@ -1,5 +1,54 @@
 import { ADMIN_PRODUCTS } from "./adminMockData";
 
+export async function syncSharedProductsWithApi() {
+  try {
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+    const res = await fetch(`${API_URL}/products?size=100`);
+    if (res.ok) {
+      const data = await res.json();
+      const items = data.data?.content || [];
+      if (items.length > 0) {
+        const backendProducts = items.map(p => ({
+          id: p.id,
+          name: p.name,
+          seller: p.shop?.shopName || "HTX Nông Sản",
+          category: typeof p.category === 'object' ? p.category?.name : (p.category || "Nông sản sạch"),
+          price: Number(p.price) || 0,
+          originalPrice: Math.floor((Number(p.price) || 0) * 1.2),
+          inventory: p.stockQuantity || 100,
+          status: p.status || "APPROVED",
+          imageUrl: p.primaryImageUrl || p.imageUrl || "https://placehold.co/400x400?text=No+Image",
+          aiLabel: {
+            text: p.aiOverallLabel === "FRESH" ? "Tươi sạch AI" : (p.aiOverallLabel === "ROTTEN" ? "Hỏng" : "Kiểm định AI"),
+            type: p.aiOverallLabel === "FRESH" ? "fresh" : (p.aiOverallLabel === "ROTTEN" ? "rotten" : "uncertain"),
+            confidence: p.aiOverallConfidence ? Number(p.aiOverallConfidence) : 0.95
+          },
+          rejectReason: p.rejectReason || "",
+          submitDate: new Date().toLocaleDateString("vi-VN"),
+          soldCount: p.soldCount || 0
+        }));
+
+        const stored = localStorage.getItem("shared_products");
+        let current = stored ? JSON.parse(stored) : [];
+        const existingIds = new Set(backendProducts.map(p => String(p.id)));
+        const nonBackend = current.filter(p => !existingIds.has(String(p.id)));
+        const merged = [...backendProducts, ...nonBackend];
+
+        localStorage.setItem("shared_products", JSON.stringify(merged));
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn("Lỗi đồng bộ sản phẩm từ backend API:", err);
+  }
+  return getSharedProducts();
+}
+
+// Tự động đồng bộ ngầm khi chạy trên trình duyệt
+if (typeof window !== "undefined") {
+  syncSharedProductsWithApi();
+}
+
 export function getSharedProducts() {
   const stored = localStorage.getItem("shared_products");
   if (stored) {

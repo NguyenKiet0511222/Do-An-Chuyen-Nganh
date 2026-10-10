@@ -71,7 +71,7 @@ export default function Navbar() {
 
             {/* User Profile */}
             {user ? (
-              <Link to="/account" className="user-profile-nav">
+              <Link to={user.role === 'ADMIN' || user?.roles?.includes('ADMIN') ? '/admin' : user.role === 'SELLER' || user?.roles?.includes('SELLER') ? '/seller' : '/account'} className="user-profile-nav">
                 {user.avatar ? (
                   <img src={user.avatar} alt="Avatar" className="user-avatar" />
                 ) : (

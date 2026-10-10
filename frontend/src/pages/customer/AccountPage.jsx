@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
 import "./AccountPage.css";
@@ -7,6 +7,14 @@ export default function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("PROFILE");
+
+  useEffect(() => {
+    if (user?.role === "ADMIN" || user?.roles?.includes("ADMIN")) {
+      navigate("/admin", { replace: true });
+    } else if (user?.role === "SELLER" || user?.roles?.includes("SELLER")) {
+      navigate("/seller", { replace: true });
+    }
+  }, [user, navigate]);
 
   // Fallback data for wireframe mockup
   const mockUser = {

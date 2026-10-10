@@ -1,4 +1,4 @@
-# Script bật TCP/IP cổng 1433 cho instance HADEPTRAI và MSSQLSERVER
+# Script bật TCP/IP cổng 1433 cho tất cả các instance SQL Server
 # Cần quyền Administrator
 
 Write-Host "Dang kiem tra quyen Administrator..." -ForegroundColor Cyan
@@ -10,30 +10,35 @@ if (-not $isAdmin) {
     exit
 }
 
-Write-Host "Dang bat TCP/IP cho SQL Server instance HADEPTRAI..." -ForegroundColor Green
+Write-Host "Dang bat TCP/IP cho cac SQL Server instance..." -ForegroundColor Green
 
-# 1. Bật giao thức TCP qua WMI ComputerManagement17
-try {
-    $p = Get-CimInstance -Namespace 'root\Microsoft\SqlServer\ComputerManagement17' -ClassName ServerNetworkProtocol -Filter "InstanceName = 'HADEPTRAI' and ProtocolName = 'Tcp'" -ErrorAction Stop
-    Invoke-CimMethod -InputObject $p -MethodName SetEnable | Out-Null
-    Write-Host "-> Da bat TCP/IP protocol thanh cong!" -ForegroundColor Green
-} catch {
-    Write-Host "-> WMI loi hoac da bat, tiep tuc kiem tra Registry..." -ForegroundColor Yellow
+# 1. Bật qua WMI (Thử cho MSSQLSERVER và SQLEXPRESS và HADEPTRAI)
+$instances = @('MSSQLSERVER', 'SQLEXPRESS', 'HADEPTRAI')
+foreach ($inst in $instances) {
+    try {
+        $p = Get-CimInstance -Namespace 'root\Microsoft\SqlServer\ComputerManagement17' -ClassName ServerNetworkProtocol -Filter "InstanceName = '$inst' and ProtocolName = 'Tcp'" -ErrorAction Stop
+        Invoke-CimMethod -InputObject $p -MethodName SetEnable | Out-Null
+        Write-Host "-> Da bat TCP/IP protocol cho instance $inst (WMI)!" -ForegroundColor Green
+    } catch {
+        # Bo qua
+    }
 }
 
 # 2. Set Registry TCP Port 1433 va xoa Dynamic Ports cho IPAll
-$regPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL17.HADEPTRAI\MSSQLServer\SuperSocketNetLib\Tcp"
-if (Test-Path $regPath) {
+$regPaths = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL*\MSSQLServer\SuperSocketNetLib\Tcp" -ErrorAction SilentlyContinue
+foreach ($reg in $regPaths) {
+    $regPath = $reg.PSPath
     Set-ItemProperty -Path $regPath -Name "Enabled" -Value 1
     Set-ItemProperty -Path "$regPath\IPAll" -Name "TcpPort" -Value "1433"
     Set-ItemProperty -Path "$regPath\IPAll" -Name "TcpDynamicPorts" -Value ""
-    Write-Host "-> Da cau hinh Port 1433 cho IPAll thanh cong!" -ForegroundColor Green
+    Write-Host "-> Da cau hinh Port 1433 tai $regPath!" -ForegroundColor Green
 }
 
-# 3. Khoi dong lai service MSSQL$HADEPTRAI
-Write-Host "Dang khoi dong lai service SQL Server (HADEPTRAI)..." -ForegroundColor Cyan
-Restart-Service -Name "MSSQL`$HADEPTRAI" -Force
+# 3. Khoi dong lai service MSSQL
+Write-Host "Dang khoi dong lai cac service SQL Server..." -ForegroundColor Cyan
+Get-Service -Name "MSSQL*" | Where-Object {$_.Name -notlike "*FDHost*"} | Restart-Service -Force -ErrorAction SilentlyContinue
+
 Write-Host "============================================================" -ForegroundColor Green
-Write-Host "HOAN TAT: SQL Server HADEPTRAI da mo TCP/IP tai cong 1433!" -ForegroundColor Green
+Write-Host "HOAN TAT: SQL Server da mo TCP/IP tai cong 1433!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
