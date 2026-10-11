@@ -9,7 +9,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Cần thêm cấu hình mới thì thêm field ở đây thay vì rải @Value khắp nơi.
  */
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(Jwt jwt, Ai ai, Cors cors, Google google, Admin admin, Upload upload) {
+public record AppProperties(Jwt jwt, Ai ai, Cors cors, Google google, Admin admin, Upload upload, Order order) {
+
+	/** Đơn hàng: phí ship cố định mỗi đơn (VND) — api.md mục 3.4, biến môi trường SHIPPING_FEE_FLAT. */
+	public record Order(long shippingFeeFlat) {
+	}
 
 	/** Cấu hình JWT do backend tự phát hành (HS256). */
 	public record Jwt(String secret, long expirationMinutes) {

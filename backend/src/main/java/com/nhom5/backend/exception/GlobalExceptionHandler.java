@@ -35,10 +35,13 @@ public class GlobalExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-	/** Lỗi nghiệp vụ do service chủ động ném. */
+	/** Lỗi nghiệp vụ do service chủ động ném. Có errors (vd 409 thiếu hàng khi checkout) thì trả kèm danh sách. */
 	@ExceptionHandler(AppException.class)
 	public ResponseEntity<ApiResponse<Void>> handleAppException(AppException ex) {
-		return ResponseEntity.status(ex.getStatus()).body(ApiResponse.error(ex.getMessage()));
+		ApiResponse<Void> body = ex.getErrors() == null
+				? ApiResponse.error(ex.getMessage())
+				: ApiResponse.validationErrors(ex.getMessage(), ex.getErrors());
+		return ResponseEntity.status(ex.getStatus()).body(body);
 	}
 
 	/** Lỗi validate @Valid trên request DTO: trả map field -> thông báo. */

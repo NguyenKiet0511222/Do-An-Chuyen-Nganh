@@ -40,13 +40,12 @@ import java.util.UUID;
 @org.springframework.core.annotation.Order(3)
 public class OrderSeeder implements ApplicationRunner {
 
-    private static final long SHIPPING_FEE = 20_000L;
-
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final ShopRepository shopRepository;
     private final ProductRepository productRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AppProperties appProperties;
 
     @Override
     @Transactional
@@ -91,9 +90,13 @@ public class OrderSeeder implements ApplicationRunner {
         log.info("Đã seed 6 đơn hàng mẫu cho shop {}", shop.getShopName());
     }
 
-    /** Tạo đơn ở trạng thái target kèm lịch sử đi qua từng bước (không trừ tồn kho — chỉ là dữ liệu mẫu). */
+    /**
+     * Tạo đơn ở trạng thái target kèm lịch sử đi qua từng bước (không trừ tồn kho — chỉ là dữ liệu mẫu).
+     * Mã đơn DH-{năm}-{seq}: bảng trống nên seq trùng với id (1..6), khớp cách sinh mã trong OrderCodes.
+     */
     private Order build(int year, int seq, User customer, User seller, Shop shop, OrderStatus target, String note,
                         Product a, int qtyA, Product b, int qtyB) {
+        long shippingFee = appProperties.order().shippingFeeFlat();
         Order order = Order.builder()
                 .orderCode(String.format("DH-%d-%05d", year, seq))
                 .checkoutGroupId(UUID.randomUUID().toString())
@@ -103,7 +106,7 @@ public class OrderSeeder implements ApplicationRunner {
                 .phone(customer.getPhone())
                 .shippingAddress("Số 12, ngõ 45 Nguyễn Chí Thanh, Đống Đa, Hà Nội")
                 .note(note)
-                .shippingFee(SHIPPING_FEE)
+                .shippingFee(shippingFee)
                 .build();
         addItem(order, a, qtyA);
         if (b != null) {
@@ -111,7 +114,7 @@ public class OrderSeeder implements ApplicationRunner {
         }
         long subtotal = order.getItems().stream().mapToLong(OrderItem::getSubtotal).sum();
         order.setSubtotal(subtotal);
-        order.setTotal(subtotal + SHIPPING_FEE);
+        order.setTotal(subtotal + shippingFee);
 
         LocalDateTime now = LocalDateTime.now();
         order.addHistory(history(null, OrderStatus.PENDING, customer, null));

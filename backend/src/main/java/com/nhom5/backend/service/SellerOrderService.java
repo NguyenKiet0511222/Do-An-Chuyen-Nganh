@@ -8,13 +8,11 @@ import com.nhom5.backend.entity.Order;
 import com.nhom5.backend.entity.OrderItem;
 import com.nhom5.backend.entity.OrderStatusHistory;
 import com.nhom5.backend.entity.Product;
-import com.nhom5.backend.entity.ProductImage;
 import com.nhom5.backend.entity.Shop;
 import com.nhom5.backend.entity.enums.OrderStatus;
 import com.nhom5.backend.entity.enums.PaymentStatus;
 import com.nhom5.backend.exception.AppException;
 import com.nhom5.backend.repository.OrderRepository;
-import com.nhom5.backend.repository.ProductImageRepository;
 import com.nhom5.backend.repository.UserRepository;
 import com.nhom5.backend.util.QueryParams;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,8 +44,8 @@ public class SellerOrderService {
 
     private final SellerShopService sellerShopService;
     private final OrderRepository orderRepository;
-    private final ProductImageRepository productImageRepository;
     private final UserRepository userRepository;
+    private final OrderSupport orderSupport;
 
     /** from / to lọc theo ngày đặt (bao gồm cả 2 đầu). status nhận 1 hoặc nhiều giá trị cách nhau dấu phẩy. */
     @Transactional(readOnly = true)
@@ -73,12 +70,12 @@ public class SellerOrderService {
 
     @Transactional(readOnly = true)
     public OrderDetailResponse get(Long userId, Long orderId) {
-        return toDetail(requireOwnOrder(userId, orderId));
+        return orderSupport.toDetail(requireOwnOrder(userId, orderId));
     }
 
     /**
      * Chuyển trạng thái theo bảng 3.5 và ghi order_status_history.
-     * CANCELLED: bắt buộc cancelReason, hoàn tồn kho. DELIVERED: thanh toán PAID, cộng số đã bán.
+     * CANCELLED: bắt buộc cancelReason, hoàn tồn kho (OrderSupport). DELIVERED: thanh toán PAID, cộng số đã bán.
      */
     public OrderDetailResponse changeStatus(Long userId, Long orderId, OrderStatusUpdateRequest request) {
         Order order = requireOwnOrder(userId, orderId);
@@ -88,8 +85,13 @@ public class SellerOrderService {
             throw AppException.conflict("Chuyển trạng thái không hợp lệ (" + from + " -> " + to + ")");
         }
 
+        if (to == OrderStatus.CANCELLED) {
+            orderSupport.cancel(order, userId, request.cancelReason(), request.note());
+            orderRepository.flush();
+            return orderSupport.toDetail(order);
+        }
+
         LocalDateTime now = LocalDateTime.now();
-        String historyNote = trimToNull(request.note());
         switch (to) {
             case CONFIRMED -> order.setConfirmedAt(now);
             case DELIVERED -> {
@@ -98,21 +100,6 @@ public class SellerOrderService {
                 for (OrderItem item : order.getItems()) {
                     Product p = item.getProduct();
                     p.setSoldCount(p.getSoldCount() + item.getQuantity());
-                }
-            }
-            case CANCELLED -> {
-                String reason = trimToNull(request.cancelReason());
-                if (reason == null) {
-                    throw AppException.badRequest("Vui lòng nhập lý do huỷ đơn");
-                }
-                order.setCancelReason(reason);
-                order.setCancelledAt(now);
-                for (OrderItem item : order.getItems()) {
-                    Product p = item.getProduct();
-                    p.setStockQuantity(p.getStockQuantity() + item.getQuantity());
-                }
-                if (historyNote == null) {
-                    historyNote = reason;
                 }
             }
             default -> {
@@ -124,10 +111,10 @@ public class SellerOrderService {
                 .fromStatus(from)
                 .toStatus(to)
                 .changedBy(userRepository.getReferenceById(userId))
-                .note(historyNote)
+                .note(OrderSupport.trimToNull(request.note()))
                 .build());
         orderRepository.flush();
-        return toDetail(order);
+        return orderSupport.toDetail(order);
     }
 
     // ---------- helpers ----------
@@ -136,20 +123,5 @@ public class SellerOrderService {
         Shop shop = sellerShopService.requireShop(userId);
         return orderRepository.findByIdAndShopId(orderId, shop.getId())
                 .orElseThrow(() -> AppException.notFound("Không tìm thấy đơn hàng #" + orderId));
-    }
-
-    private OrderDetailResponse toDetail(Order order) {
-        List<Long> productIds = order.getItems().stream().map(i -> i.getProduct().getId()).distinct().toList();
-        Map<Long, String> images = new LinkedHashMap<>();
-        if (!productIds.isEmpty()) {
-            for (ProductImage img : productImageRepository.findForPrimaryPick(productIds)) {
-                images.putIfAbsent(img.getProduct().getId(), img.getUrl());
-            }
-        }
-        return OrderDetailResponse.from(order, images);
-    }
-
-    private static String trimToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 }

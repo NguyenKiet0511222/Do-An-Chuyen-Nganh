@@ -7,6 +7,7 @@ import com.nhom5.backend.entity.enums.ShopStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -116,6 +117,25 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                                @Param("statuses") Collection<ProductStatus> statuses,
                                @Param("keyword") String keyword,
                                Pageable pageable);
+
+    // ---------- Tồn kho (mục 3.4): UPDATE có điều kiện để an toàn khi nhiều khách đặt cùng lúc ----------
+
+    /**
+     * Trừ tồn kho khi tạo đơn. Trả về 0 dòng = không đủ hàng (không trừ gì cả).
+     * Sau khi gọi, entity Product trong persistence context KHÔNG được set stockQuantity nữa (sẽ ghi đè giá trị DB).
+     */
+    @Modifying
+    @Query("UPDATE Product p SET p.stockQuantity = p.stockQuantity - :qty WHERE p.id = :id AND p.stockQuantity >= :qty")
+    int deductStock(@Param("id") Long id, @Param("qty") int qty);
+
+    /** Hoàn tồn kho khi huỷ đơn. */
+    @Modifying
+    @Query("UPDATE Product p SET p.stockQuantity = p.stockQuantity + :qty WHERE p.id = :id")
+    int restoreStock(@Param("id") Long id, @Param("qty") int qty);
+
+    /** Đọc tồn kho thẳng từ DB (sau deductStock thất bại) để báo "Chỉ còn N". */
+    @Query("SELECT p.stockQuantity FROM Product p WHERE p.id = :id")
+    Integer findStockById(@Param("id") Long id);
 
     /** Đếm sản phẩm theo trạng thái cho dashboard: mỗi dòng [ProductStatus, Long]. */
     @Query("SELECT p.status, COUNT(p) FROM Product p WHERE p.shop.id = :shopId GROUP BY p.status")
