@@ -1,6 +1,6 @@
 # api.md — Đặc tả API & nghiệp vụ: Website bán nông sản tích hợp AI phân loại chất lượng
 
-> Phiên bản: v1.3 (30/09/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium + chốt chi tiết API người bán (mục 4.8, changelog v1.3).
+> Phiên bản: v1.4 (11/10/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium + chốt chi tiết API người bán (v1.3) + luồng khách hàng (địa chỉ, giỏ, checkout, đơn) & admin duyệt sản phẩm (changelog v1.4).
 > Tài liệu này là **nguồn sự thật duy nhất** để sinh code. Khi có mâu thuẫn giữa tài liệu này và tài liệu khác, ưu tiên tài liệu này.
 
 ---
@@ -144,6 +144,7 @@ Mọi bảng có `created_at DATETIME2 DEFAULT SYSDATETIME()`, `updated_at DATET
 | `orders` | order_code VARCHAR(20) UNIQUE; checkout_group_id VARCHAR(36); user_id FK; shop_id FK; status; payment_method; payment_status; receiver_name; phone; shipping_address NVARCHAR(500); note NVARCHAR(500) NULL; subtotal BIGINT; shipping_fee BIGINT; total BIGINT; cancel_reason NULL; confirmed_at, delivered_at, cancelled_at NULL | **1 đơn = 1 shop** |
 | `order_items` | order_id FK; product_id FK; product_name (snapshot); unit; price BIGINT (snapshot); quantity INT; subtotal BIGINT; ai_label_snapshot NULL | Snapshot tại thời điểm đặt |
 | `order_status_history` | order_id FK; from_status NULL; to_status; changed_by FK→users NULL; note NULL | Ghi mỗi lần đổi trạng thái |
+| `product_review_history` | product_id FK; actor_id FK→users NULL; action (SUBMIT \| APPROVE \| REJECT \| NEED_INFO \| HIDE \| UNHIDE); from_status NULL; to_status; reason NVARCHAR(500) NULL | **Thêm v1.4** — lịch sử duyệt cho `GET /admin/products/{id}`: người bán submit + mọi thao tác admin |
 | `reviews` | product_id FK; user_id FK; order_id FK; rating TINYINT (1–5); comment NVARCHAR(1000); UNIQUE(product_id, user_id, order_id) | Chỉ khi đơn DELIVERED |
 | `settings` | [key] VARCHAR(50) PK; [value] NVARCHAR(255) | Seed: `ai.auto_accept_threshold=0.90`, `ai.review_threshold=0.70`, `ai.model_version=mobilenetv2_v1` |
 
@@ -276,7 +277,8 @@ Validation: `fullName` 2–100 ký tự; `email` đúng định dạng; `phone` 
 | PUT / DELETE | `/users/me/addresses/{id}` | 🔑 | Sửa / xoá (chỉ của mình) |
 | PATCH | `/users/me/addresses/{id}/default` | 🔑 | Đặt làm mặc định |
 
-Address JSON: `{ "id", "receiverName", "phone", "province", "district", "ward", "street", "isDefault" }`. Đã có: `GET /users/me/addresses` (mặc định lên đầu) và `GET /users/me/addresses/{id}` (địa chỉ người khác → 404); các API ghi làm cùng checkout (tuần 5).
+Address JSON: `{ "id", "receiverName", "phone", "province", "district", "ward", "street", "isDefault" }`. Body POST/PUT: các field trên trừ `id` (`ward` tuỳ chọn, `isDefault` tuỳ chọn, `phone` 9–11 chữ số).
+Quy tắc mặc định (v1.4): địa chỉ **đầu tiên tự thành mặc định**; `isDefault: true` (khi thêm/sửa) hoặc `PATCH .../default` → bỏ cờ các địa chỉ khác; `isDefault: false` trên địa chỉ đang mặc định bị bỏ qua (muốn đổi thì đặt cho địa chỉ khác); xoá địa chỉ mặc định → địa chỉ cũ nhất còn lại được đôn lên. Địa chỉ người khác → 404 ở mọi API. Đã làm đủ 6 API (v1.4); `/users/me`, `/users/me/avatar` chưa làm.
 
 ### 4.3 Danh mục (`/api/categories`)
 
@@ -334,6 +336,7 @@ GET /cart response:
   "grandTotal": 110000, "totalItems": 1
 }
 ```
+Ghi chú (v1.4): `totalItems` = số dòng; `shippingFee` mỗi nhóm = `SHIPPING_FEE_FLAT`, `grandTotal` = Σ (subtotal + shippingFee). Thêm/đổi số lượng vượt tồn kho → 409 `"Chỉ còn {n} {unit}"`; sản phẩm không APPROVED hoặc shop không ACTIVE → 409 `"Sản phẩm hiện không còn bán"`. Sản phẩm **về sau** hết bán / hết hàng vẫn giữ trong giỏ (frontend dựa vào `stockQuantity` để cảnh báo) — checkout sẽ chặn. Dòng giỏ của người khác → 404. POST trả 201, PUT/DELETE dòng trả giỏ mới; DELETE /cart trả `data: null`.
 
 ### 4.6 Đặt hàng – khách hàng (`/api/orders`) 🔑
 
@@ -365,6 +368,7 @@ Hết hàng → 409:
 ```json
 { "success": false, "message": "Một số sản phẩm không đủ hàng", "errors": [ { "field": "productId:1187", "message": "Chỉ còn 1 kg" } ] }
 ```
+Ghi chú (v1.4): `errors[]` gộp cả sản phẩm **không còn bán** (`"Sản phẩm không còn bán"`); gặp lỗi là **không tạo đơn nào**, tồn kho và giỏ giữ nguyên. `cartItemIds` chứa id không thuộc giỏ mình → 404; giỏ rỗng → 400 `"Giỏ hàng trống"`; `addressId` không phải của mình → 404. `shippingAddress` = `street, ward, district, province` của địa chỉ chọn; `receiverName`/`phone` chép từ địa chỉ. `orderCode` = `DH-{năm}-{id đơn, đệm 5 số}` (suy từ id nên không trùng, không reset theo năm). `GET /orders` trả trang **OrderSummary** (mục 4.8) có thêm `shop { id, shopName }`. Huỷ: `PATCH /orders/{id}/cancel` chỉ khi PENDING/CONFIRMED (khác → 409), thiếu `cancelReason` → 400, hoàn tồn kho, ghi `history` với `note` = lý do.
 
 Order (detail):
 ```json
@@ -497,7 +501,21 @@ Validation: `name` 3–200; `price` > 0; `stockQuantity` ≥ 0; `unit` 1–20; `
 | GET | `/admin/products` | Mọi trạng thái. Query: `status`, `keyword`, `categoryId`, `shopId`, `aiLabel`, `from`, `to`, `page`, `size`. Mặc định sort `createdAt,desc` |
 | GET | `/admin/products/{id}` | Chi tiết + ảnh + AI từng ảnh + thông tin shop (số SP đã duyệt / từ chối) + lịch sử duyệt |
 | PATCH | `/admin/products/{id}/review` | `{ "action": "APPROVE" \| "REJECT" \| "NEED_INFO" \| "HIDE" \| "UNHIDE", "reason": "…" }` — `reason` bắt buộc với REJECT/NEED_INFO |
-| PATCH | `/admin/products/review-bulk` | `{ "productIds": [ ], "action": "APPROVE" \| "REJECT", "reason" }` |
+| PATCH | `/admin/products/review-bulk` | `{ "productIds": [ ], "action": "APPROVE" \| "REJECT", "reason" }` → `{ "succeeded": 2, "failed": [ { "productId", "message" } ] }` — xử lý từng sản phẩm **độc lập** (partial success), sản phẩm sai trạng thái / không tồn tại / thiếu reason vào `failed` |
+
+Quy tắc review (v1.4, theo mục 3.2): APPROVE / REJECT / NEED_INFO chỉ từ **PENDING**; APPROVE đặt `approvedAt`, xoá `rejectReason`; REJECT / NEED_INFO lưu `reason` vào `rejectReason`; HIDE chỉ từ APPROVED (`hiddenBy = ADMIN`); UNHIDE chỉ từ HIDDEN → APPROVED (admin bỏ ẩn được cả hàng người bán tự ẩn). Sai trạng thái → 409 `"Không thể {thao tác} sản phẩm đang ở trạng thái {status}"`. Mỗi thao tác (kể cả người bán `submit`) ghi 1 dòng `product_review_history`.
+
+`AdminProduct` (1 dòng `GET /admin/products`) = SellerProduct (mục 4.8) + `shop { id, shopName }` + `approvedAt`.
+`AdminProductDetail` (`GET /admin/products/{id}`, cũng là response của review):
+```json
+{ "id": 1187, "name": "Cà chua bi Đà Lạt", "slug": "...", "description": "...", "price": 45000, "unit": "kg", "stockQuantity": 120, "origin": "Đà Lạt",
+  "soldCount": 0, "ratingAvg": 0, "ratingCount": 0, "status": "PENDING", "hiddenBy": null, "rejectReason": null,
+  "aiOverallLabel": "UNCERTAIN", "aiOverallConfidence": 0, "primaryImageUrl": "/uploads/...", "category": { "id": 2, "name": "Củ quả" },
+  "shop": { "id": 3, "shopName": "Vườn rau Tâm An", "phone": "0905111222", "status": "ACTIVE", "productCounts": { "approved": 4, "rejected": 1 } },
+  "images": [ { "id": 9, "url": "...", "isPrimary": true, "displayOrder": 1, "ai": { "id", "produce", "label", "confidence", "finalLabel", "reviewStatus", "note" } } ],
+  "reviewHistory": [ { "id": 1, "action": "SUBMIT", "fromStatus": "DRAFT", "toStatus": "PENDING", "actorName": "Nguyễn Văn Tâm", "actorRole": "SELLER", "reason": null, "createdAt": "..." } ],
+  "approvedAt": null, "createdAt": "...", "updatedAt": "..." }
+```
 
 **Đơn hàng**
 
@@ -614,6 +632,13 @@ Refresh token · quên mật khẩu qua OTP/email · thanh toán online VNPay/Mo
 ---
 
 ## 11. Nhật ký cập nhật & Đồng bộ Codebase (Changelog)
+
+### Phiên bản v1.4 (11/10/2026) — Luồng khách hàng + admin duyệt sản phẩm (nhánh `feat/be-customer-flow`)
+- **Đã làm**: sổ địa chỉ ghi (mục 4.2: POST / PUT / DELETE / PATCH default), giỏ hàng (4.5, đủ 5 API), checkout + đơn của khách + huỷ (4.6, đủ 4 API), admin sản phẩm (4.9: list / detail / review / review-bulk). Test MockMvc (H2): 46/46.
+- **Bảng mới `product_review_history`** (script `06_product_review_history.sql`) — ngoài ERD gốc, thêm để trả "lịch sử duyệt" theo 4.9. Script `05_addresses_cart.sql` bổ sung cho 2 bảng `addresses`, `cart_items` (trước chỉ do ddl-auto tạo).
+- **Chốt nghiệp vụ**: địa chỉ đầu tiên tự mặc định, xoá mặc định đôn địa chỉ cũ nhất; giỏ giữ nguyên dòng hết bán; checkout gộp lỗi "không còn bán" vào `errors[]` cùng thiếu hàng, lỗi nào cũng không tạo đơn; `orderCode` suy từ id; khách huỷ chỉ PENDING/CONFIRMED; review-bulk partial success; admin UNHIDE được cả hàng seller tự ẩn.
+- **Kỹ thuật**: `SHIPPING_FEE_FLAT` map vào `app.order.shipping-fee-flat` (mặc định 20000); `AppException` mang được `errors[]` (409 checkout); trừ/hoàn tồn kho bằng UPDATE có điều kiện (`ProductRepository.deductStock/restoreStock`) an toàn khi đặt đồng thời; `OrderSupport` dùng chung huỷ đơn + Order(detail) cho seller và khách; `OrderSummary` thêm `shop`.
+- **Chưa làm**: `/users/me` (hồ sơ, avatar), reviews sản phẩm, `/api/ai/**` khách, admin orders / users status-tier / shops list / dashboard / ai; nối AI service thật.
 
 ### Phiên bản v1.3 (30/09/2026) — API người bán + vá bảo mật (nhánh `feat/be-seller-api`)
 - **Đã làm đủ 20 endpoint mục 4.8** + `PATCH /admin/shops/{id}/status` (VERIFY/LOCK/UNLOCK). Test MockMvc (H2) + chạy thật trên SQL Server.
