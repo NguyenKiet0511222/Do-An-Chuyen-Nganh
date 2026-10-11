@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -89,6 +90,59 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     default Optional<Product> findPublicDetailById(Long id) {
         return findDetailByIdAndStatus(id, ProductStatus.APPROVED, ShopStatus.ACTIVE);
     }
+
+    // ---------- Admin (mục 4.9): mọi trạng thái, mọi shop ----------
+
+    /**
+     * GET /admin/products — allStatuses = true -> bỏ lọc trạng thái; from/to lọc theo ngày tạo [from, to).
+     * categoryId khớp cả danh mục con như trang công khai.
+     */
+    @Query(value = """
+            SELECT p FROM Product p
+            JOIN FETCH p.shop s
+            JOIN FETCH p.category c
+            WHERE (:allStatuses = true OR p.status IN :statuses)
+              AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:categoryId IS NULL OR c.id = :categoryId OR c.parent.id = :categoryId)
+              AND (:shopId IS NULL OR s.id = :shopId)
+              AND (:aiLabel IS NULL OR p.aiOverallLabel = :aiLabel)
+              AND (:from IS NULL OR p.createdAt >= :from)
+              AND (:to IS NULL OR p.createdAt < :to)
+            """,
+            countQuery = """
+            SELECT COUNT(p) FROM Product p
+            JOIN p.shop s
+            JOIN p.category c
+            WHERE (:allStatuses = true OR p.status IN :statuses)
+              AND (:keyword IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:categoryId IS NULL OR c.id = :categoryId OR c.parent.id = :categoryId)
+              AND (:shopId IS NULL OR s.id = :shopId)
+              AND (:aiLabel IS NULL OR p.aiOverallLabel = :aiLabel)
+              AND (:from IS NULL OR p.createdAt >= :from)
+              AND (:to IS NULL OR p.createdAt < :to)
+            """)
+    Page<Product> searchForAdmin(@Param("allStatuses") boolean allStatuses,
+                                 @Param("statuses") Collection<ProductStatus> statuses,
+                                 @Param("keyword") String keyword,
+                                 @Param("categoryId") Long categoryId,
+                                 @Param("shopId") Long shopId,
+                                 @Param("aiLabel") AiLabel aiLabel,
+                                 @Param("from") LocalDateTime from,
+                                 @Param("to") LocalDateTime to,
+                                 Pageable pageable);
+
+    /** GET /admin/products/{id} — chi tiết mọi trạng thái, kèm ảnh + AI từng ảnh. */
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            JOIN FETCH p.shop s
+            JOIN FETCH p.category c
+            LEFT JOIN FETCH p.images img
+            LEFT JOIN FETCH img.aiResult ar
+            WHERE p.id = :id
+            """)
+    Optional<Product> findDetailById(@Param("id") Long id);
+
+    long countByShopIdAndStatus(Long shopId, ProductStatus status);
 
     // ---------- Người bán (mục 4.8): luôn giới hạn trong shop của mình ----------
 

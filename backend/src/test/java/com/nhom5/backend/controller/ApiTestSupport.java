@@ -21,7 +21,9 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -134,6 +136,19 @@ abstract class ApiTestSupport {
 
     protected Product approvedProduct(String sellerEmail, int stock) {
         return productInShop(sellerEmail, ProductStatus.APPROVED, stock);
+    }
+
+    /** Tạo sản phẩm DRAFT qua API người bán, trả về id. */
+    protected long createProduct(String sellerToken, String name, long price, int stock) throws Exception {
+        return readLong(callJson(post("/api/seller/products"), sellerToken, productJson(name, price, stock))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.status").value("DRAFT"))
+                .andExpect(jsonPath("$.data.slug").isString()), "$.data.id");
+    }
+
+    /** Upload 1 ảnh PNG giả (field "files") cho sản phẩm. */
+    protected ResultActions uploadImage(String sellerToken, long productId) throws Exception {
+        return call(multipart("/api/seller/products/" + productId + "/images").file(png("files")), sellerToken);
     }
 
     /** JSON tạo / sửa sản phẩm hợp lệ. */

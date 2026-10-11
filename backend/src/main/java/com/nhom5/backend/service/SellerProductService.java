@@ -8,8 +8,10 @@ import com.nhom5.backend.dto.seller.SellerProductResponse;
 import com.nhom5.backend.entity.Category;
 import com.nhom5.backend.entity.Product;
 import com.nhom5.backend.entity.ProductImage;
+import com.nhom5.backend.entity.ProductReviewHistory;
 import com.nhom5.backend.entity.Shop;
 import com.nhom5.backend.entity.enums.HiddenBy;
+import com.nhom5.backend.entity.enums.ProductReviewAction;
 import com.nhom5.backend.entity.enums.ProductStatus;
 import com.nhom5.backend.exception.AppException;
 import com.nhom5.backend.repository.CartItemRepository;
@@ -17,6 +19,8 @@ import com.nhom5.backend.repository.CategoryRepository;
 import com.nhom5.backend.repository.OrderItemRepository;
 import com.nhom5.backend.repository.ProductImageRepository;
 import com.nhom5.backend.repository.ProductRepository;
+import com.nhom5.backend.repository.ProductReviewHistoryRepository;
+import com.nhom5.backend.repository.UserRepository;
 import com.nhom5.backend.util.QueryParams;
 import com.nhom5.backend.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +63,8 @@ public class SellerProductService {
     private final CategoryRepository categoryRepository;
     private final OrderItemRepository orderItemRepository;
     private final CartItemRepository cartItemRepository;
+    private final ProductReviewHistoryRepository productReviewHistoryRepository;
+    private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
     private final ProductAiLabeler productAiLabeler;
 
@@ -129,6 +135,7 @@ public class SellerProductService {
         }
         List<String> imageUrls = product.getImages().stream().map(ProductImage::getUrl).toList();
         cartItemRepository.deleteByProductId(productId); // sản phẩm có thể đang nằm trong giỏ ai đó
+        productReviewHistoryRepository.deleteByProductId(productId);
         productRepository.delete(product);
         imageUrls.forEach(fileStorageService::deleteQuietly);
     }
@@ -218,8 +225,17 @@ public class SellerProductService {
         if (!missing.isEmpty()) {
             throw AppException.badRequest("Chưa đủ điều kiện gửi duyệt: " + String.join(", ", missing));
         }
+        ProductStatus from = product.getStatus();
         product.setStatus(ProductStatus.PENDING);
         product.setRejectReason(null);
+        // Ghi lịch sử để admin thấy sản phẩm được gửi duyệt lúc nào, lần thứ mấy
+        productReviewHistoryRepository.save(ProductReviewHistory.builder()
+                .product(product)
+                .actor(userRepository.getReferenceById(userId))
+                .action(ProductReviewAction.SUBMIT)
+                .fromStatus(from)
+                .toStatus(ProductStatus.PENDING)
+                .build());
         return SellerProductDetailResponse.from(product);
     }
 

@@ -224,20 +224,9 @@ class SellerProductFlowTest extends ApiTestSupport {
         call(get("/api/seller/products/" + id), token).andExpect(status().isNotFound());
     }
 
-    // ---------- helpers ----------
+    // ---------- helpers (createProduct / uploadImage ở ApiTestSupport) ----------
 
-    private long createProduct(String token, String name, long price, int stock) throws Exception {
-        return readLong(callJson(post("/api/seller/products"), token, productJson(name, price, stock))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.status").value("DRAFT"))
-                .andExpect(jsonPath("$.data.slug").isString()), "$.data.id");
-    }
-
-    private ResultActions uploadImage(String token, long productId) throws Exception {
-        return call(multipart("/api/seller/products/" + productId + "/images").file(png("files")), token);
-    }
-
-    /** Giả lập thao tác của admin (API duyệt sản phẩm làm ở tuần 6). */
+    /** Đặt thẳng trạng thái trong DB để test quy tắc sửa của người bán, không đi qua API duyệt của admin. */
     private void setStatus(long id, ProductStatus status, HiddenBy hiddenBy) {
         Product p = productRepository.findById(id).orElseThrow();
         p.setStatus(status);
