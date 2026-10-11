@@ -45,6 +45,28 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     long countByShopIdAndStatus(Long shopId, OrderStatus status);
 
+    // ---------- Khách hàng (mục 4.6): chỉ đơn của chính mình ----------
+
+    Optional<Order> findByIdAndUserId(Long id, Long userId);
+
+    /** GET /orders — đơn của khách, allStatuses = true -> bỏ qua lọc trạng thái. */
+    @Query(value = """
+            SELECT o FROM Order o
+            JOIN FETCH o.shop s
+            JOIN FETCH o.user u
+            WHERE o.user.id = :userId
+              AND (:allStatuses = true OR o.status IN :statuses)
+            """,
+            countQuery = """
+            SELECT COUNT(o) FROM Order o
+            WHERE o.user.id = :userId
+              AND (:allStatuses = true OR o.status IN :statuses)
+            """)
+    Page<Order> searchByUser(@Param("userId") Long userId,
+                             @Param("allStatuses") boolean allStatuses,
+                             @Param("statuses") Collection<OrderStatus> statuses,
+                             Pageable pageable);
+
     /** Doanh thu = tổng tiền các đơn đã giao trong khoảng [start, end) theo delivered_at. */
     @Query("""
             SELECT COALESCE(SUM(o.total), 0) FROM Order o
