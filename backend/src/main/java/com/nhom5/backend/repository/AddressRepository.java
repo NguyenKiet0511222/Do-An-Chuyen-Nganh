@@ -19,4 +19,7 @@ public interface AddressRepository extends JpaRepository<Address, Long> {
     long countByUserId(Long userId);
 
     boolean existsByUserIdAndDefaultAddressTrue(Long userId);
+
+    /** Địa chỉ cũ nhất còn lại — đôn lên mặc định khi xoá địa chỉ mặc định. */
+    Optional<Address> findFirstByUserIdOrderByIdAsc(Long userId);
 }
