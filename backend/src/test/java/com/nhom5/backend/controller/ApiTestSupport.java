@@ -1,7 +1,13 @@
 package com.nhom5.backend.controller;
 
 import com.jayway.jsonpath.JsonPath;
+import com.nhom5.backend.entity.Product;
+import com.nhom5.backend.entity.Shop;
+import com.nhom5.backend.entity.enums.ProductStatus;
 import com.nhom5.backend.repository.CategoryRepository;
+import com.nhom5.backend.repository.ProductRepository;
+import com.nhom5.backend.repository.ShopRepository;
+import com.nhom5.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -42,6 +48,12 @@ abstract class ApiTestSupport {
 
     @Autowired
     protected CategoryRepository categoryRepository;
+    @Autowired
+    protected ProductRepository productRepository;
+    @Autowired
+    protected ShopRepository shopRepository;
+    @Autowired
+    protected UserRepository userRepository;
 
     protected String login(String email, String password) throws Exception {
         String body = mockMvc.perform(post("/api/auth/login")
@@ -95,6 +107,33 @@ abstract class ApiTestSupport {
     /** Danh mục "Củ quả" do ProductSeeder tạo. */
     protected Long categoryId() {
         return categoryRepository.findBySlug("cu-qua").orElseThrow().getId();
+    }
+
+    /** Shop của 1 người bán seed (seller@nongsan.local = Vườn rau Tâm An, caolanh@... = HTX Xoài Cao Lãnh). */
+    protected Shop shopOf(String sellerEmail) {
+        return shopRepository.findByUserId(userRepository.findByEmail(sellerEmail).orElseThrow().getId()).orElseThrow();
+    }
+
+    /**
+     * Tạo thẳng 1 sản phẩm trong shop của người bán (không qua API) để test giỏ / đơn không phụ thuộc
+     * tồn kho của sản phẩm seed (bị test khác trừ). Giá 35.000/kg.
+     */
+    protected Product productInShop(String sellerEmail, ProductStatus status, int stock) {
+        String suffix = UUID.randomUUID().toString().substring(0, 6);
+        return productRepository.save(Product.builder()
+                .shop(shopOf(sellerEmail))
+                .category(categoryRepository.findBySlug("cu-qua").orElseThrow())
+                .name("SP test " + suffix)
+                .slug("sp-test-" + UUID.randomUUID())
+                .price(35_000L)
+                .unit("kg")
+                .stockQuantity(stock)
+                .status(status)
+                .build());
+    }
+
+    protected Product approvedProduct(String sellerEmail, int stock) {
+        return productInShop(sellerEmail, ProductStatus.APPROVED, stock);
     }
 
     /** JSON tạo / sửa sản phẩm hợp lệ. */

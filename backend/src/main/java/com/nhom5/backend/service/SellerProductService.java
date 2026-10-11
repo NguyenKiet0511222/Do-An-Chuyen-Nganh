@@ -12,6 +12,7 @@ import com.nhom5.backend.entity.Shop;
 import com.nhom5.backend.entity.enums.HiddenBy;
 import com.nhom5.backend.entity.enums.ProductStatus;
 import com.nhom5.backend.exception.AppException;
+import com.nhom5.backend.repository.CartItemRepository;
 import com.nhom5.backend.repository.CategoryRepository;
 import com.nhom5.backend.repository.OrderItemRepository;
 import com.nhom5.backend.repository.ProductImageRepository;
@@ -57,6 +58,7 @@ public class SellerProductService {
     private final ProductImageRepository productImageRepository;
     private final CategoryRepository categoryRepository;
     private final OrderItemRepository orderItemRepository;
+    private final CartItemRepository cartItemRepository;
     private final FileStorageService fileStorageService;
     private final ProductAiLabeler productAiLabeler;
 
@@ -126,6 +128,7 @@ public class SellerProductService {
             throw AppException.conflict("Sản phẩm đã có đơn hàng, không thể xoá — hãy dùng chức năng ẩn");
         }
         List<String> imageUrls = product.getImages().stream().map(ProductImage::getUrl).toList();
+        cartItemRepository.deleteByProductId(productId); // sản phẩm có thể đang nằm trong giỏ ai đó
         productRepository.delete(product);
         imageUrls.forEach(fileStorageService::deleteQuietly);
     }
