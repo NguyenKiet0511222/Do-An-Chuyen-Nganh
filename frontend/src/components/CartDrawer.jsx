@@ -1,22 +1,18 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/useCart";
-import { orderApi } from "../services/api";
-import { X, Trash2, Plus, Minus, ShoppingBag, CheckCircle, ArrowRight } from "lucide-react";
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
 
 export default function CartDrawer() {
+  const navigate = useNavigate();
   const {
     cart,
     isCartOpen,
     setIsCartOpen,
     removeFromCart,
     updateQuantity,
-    clearCart,
     totalAmount,
     totalCount
   } = useCart();
-
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [orderId, setOrderId] = useState(null);
 
   if (!isCartOpen) return null;
 
@@ -24,19 +20,17 @@ export default function CartDrawer() {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND"
-    }).format(amount);
+    }).format(amount || 0);
   };
 
-  const handleCheckout = async () => {
-    const res = await orderApi.createOrder({ items: cart, totalAmount });
-    setOrderId(res.orderId);
-    setOrderSuccess(true);
-    setTimeout(() => {
-      clearCart();
-      setOrderSuccess(false);
-      setOrderId(null);
-      setIsCartOpen(false);
-    }, 2800);
+  const handleCheckout = () => {
+    setIsCartOpen(false);
+    navigate("/checkout");
+  };
+
+  const handleGoToCart = () => {
+    setIsCartOpen(false);
+    navigate("/cart");
   };
 
   return (
@@ -67,19 +61,7 @@ export default function CartDrawer() {
 
         {/* Drawer Content */}
         <div className="cart-body">
-          {orderSuccess ? (
-            <div className="order-success-view">
-              <CheckCircle size={56} className="success-icon" />
-              <h3>Đặt Hàng Thành Công!</h3>
-              <p>
-                Đơn hàng nông sản chuẩn kiểm định AI của bạn đang được nông trại đóng gói
-                và chuyển đến trong 2 giờ.
-              </p>
-              <div className="order-receipt-chip">
-                Mã đơn hàng: #AGRI-{orderId || "888999"}
-              </div>
-            </div>
-          ) : cart.length === 0 ? (
+          {cart.length === 0 ? (
             <div className="cart-empty-view">
               <ShoppingBag size={48} className="empty-cart-icon" />
               <p>Giỏ hàng nông sản của bạn đang trống</p>
@@ -94,24 +76,21 @@ export default function CartDrawer() {
           ) : (
             <div className="cart-item-list">
               {cart.map((item) => (
-                <div key={item.product.id} className="cart-item-row">
+                <div key={item.id || item.product?.id} className="cart-item-row">
                   <img
-                    src={item.product.image || item.product.imageUrl || item.product.primaryImageUrl || "https://placehold.co/100x100?text=No+Image"}
-                    alt={item.product.name}
+                    src={item.product?.primaryImageUrl || item.product?.image || item.product?.imageUrl || "https://placehold.co/100x100?text=No+Image"}
+                    alt={item.product?.name}
                     className="cart-item-thumb"
                   />
                   <div className="cart-item-info">
-                    <h4 className="cart-item-name">{item.product.name}</h4>
-                    <span className="cart-item-grade">
-                      {item.product.aiGrade ||
-                        (item.product.aiOverallLabel === "FRESH"
-                          ? "Tươi sạch AI"
-                          : item.product.aiOverallLabel === "UNCERTAIN"
-                          ? "Cần kiểm tra"
-                          : "Chuẩn VietGAP")}
-                    </span>
+                    <h4 className="cart-item-name">{item.product?.name}</h4>
+                    {item.shop && (
+                      <span className="cart-item-shop" style={{ fontSize: 11, color: "#6b7280" }}>
+                        {item.shop.shopName}
+                      </span>
+                    )}
                     <span className="cart-item-price">
-                      {formatPrice(item.product.price)} / {item.product.unit || "kg"}
+                      {formatPrice(item.product?.price)} / {item.product?.unit || "kg"}
                     </span>
 
                     <div className="cart-qty-actions">
@@ -119,7 +98,7 @@ export default function CartDrawer() {
                         <button
                           type="button"
                           onClick={() =>
-                            updateQuantity(item.product.id, item.quantity - 1)
+                            updateQuantity(item.id, item.quantity - 1)
                           }
                           aria-label="Giảm số lượng"
                         >
@@ -129,7 +108,7 @@ export default function CartDrawer() {
                         <button
                           type="button"
                           onClick={() =>
-                            updateQuantity(item.product.id, item.quantity + 1)
+                            updateQuantity(item.id, item.quantity + 1)
                           }
                           aria-label="Tăng số lượng"
                         >
@@ -140,7 +119,7 @@ export default function CartDrawer() {
                       <button
                         type="button"
                         className="item-remove-btn"
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => removeFromCart(item.id)}
                         title="Xóa khỏi giỏ"
                       >
                         <Trash2 size={16} />
@@ -154,23 +133,31 @@ export default function CartDrawer() {
         </div>
 
         {/* Drawer Footer */}
-        {!orderSuccess && cart.length > 0 && (
+        {cart.length > 0 && (
           <div className="cart-footer">
             <div className="cart-summary-row">
-              <span>Tạm tính:</span>
+              <span>Tạm tính ({totalCount} sản phẩm):</span>
               <span className="summary-total">{formatPrice(totalAmount)}</span>
             </div>
-            <p className="shipping-notice">
-              Miễn phí vận chuyển cho đơn nông sản từ 250.000đ
-            </p>
-            <button
-              type="button"
-              className="checkout-btn"
-              onClick={handleCheckout}
-            >
-              <span>Xác nhận đặt hàng</span>
-              <ArrowRight size={18} />
-            </button>
+            <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ flex: 1, padding: "10px", borderRadius: "6px", border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontWeight: 600 }}
+                onClick={handleGoToCart}
+              >
+                Xem giỏ hàng
+              </button>
+              <button
+                type="button"
+                className="checkout-btn"
+                style={{ flex: 1.5 }}
+                onClick={handleCheckout}
+              >
+                <span>Thanh toán</span>
+                <ArrowRight size={18} />
+              </button>
+            </div>
           </div>
         )}
       </div>

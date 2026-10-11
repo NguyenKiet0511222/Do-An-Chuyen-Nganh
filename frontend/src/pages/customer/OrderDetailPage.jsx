@@ -1,123 +1,105 @@
-import { useState, useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
-import { CheckCircle, Package, Truck, FileText, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { CheckCircle, Package, Truck, FileText, Check, AlertCircle, XCircle } from "lucide-react";
+import { orderApi } from "../../services/api";
 import "./OrderDetailPage.css";
 
-// Fallback mock data matching wireframe
-const MOCK_ORDER = {
-  id: "DH-2026-00001",
-  status: "COMPLETED",
-  statusText: "Hoàn thành",
-  shopName: "Vườn rau Tâm An",
-  orderDate: "12/09/2026 09:14",
-  customer: {
-    name: "Trần Thị Mai",
-    phone: "0912 345 678",
-    address: "Số 12, ngõ 45 Nguyễn Chí Thanh, Láng Thượng, Đống Đa, Hà Nội",
-    note: "Gọi trước 10 phút"
-  },
-  payment: {
-    method: "COD",
-    status: "Đã thanh toán"
-  },
-  history: [
-    { status: "Giao thành công, đã thu COD", time: "13/09 15:20" },
-    { status: "Đang giao (GHN 1A2B3C4D)", time: "12/09 14:02" },
-    { status: "Shop đang chuẩn bị hàng", time: "12/09 10:30" },
-    { status: "Shop đã xác nhận", time: "12/09 09:40" },
-    { status: "Bạn đã đặt hàng", time: "12/09 09:14" }
-  ],
-  items: [
-    {
-      id: 1,
-      name: "Cà chua bi Đà Lạt",
-      aiLabel: "Tươi",
-      qty: 2,
-      unit: "kg",
-      price: 45000,
-      reviewed: true,
-      rating: 5
-    },
-    {
-      id: 2,
-      name: "Rau muống hữu cơ",
-      aiLabel: "",
-      qty: 2,
-      unit: "bó",
-      price: 12000,
-      reviewed: false,
-      rating: 0
-    }
-  ],
-  subtotal: 114000,
-  shippingFee: 20000,
-  total: 134000
+const STATUS_TEXT = {
+  PENDING: "Chờ xác nhận",
+  CONFIRMED: "Đã xác nhận",
+  PROCESSING: "Đang chuẩn bị",
+  SHIPPING: "Đang giao hàng",
+  DELIVERED: "Hoàn thành",
+  CANCELLED: "Đã huỷ"
 };
 
 export default function OrderDetailPage() {
   const { id } = useParams();
-  const [reviewingItem, setReviewingItem] = useState(null);
-  const [rating, setRating] = useState(5);
-  const [reviewText, setReviewText] = useState("");
-
-  const order = useMemo(() => {
-    try {
-      const stored = localStorage.getItem("customer_orders");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const match = parsed.find(o => String(o.id) === String(id));
-        if (match) {
-          const stepVal = match.status === "PENDING" ? 1 : match.status === "PROCESSING" ? 3 : match.status === "DELIVERING" ? 4 : 5;
-          const statusTextVal = match.status === "PENDING" ? "Chờ xác nhận" : match.status === "PROCESSING" ? "Đang chuẩn bị" : match.status === "DELIVERING" ? "Đang giao" : "Hoàn thành";
-          return {
-            id: match.id,
-            status: match.status,
-            statusText: statusTextVal,
-            step: stepVal,
-            shopName: match.shop?.name || "Vườn rau Tâm An",
-            orderDate: match.date || "Vừa xong",
-            customer: match.customer ? {
-              name: match.customer.fullName || "Khách hàng",
-              phone: match.customer.phone || "0912 345 678",
-              address: match.customer.address || "Việt Nam",
-              note: match.customer.note || "Không có ghi chú"
-            } : MOCK_ORDER.customer,
-            payment: {
-              method: match.paymentMethod || "COD",
-              status: match.paymentStatus || "Chưa thanh toán"
-            },
-            history: [
-              { status: "Đơn hàng đang chờ shop xử lý", time: match.date || "Hôm nay" },
-              { status: "Bạn đã đặt hàng thành công", time: match.date || "Hôm nay" }
-            ],
-            items: (match.items || []).map(it => ({
-              id: it.id,
-              name: it.name,
-              image: it.image,
-              aiLabel: "Tươi",
-              qty: it.quantity || 1,
-              unit: it.unit || "kg",
-              price: it.price || 0,
-              reviewed: false,
-              rating: 0
-            })),
-            subtotal: (match.total || 0) - (match.shippingFee || 0),
-            shippingFee: match.shippingFee || 0,
-            total: match.total || 0
-          };
-        }
-      }
-    } catch (e) {
-      console.warn("Error finding order:", e);
-    }
-    return { ...MOCK_ORDER, id: id || MOCK_ORDER.id, step: 5 };
-  }, [id]);
+  const navigate = useNavigate();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const formatPrice = (amount) => {
-    return new Intl.NumberFormat("vi-VN").format(amount || 0) + " đ";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND"
+    }).format(amount || 0).replace("₫", "đ");
   };
 
-  const currentStep = order.step || 5;
+  const loadOrderDetail = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await orderApi.getById(id);
+      setOrder(data);
+    } catch (err) {
+      console.error("Lỗi khi tải chi tiết đơn hàng:", err);
+      setError(err.response?.data?.message || err.message || "Không tìm thấy đơn hàng");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      loadOrderDetail();
+    }
+  }, [id]);
+
+  const handleCancelOrder = async () => {
+    const reason = window.prompt("Vui lòng nhập lý do huỷ đơn hàng:");
+    if (!reason || !reason.trim()) {
+      if (reason !== null) alert("Cần nhập lý do để huỷ đơn.");
+      return;
+    }
+
+    try {
+      await orderApi.cancel(order.id, reason.trim());
+      alert("Đã huỷ đơn hàng.");
+      loadOrderDetail();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Không thể huỷ đơn hàng";
+      alert(msg);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="order-detail-page page-container" style={{ padding: "60px", textAlign: "center" }}>
+        <p>Đang tải thông tin đơn hàng...</p>
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <div className="order-detail-page page-container" style={{ padding: "60px 20px", textAlign: "center" }}>
+        <AlertCircle size={48} color="#dc2626" style={{ margin: "0 auto 16px" }} />
+        <h2>{error || "Không tìm thấy đơn hàng"}</h2>
+        <div style={{ marginTop: "20px" }}>
+          <button className="btn-primary" onClick={() => navigate("/my-orders")}>
+            Quay lại danh sách đơn hàng
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const getStep = (status) => {
+    switch (status) {
+      case "PENDING": return 1;
+      case "CONFIRMED": return 2;
+      case "PROCESSING": return 3;
+      case "SHIPPING": return 4;
+      case "DELIVERED": return 5;
+      default: return 0;
+    }
+  };
+
+  const currentStep = getStep(order.status);
+  const isCancelled = order.status === "CANCELLED";
+  const canCancel = order.status === "PENDING" || order.status === "CONFIRMED";
 
   return (
     <div className="order-detail-page page-container">
@@ -125,58 +107,80 @@ export default function OrderDetailPage() {
       <div className="breadcrumb-container">
         <Link to="/my-orders" className="breadcrumb-link">Đơn hàng của tôi</Link>
         <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-current">{id || order.id}</span>
+        <span className="breadcrumb-current">{order.orderCode || order.id}</span>
       </div>
 
       <div className="od-header-card">
         <div className="od-header-top">
           <div className="od-title-group">
-            <h2 className="od-id">Đơn hàng {id || order.id}</h2>
-            <span className="od-status-badge">{order.statusText}</span>
+            <h2 className="od-id">Đơn hàng {order.orderCode}</h2>
+            <span className={`od-status-badge status-${order.status?.toLowerCase()}`}>
+              {STATUS_TEXT[order.status] || order.status}
+            </span>
             <span className="od-shop-date">
-              &middot; {order.shopName} &middot; Đặt {order.orderDate}
+              &middot; Shop: <strong>{order.shop?.shopName}</strong> &middot; Đặt {order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN") : ""}
             </span>
           </div>
           <div className="od-actions">
-            <button className="btn-outline-disabled" disabled={currentStep > 2}>Huỷ đơn</button>
-            <Link to="/products" className="btn-outline" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Mua thêm</Link>
+            {canCancel && (
+              <button
+                className="btn-outline"
+                style={{ color: "#dc2626", borderColor: "#fca5a5" }}
+                onClick={handleCancelOrder}
+              >
+                Huỷ đơn
+              </button>
+            )}
+            <Link to="/products" className="btn-outline" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+              Mua thêm
+            </Link>
           </div>
         </div>
 
         {/* Timeline */}
-        <div className="od-timeline-container">
-          <div className="timeline-track">
-            <div className="timeline-progress" style={{ width: `${Math.min(100, Math.max(10, (currentStep - 1) * 25))}%` }}></div>
-            
-            <div className={`timeline-step ${currentStep >= 1 ? 'active' : ''}`}>
-              <div className="step-icon"><FileText size={16} /></div>
-              <span className="step-label">Đặt hàng</span>
-            </div>
-            <div className={`timeline-step ${currentStep >= 2 ? 'active' : ''}`}>
-              <div className="step-icon"><Check size={16} /></div>
-              <span className="step-label">Đã xác nhận</span>
-            </div>
-            <div className={`timeline-step ${currentStep >= 3 ? 'active' : ''}`}>
-              <div className="step-icon"><Package size={16} /></div>
-              <span className="step-label">Đang chuẩn bị</span>
-            </div>
-            <div className={`timeline-step ${currentStep >= 4 ? 'active' : ''}`}>
-              <div className="step-icon"><Truck size={16} /></div>
-              <span className="step-label">Đang giao</span>
-            </div>
-            <div className={`timeline-step ${currentStep >= 5 ? 'active' : ''}`}>
-              <div className="step-icon"><CheckCircle size={16} /></div>
-              <span className="step-label">Hoàn thành</span>
+        {isCancelled ? (
+          <div style={{ padding: "16px", background: "#fef2f2", borderRadius: "8px", border: "1px solid #fecaca", marginTop: "16px", display: "flex", alignItems: "center", gap: "10px", color: "#b91c1c" }}>
+            <XCircle size={24} />
+            <div>
+              <strong>Đơn hàng đã bị huỷ</strong>
+              {order.cancelReason && <div style={{ fontSize: "13px", marginTop: "2px" }}>Lý do: {order.cancelReason}</div>}
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="od-timeline-container">
+            <div className="timeline-track">
+              <div className="timeline-progress" style={{ width: `${Math.min(100, Math.max(10, (currentStep - 1) * 25))}%` }}></div>
+              
+              <div className={`timeline-step ${currentStep >= 1 ? 'active' : ''}`}>
+                <div className="step-icon"><FileText size={16} /></div>
+                <span className="step-label">Đặt hàng</span>
+              </div>
+              <div className={`timeline-step ${currentStep >= 2 ? 'active' : ''}`}>
+                <div className="step-icon"><Check size={16} /></div>
+                <span className="step-label">Đã xác nhận</span>
+              </div>
+              <div className={`timeline-step ${currentStep >= 3 ? 'active' : ''}`}>
+                <div className="step-icon"><Package size={16} /></div>
+                <span className="step-label">Đang chuẩn bị</span>
+              </div>
+              <div className={`timeline-step ${currentStep >= 4 ? 'active' : ''}`}>
+                <div className="step-icon"><Truck size={16} /></div>
+                <span className="step-label">Đang giao</span>
+              </div>
+              <div className={`timeline-step ${currentStep >= 5 ? 'active' : ''}`}>
+                <div className="step-icon"><CheckCircle size={16} /></div>
+                <span className="step-label">Hoàn thành</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="od-layout-grid">
-        {/* Left Column */}
+        {/* Left Column: Items */}
         <div className="od-left-col">
           <div className="od-card">
-            <h3 className="od-card-title">Sản phẩm ({order.items.length})</h3>
+            <h3 className="od-card-title">Sản phẩm ({order.items?.length || 0})</h3>
             <table className="od-table">
               <thead>
                 <tr>
@@ -187,142 +191,101 @@ export default function OrderDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {order.items.map(item => (
-                  <tr key={item.id}>
+                {(order.items || []).map((item, idx) => (
+                  <tr key={idx}>
                     <td className="td-product">
                       <div className="od-product-info">
-                        {item.image ? (
-                          <img src={item.image} alt={item.name} style={{ width: "48px", height: "48px", objectFit: "cover", borderRadius: "6px", flexShrink: 0 }} />
-                        ) : (
-                          <div className="od-product-img-placeholder">
-                            <div className="cross-line"></div>
-                            <div className="cross-line-2"></div>
-                          </div>
-                        )}
+                        <img
+                          src={item.imageUrl || "https://placehold.co/100x100?text=No+Image"}
+                          alt={item.productName}
+                          style={{ width: "48px", height: "48px", objectFit: "cover", borderRadius: "6px", flexShrink: 0 }}
+                        />
                         <div className="od-product-details">
-                          <p className="od-product-name">{item.name}</p>
-                          {item.aiLabel && (
-                            <span className="od-ai-label">AI lúc mua: {item.aiLabel}</span>
+                          <p className="od-product-name">{item.productName}</p>
+                          {item.aiLabelSnapshot && (
+                            <span className="od-ai-label" style={{ fontSize: "11px", background: "#f0fdf4", color: "#16a34a", padding: "2px 6px", borderRadius: "4px" }}>
+                              Nhãn AI: {item.aiLabelSnapshot === "FRESH" ? "Tươi" : item.aiLabelSnapshot}
+                            </span>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="td-qty">{item.qty} {item.unit}</td>
+                    <td className="td-qty">{item.quantity} {item.unit || "kg"}</td>
                     <td className="td-price">{formatPrice(item.price)}</td>
                     <td className="td-total">
                       <div className="od-total-cell">
-                        <span>{formatPrice(item.price * item.qty)}</span>
-                        {item.reviewed ? (
-                          <span className="badge-reviewed">Đã đánh giá ★{item.rating}</span>
-                        ) : (
-                          <button 
-                            className="btn-review"
-                            onClick={() => setReviewingItem(item)}
-                          >
-                            Đánh giá
-                          </button>
-                        )}
+                        <span>{formatPrice(item.subtotal || item.price * item.quantity)}</span>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            <div className="od-summary">
-              <div className="summary-row">
-                <span>Tạm tính</span>
-                <span>{formatPrice(order.subtotal)}</span>
-              </div>
-              <div className="summary-row">
-                <span>Phí vận chuyển</span>
-                <span>{formatPrice(order.shippingFee)}</span>
-              </div>
-              <div className="summary-row total">
-                <span>Tổng thanh toán</span>
-                <span className="total-val">{formatPrice(order.total)}</span>
-              </div>
-            </div>
           </div>
 
-          {/* Write Review Box */}
-          {reviewingItem && (
-            <div className="od-card review-box">
-              <h3 className="od-card-title">Viết đánh giá: {reviewingItem.name}</h3>
-              <div className="form-group">
-                <label>Chấm điểm</label>
-                <div className="star-rating">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <span 
-                      key={star} 
-                      className={`star ${star <= rating ? 'filled' : ''}`}
-                      onClick={() => setRating(star)}
-                    >
-                      ★
+          {/* Lịch sử trạng thái */}
+          {order.history && order.history.length > 0 && (
+            <div className="od-card" style={{ marginTop: "20px" }}>
+              <h3 className="od-card-title">Lịch sử xử lý đơn</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {order.history.map((h, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", paddingBottom: "8px", borderBottom: "1px dashed #e5e7eb" }}>
+                    <div>
+                      <span style={{ fontWeight: 600 }}>{STATUS_TEXT[h.toStatus] || h.toStatus}</span>
+                      {h.changedBy && <span style={{ color: "#6b7280" }}> (bởi {h.changedBy})</span>}
+                      {h.note && <div style={{ color: "#4b5563", marginTop: "2px" }}>{h.note}</div>}
+                    </div>
+                    <span style={{ color: "#9ca3af" }}>
+                      {h.createdAt ? new Date(h.createdAt).toLocaleString("vi-VN") : ""}
                     </span>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-              <div className="form-group">
-                <label>Nhận xét</label>
-                <textarea 
-                  className="form-textarea" 
-                  rows="3" 
-                  placeholder="Sản phẩm có tươi như mô tả không?..."
-                  value={reviewText}
-                  onChange={e => setReviewText(e.target.value)}
-                ></textarea>
-              </div>
-              <button 
-                className="btn-solid-dark"
-                onClick={() => {
-                  alert("Đã gửi đánh giá");
-                  setReviewingItem(null);
-                }}
-              >
-                Gửi đánh giá
-              </button>
             </div>
           )}
         </div>
 
-        {/* Right Column */}
+        {/* Right Column: Customer Info & Cost Breakdown */}
         <div className="od-right-col">
           <div className="od-card">
-            <h3 className="od-card-title">Giao đến</h3>
-            <p className="od-customer-name">
-              <strong>{order.customer.name}</strong> - {order.customer.phone}
-            </p>
-            <p className="od-customer-text">{order.customer.address}</p>
-            {order.customer.note && (
-              <p className="od-customer-text note">Ghi chú: {order.customer.note}</p>
-            )}
-          </div>
-
-          <div className="od-card">
-            <h3 className="od-card-title">Thanh toán</h3>
-            <div className="payment-row">
-              <span>Phương thức</span>
-              <strong>{order.payment.method}</strong>
-            </div>
-            <div className="payment-row">
-              <span>Trạng thái</span>
-              <span className="payment-badge">{order.payment.status}</span>
-            </div>
-          </div>
-
-          <div className="od-card">
-            <h3 className="od-card-title">Lịch sử</h3>
-            <div className="history-timeline">
-              {order.history.map((h, idx) => (
-                <div key={idx} className={`history-item ${idx === 0 ? 'latest' : ''}`}>
-                  <div className="history-dot"></div>
-                  <div className="history-content">
-                    <p className="history-status">{h.status}</p>
-                    <p className="history-time">{h.time}</p>
-                  </div>
+            <h3 className="od-card-title">Địa chỉ nhận hàng</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.6" }}>
+              <div><strong>{order.receiverName}</strong> &middot; {order.phone}</div>
+              <div style={{ color: "#4b5563", marginTop: "4px" }}>{order.shippingAddress}</div>
+              {order.note && (
+                <div style={{ marginTop: "8px", padding: "8px", background: "#f9fafb", borderRadius: "4px", fontSize: "13px" }}>
+                  <strong>Ghi chú:</strong> {order.note}
                 </div>
-              ))}
+              )}
+            </div>
+          </div>
+
+          <div className="od-card" style={{ marginTop: "20px" }}>
+            <h3 className="od-card-title">Thanh toán</h3>
+            <div style={{ fontSize: "14px", lineHeight: "1.8" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Phương thức:</span>
+                <strong>{order.paymentMethod} (COD)</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Trạng thái:</span>
+                <strong style={{ color: order.paymentStatus === "PAID" ? "#16a34a" : "#d97706" }}>
+                  {order.paymentStatus === "PAID" ? "Đã thanh toán" : "Chưa thanh toán"}
+                </strong>
+              </div>
+              <hr style={{ margin: "12px 0", border: "none", borderTop: "1px solid #e5e7eb" }} />
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Tiền hàng:</span>
+                <span>{formatPrice(order.subtotal)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Phí vận chuyển:</span>
+                <span>{formatPrice(order.shippingFee)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "16px", fontWeight: 700, marginTop: "8px", color: "#16a34a" }}>
+                <span>Tổng thanh toán:</span>
+                <span>{formatPrice(order.total)}</span>
+              </div>
             </div>
           </div>
         </div>

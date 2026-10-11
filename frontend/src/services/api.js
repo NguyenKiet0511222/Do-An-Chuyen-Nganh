@@ -162,25 +162,44 @@ export const aiApi = {
 };
 
 // ==========================================
-// 4. API Đơn hàng (Orders) — backend làm ở tuần 5
+// 4. API Sổ địa chỉ (Addresses) — Mục 4.2 api.md
+// ==========================================
+export const addressApi = {
+  listMine: () => apiClient.get("/users/me/addresses").then(unwrap),
+  getMine: (id) => apiClient.get(`/users/me/addresses/${id}`).then(unwrap),
+  create: (payload) => apiClient.post("/users/me/addresses", payload).then(unwrap),
+  update: (id, payload) => apiClient.put(`/users/me/addresses/${id}`, payload).then(unwrap),
+  delete: (id) => apiClient.delete(`/users/me/addresses/${id}`).then(unwrap),
+  setDefault: (id) => apiClient.patch(`/users/me/addresses/${id}/default`).then(unwrap)
+};
+
+// ==========================================
+// 4.5. API Giỏ hàng (Cart) — Mục 4.5 api.md
+// ==========================================
+export const cartApi = {
+  get: () => apiClient.get("/cart").then(unwrap),
+  addItem: (payload) => apiClient.post("/cart/items", payload).then(unwrap),
+  updateQuantity: (id, quantity) => apiClient.put(`/cart/items/${id}`, { quantity }).then(unwrap),
+  removeItem: (id) => apiClient.delete(`/cart/items/${id}`).then(unwrap),
+  clear: () => apiClient.delete("/cart").then(unwrap)
+};
+
+// ==========================================
+// 4.6. API Đơn hàng (Orders) — Mục 4.6 api.md
 // ==========================================
 export const orderApi = {
+  checkout: (payload) => apiClient.post("/orders/checkout", payload).then(unwrap),
+  getMyOrders: (params = {}) => apiClient.get("/orders", { params }).then(unwrap),
+  getById: (id) => apiClient.get(`/orders/${id}`).then(unwrap),
+  cancel: (id, cancelReason) => apiClient.patch(`/orders/${id}/cancel`, { cancelReason }).then(unwrap),
+  // Giữ alias tương thích nếu component cũ còn gọi
   createOrder: async (orderData) => {
-    try {
-      return unwrap(await apiClient.post("/orders", orderData));
-    } catch (error) {
-      console.warn("Backend chưa sẵn sàng, mô phỏng đặt hàng thành công:", error.message);
-      return {
-        success: true,
-        orderId: `AGRI-${Math.floor(100000 + Math.random() * 900000)}`,
-        message: "Đặt hàng thành công (Mô phỏng)"
-      };
-    }
+    return apiClient.post("/orders/checkout", orderData).then(unwrap);
   }
 };
 
 // ==========================================
-// 5. API Người bán (Seller)
+// 5. API Người bán (Seller) — Mục 4.8 api.md
 // ==========================================
 export const sellerApi = {
   // --- Shop ---
@@ -219,6 +238,40 @@ export const sellerApi = {
   dashboard: {
     getSummary: () => apiClient.get("/seller/dashboard/summary").then(unwrap),
     getAiResults: () => apiClient.get("/seller/ai/results").then(unwrap)
+  }
+};
+
+// ==========================================
+// 6. API Quản trị (Admin) — Mục 4.9 api.md
+// ==========================================
+export const adminApi = {
+  product: {
+    getAll: (params = {}) => apiClient.get("/admin/products", { params }).then(unwrap),
+    getById: (id) => apiClient.get(`/admin/products/${id}`).then(unwrap),
+    review: (id, payload) => apiClient.patch(`/admin/products/${id}/review`, payload).then(unwrap),
+    reviewBulk: (payload) => apiClient.patch("/admin/products/review-bulk", payload).then(unwrap)
+  },
+  dashboard: {
+    getSummary: () => apiClient.get("/admin/dashboard/summary").then(unwrap),
+    getRevenue: (days = 7) => apiClient.get(`/admin/dashboard/revenue?days=${days}`).then(unwrap),
+    getRecentOrders: (limit = 5) => apiClient.get(`/admin/dashboard/recent-orders?limit=${limit}`).then(unwrap),
+    getPendingProducts: (limit = 5) => apiClient.get(`/admin/dashboard/pending-products?limit=${limit}`).then(unwrap)
+  },
+  order: {
+    getAll: (params = {}) => apiClient.get("/admin/orders", { params }).then(unwrap),
+    getById: (id) => apiClient.get(`/admin/orders/${id}`).then(unwrap),
+    updateStatus: (id, payload) => apiClient.patch(`/admin/orders/${id}/status`, payload).then(unwrap)
+  },
+  shop: {
+    getAll: (params = {}) => apiClient.get("/admin/shops", { params }).then(unwrap),
+    getById: (id) => apiClient.get(`/admin/shops/${id}`).then(unwrap),
+    updateStatus: (id, payload) => apiClient.patch(`/admin/shops/${id}/status`, payload).then(unwrap)
+  },
+  user: {
+    getAll: (params = {}) => apiClient.get("/admin/users", { params }).then(unwrap),
+    updateStatus: (id, action) => apiClient.patch(`/admin/users/${id}/status`, { action }).then(unwrap),
+    updateTier: (id, tier) => apiClient.patch(`/admin/users/${id}/tier`, { tier }).then(unwrap),
+    createAdmin: (payload) => apiClient.post("/admin/users", payload).then(unwrap)
   }
 };
 

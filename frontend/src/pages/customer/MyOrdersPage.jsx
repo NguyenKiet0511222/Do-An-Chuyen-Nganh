@@ -1,113 +1,36 @@
-import { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Store, AlertCircle } from "lucide-react";
+import { orderApi } from "../../services/api";
 import "./MyOrdersPage.css";
-
-const MOCK_ORDERS = [
-  {
-    id: "DH-2026-00002",
-    date: "12/09/2026 09:14",
-    status: "DELIVERING",
-    shop: { id: 2, name: "HTX Xoài Cao Lãnh" },
-    items: [
-      {
-        id: 2,
-        name: "Xoài Cát Chu Cao Lãnh",
-        image: "https://images.unsplash.com/photo-1553279768-865429fa0078?w=150",
-        price: 215000,
-        quantity: 1,
-      }
-    ],
-    total: 215000,
-    shippingFee: 0,
-    paymentMethod: "COD",
-    paymentStatus: "Chưa thanh toán",
-    checkoutGroupId: "DH-2026-00001"
-  },
-  {
-    id: "DH-2026-00001",
-    date: "12/09/2026 09:14",
-    deliveryDate: "Giao 13/09",
-    status: "COMPLETED",
-    shop: { id: 1, name: "Vườn rau Tâm An" },
-    items: [
-      {
-        id: 1,
-        name: "Cà chua bi Đà Lạt",
-        image: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=150",
-        price: 45000,
-        quantity: 1,
-      },
-      {
-        id: 3,
-        name: "Rau cải xanh",
-        image: "https://images.unsplash.com/photo-1522184216316-3c25379f9760?w=150",
-        price: 89000,
-        quantity: 1,
-      }
-    ],
-    total: 134000,
-    shippingFee: 0,
-    paymentMethod: "COD",
-    paymentStatus: "Đã thanh toán",
-    checkoutGroupId: "DH-2026-00002"
-  },
-  {
-    id: "DH-2026-00003",
-    date: "13/09/2026 16:45",
-    status: "PENDING",
-    shop: { id: 1, name: "Vườn rau Tâm An" },
-    items: [
-      {
-        id: 4,
-        name: "Khoai tây vàng Đà Lạt",
-        image: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=150",
-        price: 160000,
-        quantity: 1,
-      }
-    ],
-    total: 160000,
-    shippingFee: 0,
-    paymentMethod: "COD",
-    paymentStatus: "Chưa thanh toán"
-  }
-];
 
 const TABS = [
   { id: "ALL", label: "Tất cả" },
   { id: "PENDING", label: "Chờ xác nhận" },
+  { id: "CONFIRMED", label: "Đã xác nhận" },
   { id: "PROCESSING", label: "Đang chuẩn bị" },
-  { id: "DELIVERING", label: "Đang giao" },
-  { id: "COMPLETED", label: "Hoàn thành" },
+  { id: "SHIPPING", label: "Đang giao" },
+  { id: "DELIVERED", label: "Hoàn thành" },
   { id: "CANCELLED", label: "Đã huỷ" }
 ];
 
 const STATUS_MAP = {
   PENDING: "Chờ xác nhận",
+  CONFIRMED: "Đã xác nhận",
   PROCESSING: "Đang chuẩn bị",
-  DELIVERING: "Đang giao",
-  COMPLETED: "Hoàn thành",
+  SHIPPING: "Đang giao",
+  DELIVERED: "Hoàn thành",
   CANCELLED: "Đã huỷ"
 };
 
 export default function MyOrdersPage() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState(() => {
-    try {
-      const stored = localStorage.getItem("customer_orders");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingIds = new Set(parsed.map(o => o.id));
-          return [...parsed, ...MOCK_ORDERS.filter(m => !existingIds.has(m.id))];
-        }
-      }
-    } catch (e) {
-      console.warn("Error reading customer_orders", e);
-    }
-    return MOCK_ORDERS;
-  });
+  const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState("ALL");
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
 
   const formatPrice = (amount) => {
@@ -117,38 +40,62 @@ export default function MyOrdersPage() {
     }).format(amount || 0).replace("₫", "đ");
   };
 
-  // Tính số lượng đơn cho từng tab
-  const tabCounts = useMemo(() => {
-    const counts = { ALL: orders.length };
-    TABS.forEach(t => {
-      if (t.id !== "ALL") counts[t.id] = 0;
-    });
-    orders.forEach(order => {
-      if (counts[order.status] !== undefined) {
-        counts[order.status]++;
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {
+        page,
+        size: 10
+      };
+      if (activeTab !== "ALL") {
+        params.status = activeTab;
       }
-    });
-    return counts;
-  }, [orders]);
+      const data = await orderApi.getMyOrders(params);
+      setOrders(data.content || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalElements(data.totalElements || 0);
+    } catch (err) {
+      console.warn("Lỗi khi tải danh sách đơn hàng:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, page]);
 
-  const filteredOrders = orders.filter(order => {
-    if (activeTab === "ALL") return true;
-    return order.status === activeTab;
-  });
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
 
-  const handleCancelOrder = (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn huỷ đơn hàng này?")) {
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "CANCELLED" } : o));
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setPage(0);
+  };
+
+  const handleCancelOrder = async (orderId) => {
+    const reason = window.prompt("Vui lòng nhập lý do huỷ đơn hàng:");
+    if (!reason || !reason.trim()) {
+      if (reason !== null) {
+        alert("Cần nhập lý do để huỷ đơn hàng.");
+      }
+      return;
+    }
+
+    try {
+      await orderApi.cancel(orderId, reason.trim());
+      alert("Đã huỷ đơn hàng thành công.");
+      loadOrders();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Không thể huỷ đơn hàng";
+      alert(msg);
     }
   };
 
   const toggleExpand = (id) => {
-    setExpandedOrderId(prev => prev === id ? null : id);
+    setExpandedOrderId((prev) => (prev === id ? null : id));
   };
 
   return (
     <div className="my-orders-page page-container">
-      {/* Breadcrumbs matching wireframe */}
+      {/* Breadcrumbs */}
       <div className="breadcrumb-container">
         <span className="breadcrumb-link">Tài khoản</span>
         <span className="breadcrumb-separator">/</span>
@@ -157,100 +104,103 @@ export default function MyOrdersPage() {
 
       {/* Tabs */}
       <div className="orders-tabs">
-        {TABS.map(tab => {
-          const count = tabCounts[tab.id];
-          return (
-            <button
-              key={tab.id}
-              className={`order-tab ${activeTab === tab.id ? "active" : ""}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label} {count !== undefined && count > 0 && `(${count})`}
-            </button>
-          );
-        })}
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            className={`order-tab ${activeTab === tab.id ? "active" : ""}`}
+            onClick={() => handleTabChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Orders List */}
       <div className="orders-list">
-        {filteredOrders.length === 0 ? (
-          <div className="empty-state">
-            <p>Không có đơn hàng nào.</p>
+        {loading ? (
+          <div className="empty-state" style={{ padding: "40px", textAlign: "center" }}>
+            <p>Đang tải đơn hàng...</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="empty-state" style={{ padding: "60px 20px", textAlign: "center" }}>
+            <AlertCircle size={48} color="#9ca3af" style={{ margin: "0 auto 12px" }} />
+            <h3>Không có đơn hàng nào</h3>
+            <p style={{ color: "#6b7280" }}>Chưa có đơn hàng nào trong mục này.</p>
           </div>
         ) : (
-          filteredOrders.map(order => (
+          orders.map((order) => (
             <div key={order.id} className="order-row-wrapper">
               <div className="order-row-card">
                 {/* Left Section: Info */}
-              <div className="order-sec-info">
-                <div className="order-id-line">
-                  <span className="order-id-text">{order.id}</span>
-                  <span className={`status-badge status-${order.status.toLowerCase()}`}>
-                    {STATUS_MAP[order.status]}
+                <div className="order-sec-info">
+                  <div className="order-id-line">
+                    <span className="order-id-text" style={{ fontWeight: 700, color: "#111827" }}>
+                      {order.orderCode || `Đơn #${order.id}`}
+                    </span>
+                    <span className={`status-badge status-${(order.status || "").toLowerCase()}`}>
+                      {STATUS_MAP[order.status] || order.status}
+                    </span>
+                  </div>
+                  <div className="order-shop-date" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                    <Store size={14} color="#16a34a" />
+                    <span>{order.shop?.shopName || "Nông trại"}</span>
+                    <span>&middot;</span>
+                    <span>{order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN") : ""}</span>
+                  </div>
+                </div>
+
+                {/* Middle Section: Items */}
+                <div className="order-sec-items">
+                  <span className="item-count-text" style={{ fontWeight: 500 }}>
+                    {order.itemCount || (order.items || []).length} sản phẩm
                   </span>
-                </div>
-                <div className="order-shop-date">
-                  {order.shop.name} &middot; Đặt {order.date} 
-                  {order.deliveryDate && ` \u00B7 ${order.deliveryDate}`}
-                </div>
-                {order.checkoutGroupId && (
-                  <div className="checkout-group-badge">
-                    Cùng lần đặt với {order.checkoutGroupId}
-                  </div>
-                )}
-              </div>
-
-              {/* Middle Section: Items */}
-              <div className="order-sec-items">
-                <div className="item-thumbnails">
-                  {order.items.slice(0, 2).map((item, idx) => (
-                    <img key={idx} src={item.image} alt={item.name} className="thumbnail-img" />
-                  ))}
-                </div>
-                <span className="item-count-text">
-                  {order.items.reduce((acc, it) => acc + it.quantity, 0)} sản phẩm
-                </span>
-              </div>
-
-              {/* Right Section: Price & Actions */}
-              <div className="order-sec-actions">
-                <div className="order-price-box">
-                  <div className="order-total-price">{formatPrice(order.total + order.shippingFee)}</div>
-                  <div className="order-payment-info">
-                    {order.paymentMethod} &middot; {order.paymentStatus}
+                  <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
+                    {(order.items || []).map((it) => it.productName).join(", ").slice(0, 50)}...
                   </div>
                 </div>
-                <div className="order-buttons">
-                  {order.status === "COMPLETED" ? (
-                    <button className="btn-action-outline" onClick={() => toggleExpand(order.id)}>Đánh giá / Xem</button>
-                  ) : order.status === "PENDING" ? (
-                    <>
-                      <button className="btn-action-outline" onClick={() => toggleExpand(order.id)}>Xem</button>
-                      <button className="btn-action-outline" onClick={() => handleCancelOrder(order.id)}>Huỷ đơn</button>
-                    </>
-                  ) : order.status === "DELIVERING" ? (
-                    <button className="btn-action-outline" onClick={() => navigate(`/my-orders/${order.id}`)}>Xem chi tiết</button>
-                  ) : (
-                    <button className="btn-action-outline" onClick={() => toggleExpand(order.id)}>Xem chi tiết</button>
-                  )}
+
+                {/* Right Section: Price & Actions */}
+                <div className="order-sec-actions">
+                  <div className="order-price-box">
+                    <div className="order-total-price" style={{ color: "#16a34a", fontWeight: 700, fontSize: "16px" }}>
+                      {formatPrice(order.total)}
+                    </div>
+                    <div className="order-payment-info" style={{ fontSize: "12px", color: "#6b7280" }}>
+                      {order.paymentMethod} &middot; {order.paymentStatus === "PAID" ? "Đã thanh toán" : "Chưa thanh toán"}
+                    </div>
+                  </div>
+                  <div className="order-buttons" style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      className="btn-action-outline"
+                      onClick={() => navigate(`/my-orders/${order.id}`)}
+                    >
+                      Chi tiết
+                    </button>
+                    {(order.status === "PENDING" || order.status === "CONFIRMED") && (
+                      <button
+                        className="btn-action-outline"
+                        style={{ color: "#dc2626", borderColor: "#fca5a5" }}
+                        onClick={() => handleCancelOrder(order.id)}
+                      >
+                        Huỷ đơn
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
               </div>
 
               {/* Expanded details */}
               {expandedOrderId === order.id && (
-                <div className="order-expanded-details">
-                  <h4 className="expanded-title">Chi tiết sản phẩm</h4>
+                <div className="order-expanded-details" style={{ padding: "16px", background: "#f9fafb", borderTop: "1px solid #e5e7eb" }}>
+                  <h4 className="expanded-title" style={{ marginBottom: "12px" }}>Chi tiết sản phẩm</h4>
                   <div className="expanded-items-list">
-                    {order.items.map(item => (
-                      <div key={item.id} className="expanded-item-row">
-                        <img src={item.image} alt={item.name} className="expanded-item-img" />
+                    {(order.items || []).map((item, idx) => (
+                      <div key={idx} className="expanded-item-row" style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
                         <div className="expanded-item-info">
-                          <p className="expanded-item-name">{item.name}</p>
-                          <p className="expanded-item-qty">Số lượng: {item.quantity}</p>
-                        </div>
-                        <div className="expanded-item-price">
-                          {formatPrice(item.price * item.quantity)}
+                          <p className="expanded-item-name" style={{ margin: 0, fontWeight: 600 }}>{item.productName}</p>
+                          <p className="expanded-item-qty" style={{ margin: 0, fontSize: "12px", color: "#6b7280" }}>
+                            Số lượng: {item.quantity} {item.unit || ""}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -263,13 +213,28 @@ export default function MyOrdersPage() {
       </div>
 
       {/* Pagination */}
-      <div className="pagination-container">
-        <span className="pagination-text">Hiển thị 1–3 / 7</span>
-        <button className="page-btn"><ChevronLeft size={16} /></button>
-        <button className="page-btn active">1</button>
-        <button className="page-btn">2</button>
-        <button className="page-btn"><ChevronRight size={16} /></button>
-      </div>
+      {totalPages > 1 && (
+        <div className="pagination-container" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: "24px" }}>
+          <span className="pagination-text">Tổng {totalElements} đơn hàng</span>
+          <button
+            className="page-btn"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span style={{ fontSize: "14px", fontWeight: 600 }}>
+            Trang {page + 1} / {totalPages}
+          </span>
+          <button
+            className="page-btn"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -188,7 +188,6 @@ Phân công chi tiết từng tuần: file sheet của nhóm (ngoài repo).
 - **AI chưa nối**: ảnh sản phẩm mới vào hàng chờ admin (UNCERTAIN/PENDING_REVIEW) qua `ProductAiLabeler` — nối AI thì chỉ sửa class này. Hợp đồng AI thực tế (`POST /classify`, field `image`) lệch api.md mục 5 (`/predict`) — chốt khi nối.
 - Còn trả entity ra ngoài: `ShopController` (`/api/shops/**`) — cần đổi sang DTO khi làm trang shop công khai (§4.4).
 - Lịch sử (13/09): khung config/security/JWT/Swagger/exception + auth hoàn chỉnh phía backend, test pass trên H2.
-- Frontend: khu khách hàng hoàn chỉnh với mock data; khung MUI cho seller/admin/auth. Auth đã gắn API thật: đăng nhập mật khẩu + **đăng nhập/đăng ký Google** (05/10, đã test end-to-end trên localhost).
+- Frontend: đã tích hợp API thật cho giỏ hàng (`/api/cart`), thanh toán (`/api/orders/checkout`), đơn hàng (`/api/orders`), sổ địa chỉ (`/api/addresses` với dữ liệu 63 tỉnh/thành, quận/huyện, phường/xã), và admin duyệt sản phẩm (`/api/admin/products` đơn lẻ + duyệt hàng loạt). Auth đã gắn API thật (mật khẩu + Google).
 - AI: khung FastAPI chạy mock; chưa có model.
-- Frontend **chưa nối** 4 nhóm API mới: `CartContext` còn localStorage, `CheckoutPage` gọi `POST /orders` (sai, phải `/orders/checkout`), `MyOrdersPage`/`AccountPage`/`AdminProductsPage` còn mock — việc tiếp theo của FE.
-- Việc tiếp theo: FE nối giỏ/checkout/đơn/địa chỉ/admin duyệt (mốc tuần 5) → nối AI service (`ProductAiLabeler`) → admin orders/dashboard (tuần 6).
+- Việc tiếp theo: Nối AI service (`ProductAiLabeler`) → hoàn thiện admin orders/dashboard/users/shops (tuần 6).

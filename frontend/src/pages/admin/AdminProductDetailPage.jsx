@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import {
   Avatar,
   Box,
@@ -17,17 +17,46 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { ArrowLeft } from "lucide-react";
-import WireframeNoteBox from "./components/WireframeNoteBox";
-import { DETAILED_PRODUCT_REVIEW } from "../../data/adminMockData";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { adminApi } from "../../services/api";
+
+const QUICK_REASONS = [
+  "Ảnh sản phẩm bị mờ, không rõ ràng",
+  "Ảnh có dấu hiệu quả bị hỏng / thối dập",
+  "Thiếu thông tin nguồn gốc xuất xứ cụ thể",
+  "Tên sản phẩm không khớp với ảnh thực tế",
+  "Đơn vị tính hoặc giá bán chưa hợp lý"
+];
 
 export default function AdminProductDetailPage() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const product = DETAILED_PRODUCT_REVIEW;
 
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [reason, setReason] = useState("");
   const [toastMsg, setToastMsg] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadProduct = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await adminApi.product.getById(id);
+      setProduct(data);
+    } catch (err) {
+      console.error("Lỗi khi tải chi tiết sản phẩm admin:", err);
+      setToastMsg(err.response?.data?.message || err.message || "Không tìm thấy sản phẩm");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadProduct();
+    }
+  }, [id, loadProduct]);
 
   const handleQuickReasonClick = (chipText) => {
     if (!reason.includes(chipText)) {
@@ -35,46 +64,71 @@ export default function AdminProductDetailPage() {
     }
   };
 
-  const handleApprove = () => {
-    setToastMsg(`Đã duyệt sản phẩm ${product.name} thành công!`);
-    setTimeout(() => navigate("/admin/products"), 1500);
-  };
-
-  const handleRequestChanges = () => {
-    if (!reason.trim()) {
-      setToastMsg("Vui lòng nhập lý do yêu cầu bổ sung.");
+  const handleReview = async (action) => {
+    if ((action === "REJECT" || action === "NEED_INFO") && !reason.trim()) {
+      setToastMsg(`Vui lòng nhập lý do để ${action === "REJECT" ? "từ chối" : "yêu cầu bổ sung"}.`);
       return;
     }
-    setToastMsg(`Đã gửi yêu cầu bổ sung thông tin tới ${product.seller.name}.`);
-    setTimeout(() => navigate("/admin/products"), 1500);
-  };
 
-  const handleReject = () => {
-    if (!reason.trim()) {
-      setToastMsg("Vui lòng nhập lý do từ chối sản phẩm.");
-      return;
+    setSubmitting(true);
+    try {
+      await adminApi.product.review(id, {
+        action,
+        reason: reason.trim() || undefined
+      });
+      setToastMsg(`Thao tác ${action} thành công!`);
+      setReason("");
+      await loadProduct();
+    } catch (err) {
+      setToastMsg(err.response?.data?.message || err.message || "Thao tác không thành công");
+    } finally {
+      setSubmitting(false);
     }
-    setToastMsg(`Đã từ chối duyệt sản phẩm ${product.name}.`);
-    setTimeout(() => navigate("/admin/products"), 1500);
   };
 
-  const wireframeNotes = [
-    "1. Thư viện ảnh: mỗi ảnh hiển thị nhãn AI riêng; ảnh nghi hỏng được viền đậm để admin thấy ngay.",
-    "2. Bảng kết quả AI: tổng hợp từ API Python (FastAPI MobileNetV2) trả về cho từng ảnh; có kiểm tra chéo loại nông sản nhận diện với danh mục người bán chọn.",
-    "3. Thông tin người bán: lịch sử duyệt / từ chối giúp admin đánh giá độ tin cậy của người bán.",
-    "4. Quyết định duyệt: 3 hành động Duyệt / Yêu cầu bổ sung / Từ chối; lý do có sẵn các mẫu nhanh, sẽ gửi thông báo cho người bán.",
-    "5. Lịch sử: lưu vết ai làm gì, lúc nào (audit log)."
+  if (loading) {
+    return (
+      <Box sx={{ maxWidth: 1200, mx: "auto", py: 8, textAlign: "center" }}>
+        <Typography>Đang tải thông tin sản phẩm...</Typography>
+      </Box>
+    );
+  }
+
+  if (!product) {
+    return (
+      <Box sx={{ maxWidth: 1200, mx: "auto", py: 8, textAlign: "center" }}>
+        <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+          Không tìm thấy thông tin sản phẩm.
+        </Typography>
+        <Button variant="outlined" onClick={() => navigate("/admin/products")}>
+          Quay lại danh sách
+        </Button>
+      </Box>
+    );
+  }
+
+  const images = product.images && product.images.length > 0 ? product.images : [
+    {
+      id: 0,
+      url: product.primaryImageUrl || "https://placehold.co/400x300?text=No+Image",
+      ai: { label: product.aiOverallLabel, confidence: product.aiOverallConfidence }
+    }
   ];
+
+  const currentImg = images[activeImageIndex] || images[0];
+  const freshCount = images.filter((img) => img.ai?.label === "FRESH").length;
+  const rottenCount = images.filter((img) => img.ai?.label === "ROTTEN").length;
+  const uncertainCount = images.filter((img) => img.ai?.label === "UNCERTAIN").length;
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto" }}>
       {/* Breadcrumb */}
       <Breadcrumbs separator="/" sx={{ mb: 1.5, fontSize: 13 }}>
-        <Link component={RouterLink} to="/admin/products" color="inherit" underline="hover">
-          Sản phẩm
+        <Link component={RouterLink} to="/admin" color="inherit" underline="hover">
+          Quản trị
         </Link>
         <Link component={RouterLink} to="/admin/products" color="inherit" underline="hover">
-          Chờ duyệt
+          Sản phẩm
         </Link>
         <Typography color="text.primary" sx={{ fontSize: 13, fontWeight: 600 }}>
           {product.name}
@@ -94,37 +148,25 @@ export default function AdminProductDetailPage() {
             Quay lại
           </Button>
           <Typography variant="h5" fontWeight={800} sx={{ color: "#0f172a" }}>
-            Chi tiết & duyệt sản phẩm
+            Chi tiết & Duyệt sản phẩm #{product.id}
           </Typography>
         </Box>
+        <Chip
+          label={product.status}
+          color={product.status === "APPROVED" ? "success" : product.status === "PENDING" ? "warning" : "default"}
+          sx={{ fontWeight: 700 }}
+        />
       </Box>
 
       {/* Main 2-Column Grid */}
       <Grid container spacing={3}>
         {/* Left Column: Image Gallery + AI Inspection Result */}
         <Grid item xs={12} lg={6}>
-          {/* Card: Ảnh sản phẩm (4) */}
+          {/* Card: Ảnh sản phẩm */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 2 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Ảnh sản phẩm ({product.images.length})
-              </Typography>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "1px solid #94a3b8",
-                  fontSize: 11,
-                  color: "text.secondary"
-                }}
-              >
-                1
-              </Box>
-            </Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+              Ảnh sản phẩm ({images.length})
+            </Typography>
 
             {/* Main Preview Image */}
             <Box
@@ -135,12 +177,12 @@ export default function AdminProductDetailPage() {
                 overflow: "hidden",
                 bgcolor: "#0f172a",
                 position: "relative",
-                border: product.images[activeImageIndex].isRotten ? "2px solid #ef4444" : "1px solid #e2e8f0"
+                border: currentImg.ai?.label === "ROTTEN" ? "2px solid #ef4444" : "1px solid #e2e8f0"
               }}
             >
               <img
-                src={product.images[activeImageIndex].url}
-                alt={product.images[activeImageIndex].title}
+                src={currentImg.url}
+                alt="Product preview"
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
               <Box
@@ -148,7 +190,7 @@ export default function AdminProductDetailPage() {
                   position: "absolute",
                   bottom: 12,
                   left: 12,
-                  bgcolor: product.images[activeImageIndex].isRotten ? "rgba(239, 68, 68, 0.9)" : "rgba(15, 23, 42, 0.8)",
+                  bgcolor: currentImg.ai?.label === "ROTTEN" ? "rgba(239, 68, 68, 0.9)" : "rgba(15, 23, 42, 0.8)",
                   color: "#fff",
                   px: 1.5,
                   py: 0.5,
@@ -158,120 +200,86 @@ export default function AdminProductDetailPage() {
                   backdropFilter: "blur(4px)"
                 }}
               >
-                {product.images[activeImageIndex].title} · {product.images[activeImageIndex].badge}
+                Nhãn AI: {currentImg.ai?.label === "FRESH" ? "TƯƠI" : currentImg.ai?.label === "ROTTEN" ? "HỎNG" : "KHÔNG CHẮC"}
+                {currentImg.ai?.confidence ? ` (${Math.round(currentImg.ai.confidence * 100)}%)` : ""}
               </Box>
             </Box>
 
-            {/* 4 Thumbnails with AI badges */}
-            <Grid container spacing={1.5} sx={{ mt: 1 }}>
-              {product.images.map((img, idx) => {
-                const isActive = activeImageIndex === idx;
-                return (
-                  <Grid item xs={3} key={img.id}>
-                    <Box
-                      onClick={() => setActiveImageIndex(idx)}
-                      sx={{
-                        borderRadius: 1.5,
-                        overflow: "hidden",
-                        border: img.isRotten
-                          ? "2.5px solid #ef4444"
-                          : isActive
-                          ? "2.5px solid #0f172a"
-                          : "1px solid #cbd5e1",
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                        "&:hover": { transform: "scale(1.02)" }
-                      }}
-                    >
-                      <Box sx={{ height: 80, bgcolor: "#f1f5f9" }}>
-                        <img
-                          src={img.url}
-                          alt={img.title}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                      </Box>
+            {/* Thumbnails */}
+            {images.length > 1 && (
+              <Grid container spacing={1.5} sx={{ mt: 1 }}>
+                {images.map((img, idx) => {
+                  const isActive = activeImageIndex === idx;
+                  const isRotten = img.ai?.label === "ROTTEN";
+                  return (
+                    <Grid item xs={3} key={img.id || idx}>
                       <Box
+                        onClick={() => setActiveImageIndex(idx)}
                         sx={{
-                          py: 0.4,
-                          textAlign: "center",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          bgcolor: img.isRotten ? "#0f172a" : "#f8fafc",
-                          color: img.isRotten ? "#f87171" : "#16a34a",
-                          borderTop: "1px solid #e2e8f0"
+                          borderRadius: 1.5,
+                          overflow: "hidden",
+                          border: isRotten
+                            ? "2.5px solid #ef4444"
+                            : isActive
+                            ? "2.5px solid #0f172a"
+                            : "1px solid #cbd5e1",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                          "&:hover": { transform: "scale(1.02)" }
                         }}
                       >
-                        {img.badge}
+                        <Box sx={{ height: 75, bgcolor: "#f1f5f9" }}>
+                          <img
+                            src={img.url}
+                            alt="thumb"
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        </Box>
                       </Box>
-                    </Box>
-                  </Grid>
-                );
-              })}
-            </Grid>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            )}
           </Paper>
 
-          {/* Card: Kết quả kiểm định AI (2) */}
+          {/* Card: Kết quả kiểm định AI */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <ShieldCheck size={20} color="#16a34a" />
               <Typography variant="subtitle1" fontWeight={700}>
-                Kết quả kiểm định AI
+                Kết quả kiểm định AI (MobileNetV2)
               </Typography>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "1px solid #94a3b8",
-                  fontSize: 11,
-                  color: "text.secondary"
-                }}
-              >
-                2
-              </Box>
             </Box>
 
             <Table size="small" sx={{ "& td": { py: 1.2, fontSize: 13 } }}>
               <TableBody>
                 <TableRow>
-                  <TableCell sx={{ color: "text.secondary", width: "45%" }}>Ảnh được kiểm định</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{product.aiReport.totalScanned}</TableCell>
+                  <TableCell sx={{ color: "text.secondary", width: "45%" }}>Tổng số ảnh</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>{images.length} ảnh</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary" }}>Ảnh gắn nhãn tươi</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: "#16a34a" }}>
-                    {product.aiReport.freshCountText}
+                    {freshCount} ảnh
                   </TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary" }}>Ảnh nghi hỏng</TableCell>
-                  <TableCell>
-                    <Box
-                      component="span"
-                      sx={{
-                        bgcolor: "#0f172a",
-                        color: "#f87171",
-                        px: 1,
-                        py: 0.2,
-                        borderRadius: 1,
-                        fontSize: 12,
-                        fontWeight: 700
-                      }}
-                    >
-                      {product.aiReport.rottenCountText}
-                    </Box>
+                  <TableCell sx={{ fontWeight: 700, color: rottenCount > 0 ? "#dc2626" : "inherit" }}>
+                    {rottenCount} ảnh
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell sx={{ color: "text.secondary" }}>Loại nông sản nhận diện</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>{product.aiReport.recognizedProduce}</TableCell>
+                  <TableCell sx={{ color: "text.secondary" }}>Không chắc / Chờ xác thực</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: "#d97706" }}>
+                    {uncertainCount} ảnh
+                  </TableCell>
                 </TableRow>
-                <TableRow sx={{ bgcolor: "#fffbeb" }}>
-                  <TableCell sx={{ color: "#b45309", fontWeight: 700 }}>Đề xuất của hệ thống</TableCell>
-                  <TableCell sx={{ color: "#b45309", fontWeight: 800 }}>
-                    {product.aiReport.systemSuggestion}
+                <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                  <TableCell sx={{ fontWeight: 700 }}>Nhãn tổng thể sản phẩm</TableCell>
+                  <TableCell sx={{ fontWeight: 800, color: product.aiOverallLabel === "FRESH" ? "#16a34a" : "#dc2626" }}>
+                    {product.aiOverallLabel === "FRESH" ? "TƯƠI (FRESH)" : product.aiOverallLabel === "ROTTEN" ? "CẢNH BÁO HỎNG (ROTTEN)" : "KHÔNG CHẮC (UNCERTAIN)"}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -283,17 +291,9 @@ export default function AdminProductDetailPage() {
         <Grid item xs={12} lg={6}>
           {/* Card: Thông tin sản phẩm */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Thông tin sản phẩm
-              </Typography>
-              <Chip
-                size="small"
-                label={product.status}
-                variant="outlined"
-                sx={{ borderStyle: "dashed", borderColor: "#64748b", color: "#334155", fontSize: 11 }}
-              />
-            </Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+              Thông tin sản phẩm
+            </Typography>
 
             <Table size="small" sx={{ "& td": { py: 1, fontSize: 13 } }}>
               <TableBody>
@@ -303,112 +303,73 @@ export default function AdminProductDetailPage() {
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary" }}>Mã SP</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>{product.id}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>#{product.id}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary" }}>Danh mục</TableCell>
-                  <TableCell>{product.category}</TableCell>
+                  <TableCell>{product.category?.name || "N/A"}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary" }}>Giá bán</TableCell>
                   <TableCell sx={{ fontWeight: 700, color: "#0f172a" }}>
-                    {product.price.toLocaleString("vi-VN")} đ / {product.unit}
+                    {(product.price || 0).toLocaleString("vi-VN")} đ / {product.unit || "kg"}
                   </TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary" }}>Tồn kho</TableCell>
-                  <TableCell>
-                    {product.stock} {product.unit}
-                  </TableCell>
+                  <TableCell>{product.stockQuantity} {product.unit || "kg"}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary" }}>Xuất xứ</TableCell>
-                  <TableCell>{product.origin}</TableCell>
+                  <TableCell>{product.origin || "Chưa cập nhật"}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.secondary", verticalAlign: "top" }}>Mô tả</TableCell>
-                  <TableCell sx={{ color: "text.secondary", lineHeight: 1.6 }}>{product.description}</TableCell>
+                  <TableCell sx={{ color: "text.secondary", lineHeight: 1.6 }}>{product.description || "Không có mô tả"}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           </Paper>
 
-          {/* Card: Người bán (3) */}
+          {/* Card: Người bán */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  Người bán
-                </Typography>
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    border: "1px solid #94a3b8",
-                    fontSize: 11,
-                    color: "text.secondary"
-                  }}
-                >
-                  3
-                </Box>
-              </Box>
-              <Link href="#seller-profile" underline="hover" sx={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>
-                Hồ sơ
-              </Link>
-            </Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
+              Thông tin nhà vườn / Người bán
+            </Typography>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Avatar sx={{ width: 44, height: 44, bgcolor: "#0f172a", fontSize: 14, fontWeight: 700 }}>
-                {product.seller.avatar}
+              <Avatar sx={{ width: 44, height: 44, bgcolor: "#16a34a", fontSize: 16, fontWeight: 700 }}>
+                {product.shop?.shopName?.[0] || "S"}
               </Avatar>
               <Box>
                 <Typography variant="body1" fontWeight={700} sx={{ color: "#0f172a" }}>
-                  {product.seller.name}
+                  {product.shop?.shopName || "N/A"}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Tham gia {product.seller.joinDate} · {product.seller.approvedCount} SP đã duyệt ·{" "}
-                  {product.seller.rejectedCount} SP bị từ chối · Đánh giá {product.seller.rating}/5
+                  Hotline: {product.shop?.phone || "N/A"} · Trạng thái shop: {product.shop?.status || "ACTIVE"}
+                  {product.shop?.productCounts && (
+                    <span> · {product.shop.productCounts.approved} SP đã duyệt · {product.shop.productCounts.rejected} SP bị từ chối</span>
+                  )}
                 </Typography>
               </Box>
             </Box>
           </Paper>
 
-          {/* Card: Quyết định duyệt (4) */}
+          {/* Card: Quyết định duyệt */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.5 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Quyết định duyệt
-              </Typography>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "1px solid #94a3b8",
-                  fontSize: 11,
-                  color: "text.secondary"
-                }}
-              >
-                4
-              </Box>
-            </Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
+              Quyết định kiểm duyệt
+            </Typography>
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: 12.5 }}>
-              Lý do (bắt buộc khi từ chối / yêu cầu bổ sung)
+              Lý do (bắt buộc khi Từ chối hoặc Yêu cầu bổ sung):
             </Typography>
 
             <TextField
               fullWidth
               multiline
               rows={3}
-              placeholder="Nhập lý do gửi cho người bán..."
+              placeholder="Nhập lý do gửi phản hồi cho người bán..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               sx={{ mb: 1.5, "& textarea": { fontSize: 13 } }}
@@ -416,126 +377,121 @@ export default function AdminProductDetailPage() {
 
             {/* Quick Reason Chips */}
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mb: 2.5 }}>
-              {product.quickReasons.map((chipText) => (
+              {QUICK_REASONS.map((chipText) => (
                 <Chip
                   key={chipText}
                   label={chipText}
                   size="small"
                   onClick={() => handleQuickReasonClick(chipText)}
-                  sx={{
-                    fontSize: 11.5,
-                    cursor: "pointer",
-                    "&:hover": { bgcolor: "#e2e8f0" }
-                  }}
+                  sx={{ fontSize: 11.5, cursor: "pointer", "&:hover": { bgcolor: "#e2e8f0" } }}
                 />
               ))}
             </Box>
 
-            {/* 3 Action Buttons matching wireframe */}
+            {/* Action Buttons */}
             <Box sx={{ display: "flex", gap: 1.5 }}>
-              <Button
-                variant="contained"
-                onClick={handleApprove}
-                sx={{
-                  flex: 1.2,
-                  bgcolor: "#0f172a",
-                  textTransform: "none",
-                  fontWeight: 700,
-                  fontSize: 13.5,
-                  "&:hover": { bgcolor: "#1e293b" }
-                }}
-              >
-                Duyệt sản phẩm
-              </Button>
-
-              <Button
-                variant="outlined"
-                onClick={handleRequestChanges}
-                sx={{
-                  flex: 1.2,
-                  borderColor: "#64748b",
-                  color: "#1e293b",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  fontSize: 13.5
-                }}
-              >
-                Yêu cầu bổ sung
-              </Button>
-
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={handleReject}
-                sx={{
-                  flex: 0.8,
-                  textTransform: "none",
-                  fontWeight: 600,
-                  fontSize: 13.5
-                }}
-              >
-                Từ chối
-              </Button>
+              {product.status === "PENDING" && (
+                <>
+                  <Button
+                    variant="contained"
+                    disabled={submitting}
+                    onClick={() => handleReview("APPROVE")}
+                    sx={{ flex: 1.2, bgcolor: "#16a34a", textTransform: "none", fontWeight: 700, fontSize: 13.5, "&:hover": { bgcolor: "#15803d" } }}
+                  >
+                    Duyệt sản phẩm
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    disabled={submitting}
+                    onClick={() => handleReview("NEED_INFO")}
+                    sx={{ flex: 1.2, borderColor: "#64748b", color: "#1e293b", textTransform: "none", fontWeight: 600, fontSize: 13.5 }}
+                  >
+                    Yêu cầu bổ sung
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    disabled={submitting}
+                    onClick={() => handleReview("REJECT")}
+                    sx={{ flex: 0.8, textTransform: "none", fontWeight: 600, fontSize: 13.5 }}
+                  >
+                    Từ chối
+                  </Button>
+                </>
+              )}
+              {product.status === "APPROVED" && (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  disabled={submitting}
+                  onClick={() => handleReview("HIDE")}
+                  sx={{ flex: 1, textTransform: "none", fontWeight: 600 }}
+                >
+                  Ẩn khỏi sàn giao dịch
+                </Button>
+              )}
+              {product.status === "HIDDEN" && (
+                <Button
+                  variant="contained"
+                  disabled={submitting}
+                  onClick={() => handleReview("UNHIDE")}
+                  sx={{ flex: 1, bgcolor: "#2563eb", textTransform: "none", fontWeight: 700 }}
+                >
+                  Bỏ ẩn (Cho phép bán lại)
+                </Button>
+              )}
             </Box>
           </Paper>
 
-          {/* Card: Lịch sử (5) */}
+          {/* Card: Lịch sử duyệt (Audit log) */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 2 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                Lịch sử
-              </Typography>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "1px solid #94a3b8",
-                  fontSize: 11,
-                  color: "text.secondary"
-                }}
-              >
-                5
-              </Box>
-            </Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
+              Lịch sử kiểm duyệt (Audit Log)
+            </Typography>
 
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {product.history.map((event, i) => (
-                <Box key={i} sx={{ display: "flex", gap: 1.5, position: "relative" }}>
-                  <Box
-                    sx={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      border: "2px solid #64748b",
-                      mt: 0.3,
-                      flexShrink: 0
-                    }}
-                  />
-                  <Box>
-                    <Typography variant="body2" fontWeight={600} sx={{ color: "#0f172a", fontSize: 13 }}>
-                      {event.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {event.time} · {event.actor}
-                    </Typography>
+            {product.reviewHistory && product.reviewHistory.length > 0 ? (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {product.reviewHistory.map((item) => (
+                  <Box key={item.id} sx={{ display: "flex", gap: 1.5, position: "relative" }}>
+                    <Box
+                      sx={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        border: "2px solid #16a34a",
+                        mt: 0.5,
+                        flexShrink: 0
+                      }}
+                    />
+                    <Box>
+                      <Typography variant="body2" fontWeight={600} sx={{ color: "#0f172a", fontSize: 13 }}>
+                        {item.action} ({item.fromStatus || "Khởi tạo"} &rarr; {item.toStatus})
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleString("vi-VN") : ""} · Thực hiện bởi {item.actorName || "Admin"} ({item.actorRole})
+                      </Typography>
+                      {item.reason && (
+                        <Typography variant="body2" sx={{ fontSize: "12px", color: "#dc2626", mt: 0.5 }}>
+                          Lý do: {item.reason}
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
-                </Box>
-              ))}
-            </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Chưa có lịch sử duyệt nào được ghi nhận.
+              </Typography>
+            )}
           </Paper>
         </Grid>
       </Grid>
 
-
-
       {/* Feedback Toast */}
       <Snackbar
         open={Boolean(toastMsg)}
-        autoHideDuration={3000}
+        autoHideDuration={3500}
         onClose={() => setToastMsg("")}
         message={toastMsg}
       />
