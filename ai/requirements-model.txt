@@ -1,3 +1,0 @@
-# Cài thêm khi chạy model thật (MobileNetV2). Nặng (~500MB), chỉ máy của người làm AI cần.
--r requirements.txt
-tensorflow>=2.16

@@ -1,11 +1,25 @@
-.venv/
-venv/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
 .env
 
-# Model và dataset không đưa lên git (chia sẻ qua Drive / Kaggle)
-models/*
-!models/.gitkeep
+# Datasets (large files, store separately)
+dataset/
 data/
-notebooks/.ipynb_checkpoints/
+
+# Model: CÓ commit models/*.pth (~9 MB, chốt 12/10/2026) để clone về là chạy được.
+# Checkpoint thử nghiệm khác đặt tên *.tmp.pth để không lỡ commit.
+models/*.tmp.pth
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

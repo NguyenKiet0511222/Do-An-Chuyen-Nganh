@@ -1,6 +1,6 @@
 # api.md — Đặc tả API & nghiệp vụ: Website bán nông sản tích hợp AI phân loại chất lượng
 
-> Phiên bản: v1.4 (11/10/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium + chốt chi tiết API người bán (v1.3) + luồng khách hàng (địa chỉ, giỏ, checkout, đơn) & admin duyệt sản phẩm (changelog v1.4).
+> Phiên bản: v1.5 (12/10/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium + chốt chi tiết API người bán (v1.3) + luồng khách hàng (địa chỉ, giỏ, checkout, đơn) & admin duyệt sản phẩm (v1.4) + AI service PyTorch & hợp đồng AI thống nhất (changelog v1.5).
 > Tài liệu này là **nguồn sự thật duy nhất** để sinh code. Khi có mâu thuẫn giữa tài liệu này và tài liệu khác, ưu tiên tài liệu này.
 
 ---
@@ -24,7 +24,7 @@
 | Frontend | ReactJS 19 (Vite) + React Router 7 + Axios; 3 khu vực: `customer/`, `seller/`, `admin/` | 5173 |
 | Backend | Java 17/21, Spring Boot 4 (hoặc 3.4+), Spring Security + JWT (Nimbus / Resource Server), Spring Data JPA, Bean Validation, springdoc-openapi (Swagger) | 8080 |
 | Database | SQL Server (JDBC `mssql-jdbc`) | 1433 |
-| AI service | Python 3.10+, FastAPI, TensorFlow/Keras (MobileNetV2 transfer learning) | 8000 |
+| AI service | Python 3.10+, FastAPI, PyTorch + torchvision (MobileNetV2 transfer learning, 28 lớp) | 8000 |
 | Lưu ảnh | Thư mục cục bộ `uploads/` (v1), phục vụ tĩnh tại `GET /uploads/**` | — |
 
 ### 0.2 Cấu trúc thư mục (monorepo)
@@ -559,19 +559,19 @@ Backend là **client duy nhất** của AI service (frontend không gọi thẳn
 
 | Method | Endpoint | Mô tả |
 |---|---|---|
-| GET | `/health` | `{ "status": "ok", "model_version": "mobilenetv2_v1", "classes": [ ... ] }` |
-| POST | `/predict` (hoặc `/classify`) | multipart `file` hoặc `image` (JPG/PNG/WEBP ≤ 5 MB) |
+| GET | `/health` | `{ "status": "UP", "model_loaded": true, "model_version": "mobilenetv2-pt-v1", "num_classes": 28, "labels": [ "apple_fresh", ... ], "device": "cpu", "error": null }` |
+| POST | `/classify` (bí danh `/predict`) | multipart field **`image`** (JPG/PNG/WEBP — backend đã giới hạn ≤ 5 MB trước khi gửi) |
 
-**POST /predict** response 200:
+**POST /classify** response 200 (v1.5, thống nhất với CLAUDE.md mục 7):
 ```json
-{ "produce": "tomato", "label": "fresh", "confidence": 0.9412, "raw_class": "freshtomato",
-  "top3": [ { "class": "freshtomato", "prob": 0.9412 }, { "class": "rottentomato", "prob": 0.0401 }, { "class": "freshpotato", "prob": 0.0102 } ],
-  "model_version": "mobilenetv2_v1", "inference_ms": 180 }
+{ "label": "tomato_fresh", "produce_type": "tomato", "condition": "fresh", "confidence": 0.9412,
+  "all_scores": { "apple_fresh": 0.0012, "...": 0.0, "tomato_fresh": 0.9412, "tomato_rotten": 0.0401 },
+  "model_version": "mobilenetv2-pt-v1" }
 ```
-- AI service tự tách tên lớp của dataset (ví dụ `freshapples`, `rottenbanana`, `Tomato__Rotten`) thành `produce` (chữ thường, tiếng Anh, số ít) và `label` ∈ `fresh | rotten`. Backend map `fresh → FRESH`, `rotten → ROTTEN`, và áp ngưỡng (mục 3.3).
-- Lỗi ảnh → 400 `{ "detail": "Invalid image" }`. Backend timeout 5 giây.
-- Tiền xử lý bên trong service: resize 224×224, RGB, `preprocess_input` của MobileNetV2. Model file: `models/produce_classifier.keras` (hoặc `model.keras`) + `models/classes.json`.
-- Giai đoạn 1 mô hình 6 lớp (táo, chuối, cam × tươi/hỏng); giai đoạn 2 mở rộng 28 lớp. Hợp đồng API **không đổi** khi đổi mô hình.
+- `label` = tên lớp lúc train `{loại}_{tình trạng}`; `produce_type` = loại (tiếng Anh, chữ thường: `apple`, `bellpepper`...); `condition` ∈ `fresh | rotten`; `confidence` **0..1**; `all_scores` đủ 28 lớp. Backend lưu `produce_type` vào `ai_results.produce`, map `fresh → FRESH`, `rotten → ROTTEN`, và áp ngưỡng (mục 3.3).
+- Lỗi: 400 không phải ảnh / file rỗng; 422 ảnh hỏng không đọc được; **503 model chưa nạp** (thiếu/hỏng file `.pth`, service vẫn chạy). Body lỗi `{ "detail": "..." }` (mặc định FastAPI). Backend timeout 5 giây; mọi lỗi/timeout → `UNCERTAIN` + `PENDING_REVIEW` (mục 3.3).
+- Tiền xử lý bên trong service: RGB, resize 128×128, chuẩn hoá mean/std ImageNet (giống `val_transform` lúc train). Model file `models/mobilenetv2_fruitquality_best.pth` (PyTorch, chứa luôn `class_names` + `image_size`).
+- Mô hình hiện tại 28 lớp (14 loại × tươi/hỏng), accuracy test 96,78%. Hợp đồng API **không đổi** khi đổi mô hình; train lại thì tăng `model_version`.
 
 ---
 
@@ -625,13 +625,18 @@ Refresh token · quên mật khẩu qua OTP/email · thanh toán online VNPay/Mo
 1. Tạo skeleton 3 thư mục (`frontend`, `backend`, `ai`), file cấu hình môi trường.
 2. Backend: entity + repository theo mục 2 → security/JWT + Google (4.1) → upload & AI client (5, 6) → seller products/images (4.8) → cart/checkout/orders (4.5, 4.6, 3.4, 3.5) → admin (4.9) → seed (7) → Swagger.
 3. AI khách hàng (mục 4.7): gác cổng bằng `account_tier = PREMIUM`; admin có API gán tier để demo.
-4. AI service: `app/main.py` với `/health`, `/predict` theo mục 5; nếu chưa có model, chạy **chế độ giả lập** trả kết quả ổn định để nhóm web không bị chặn.
+4. AI service: `ai/ai/main.py` với `/health`, `/classify` (bí danh `/predict`) theo mục 5; thiếu model thì trả 503 để backend đưa ảnh vào hàng chờ admin (web không bị chặn).
 5. Frontend theo mục 8, gọi API đúng hợp đồng; dùng dữ liệu seed và mock để demo.
 6. Kiểm thử luồng chính: đăng ký → đăng ký shop → admin xác minh → người bán đăng sản phẩm + ảnh (thấy nhãn AI) → admin duyệt → khách mua 2 shop 1 lần (tách 2 đơn) → người bán giao → khách đánh giá.
 
 ---
 
 ## 11. Nhật ký cập nhật & Đồng bộ Codebase (Changelog)
+
+### Phiên bản v1.5 (12/10/2026) — AI service PyTorch (nhánh `feat/ai-pytorch-model`)
+- **Model thật** do Duy train (repo gốc `github.com/buianhduy205/ai`): PyTorch MobileNetV2, 28 lớp (14 loại × tươi/hỏng), accuracy test 96,78%. Thay khung TF/Keras chạy mock cũ; file `ai/models/mobilenetv2_fruitquality_best.pth` commit vào git.
+- **Hợp đồng AI (mục 5) thống nhất với CLAUDE.md mục 7**: bỏ khuôn `produce/label/raw_class/top3/inference_ms` cũ; dùng `label, produce_type, condition, confidence (0..1), all_scores, model_version`. Endpoint `/classify` (bí danh `/predict`), field `image`. Thiếu model → 503 thay vì chế độ giả lập.
+- Backend **chưa** gọi AI service — việc tiếp theo là sửa `ProductAiLabeler` theo hợp đồng này.
 
 ### Phiên bản v1.4 (11/10/2026) — Luồng khách hàng + admin duyệt sản phẩm (nhánh `feat/be-customer-flow`)
 - **Đã làm**: sổ địa chỉ ghi (mục 4.2: POST / PUT / DELETE / PATCH default), giỏ hàng (4.5, đủ 5 API), checkout + đơn của khách + huỷ (4.6, đủ 4 API), admin sản phẩm (4.9: list / detail / review / review-bulk). Test MockMvc (H2): 46/46.

@@ -30,7 +30,7 @@ React (frontend) ──HTTP/JSON──▶ Spring Boot (backend = cổng duy nh�
 ```
 backend/   Spring Boot 4.1.1, Java 17+ (pom), Maven wrapper      ← xem mục 5
 frontend/  React 19 + Vite 8, react-router 7, axios, MUI 9         ← xem mục 6
-ai/        Python FastAPI + TensorFlow/Keras (MobileNetV2)          ← xem mục 7
+ai/        Python FastAPI + PyTorch (MobileNetV2, 28 lớp)           ← xem mục 7
 CLAUDE.md  file này
 ```
 
@@ -43,12 +43,12 @@ CLAUDE.md  file này
 | Swagger | http://localhost:8080/swagger-ui (không phải `/swagger-ui.html`) — Health: http://localhost:8080/api/health |
 | Frontend | `cd frontend && npm install && npm run dev` → http://localhost:5173 |
 | Frontend lint/build | `npm run lint` · `npm run build` |
-| AI service | `cd ai && python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000` → http://localhost:8000/docs |
+| AI service | `cd ai && python -m venv .venv && .venv\Scripts\activate && pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt && uvicorn ai.main:app --reload --port 8000` → http://localhost:8000/docs |
 
 **Cấu hình cục bộ (không commit):**
 - Backend: copy `backend/src/main/resources/application-local.properties.example` → `application-local.properties`, chạy với profile `local`. Hoặc đặt biến môi trường `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `AI_SERVICE_URL`, `CORS_ALLOWED_ORIGINS`, `SHIPPING_FEE_FLAT` (phí ship mỗi đơn, mặc định 20000).
 - Frontend: copy `frontend/.env.example` → `.env`.
-- AI: đặt model vào `ai/models/` (gitignore).
+- AI: model `ai/models/mobilenetv2_fruitquality_best.pth` **có trong git** (~9 MB), không cần tải riêng. Dataset (`ai/dataset/`) không commit.
 
 **JDK:** pom đặt `java.version=17` (đổi từ 21 ở commit `c2ad04f`, 02/10). Nhóm **không ràng buộc** phiên bản: máy dùng JDK nào ≥ 17 cũng được (17/21/24/25 đều build — `--release 17`). Branch `appmod/java-upgrade-*` là của tool nâng cấp Java tự tạo, không làm việc trên đó.
 
@@ -119,24 +119,25 @@ src/
 
 ## 7. AI service — contract
 
-`POST {app.ai.base-url}/classify`, form-data field `image` → JSON:
+`POST {app.ai.base-url}/classify` (bí danh `/predict`), form-data field `image` → JSON (chốt 12/10/2026, AI theo backend):
 
 ```json
-{ "label": "fresh_apple", "produce_type": "apple", "condition": "fresh",
-  "confidence": 0.93, "all_scores": { "...": 0.0 }, "model_version": "mock-0.1" }
+{ "label": "apple_fresh", "produce_type": "apple", "condition": "fresh",
+  "confidence": 0.9312, "all_scores": { "apple_fresh": 0.9312, "...": 0.0 }, "model_version": "mobilenetv2-pt-v1" }
 ```
 
-- `condition`: `fresh` | `rotten`. `confidence` 0..1.
+- `label` = tên lớp lúc train dạng `{loại}_{tình trạng}`; `condition`: `fresh` | `rotten`; `confidence` **0..1** (không phải %).
+- Lỗi: 400 không phải ảnh/rỗng, 422 ảnh hỏng, **503 chưa nạp được model** (service vẫn chạy, `GET /health` báo `model_loaded: false`) → backend coi như AI lỗi, đưa ảnh vào hàng chờ admin.
 - Backend so `confidence` với `app.ai.auto-accept-threshold` (mặc định 0.85): ≥ ngưỡng → tự chấp nhận nhãn; < ngưỡng → hàng chờ admin kiểm định. Admin chỉnh ngưỡng ở tuần 7.
 - Nhãn admin sửa phải được lưu (bảng riêng) để retrain — thiết kế bảng này ngay trong ERD.
-- Không có file model → service chạy mock (ổn định theo hash ảnh). Đổi model không được đổi tên field.
-- Chi tiết chạy/nạp model: `ai/README.md`.
+- Đổi model không được đổi tên field; train lại thì tăng `MODEL_VERSION`.
+- Chi tiết chạy/train lại: `ai/README.md`.
 
-**Quyết định cách làm model (chốt 15/09/2026):**
-- Kỹ thuật: **Transfer Learning MobileNetV2** (không train CNN từ đầu, không dùng Cloud Vision API trả phí) — nhẹ, phù hợp đồ án, khớp khung `ai/app/classifier.py` đã viết sẵn.
-- Dữ liệu: bắt đầu bằng dataset Kaggle **"Fruits fresh and rotten for classification"** (baseline tuần 3, 6 lớp táo/chuối/cam × tươi/hỏng) → tuần 6 bổ sung ảnh rau củ Việt Nam tự chụp.
-- Train ở **Google Colab** (GPU miễn phí) — notebook có sẵn: `ai/notebooks/01_train_baseline_mobilenetv2.ipynb`, hướng dẫn từng bước bằng tiếng Việt, tự in ra `class_names` để đồng bộ với `LABELS` trong `classifier.py`.
-- Tiền xử lý ảnh dùng `tf.keras.applications.mobilenet_v2.preprocess_input` — **phải giống hệt** giữa lúc train (notebook) và lúc phục vụ (`classifier.py`), nếu lệch model vẫn chạy nhưng đoán sai.
+**Quyết định cách làm model** (chốt 15/09/2026, cập nhật 12/10/2026 khi nhận model thật của Duy — repo gốc `github.com/buianhduy205/ai`):
+- Kỹ thuật: **Transfer Learning MobileNetV2** (không train CNN từ đầu, không dùng Cloud Vision API trả phí). Framework **PyTorch + torchvision** (bản khung TF/Keras cũ đã bỏ).
+- Model hiện tại: **28 lớp** = 14 loại (táo, chuối, ớt chuông, cà rốt, dưa leo, nho, ổi, táo tàu, xoài, cam, lựu, khoai tây, dâu, cà chua) × fresh/rotten. Test 4.410 ảnh: **accuracy 96,78%**, F1 96,72%; lớp yếu `bellpepper_rotten` (recall 0,61). Chi tiết `ai/results/`.
+- Pipeline: `preprocessing/preprocess.py` (chia 70/15/15, seed 42) → `training/train.py` (train toàn mạng, Adam lr 1e-3, 10 epoch, lưu theo val accuracy) → `training/evaluate.py`. Checkpoint `.pth` chứa luôn `class_names` + `image_size` nên không phải chép tay danh sách nhãn.
+- Tiền xử lý ảnh: resize 128×128 + chuẩn hoá mean/std ImageNet — **phải giống hệt** giữa `val_transform` (train) và `ai/ai/main.py` (phục vụ), nếu lệch model vẫn chạy nhưng đoán sai.
 - "Điểm độ tươi %" hiển thị trên web = **dùng thẳng `confidence`** model trả về cho nhãn nó chọn — không train model hồi quy điểm số riêng (không có dataset cho việc đó).
 - Giải thích đầy đủ (thuật ngữ, vì sao MobileNetV2, so sánh model, bản đồ bước↔file) cho người chưa biết AI: [`ai/docs/GIAI-THICH-AI.md`](ai/docs/GIAI-THICH-AI.md).
 
@@ -171,7 +172,7 @@ Phân công chi tiết từng tuần: file sheet của nhóm (ngoài repo).
 - Không code trực tiếp trên `main`. Nhánh theo tính năng: `feat/be-auth-jwt`, `feat/fe-seller-products`, `feat/ai-fastapi`, `fix/...`, `docs/...`.
 - Commit: `type(scope): mô tả` — `feat(be): thêm API đăng nhập`, `fix(fe): giỏ hàng mất khi reload`.
 - PR vào `main`, ít nhất 1 người review. Chạy `mvnw.cmd test` và `npm run lint` trước khi mở PR.
-- Không commit: `application-local.properties`, `.env`, `ai/models/*`, dataset, `node_modules`, `target`.
+- Không commit: `application-local.properties`, `.env`, dataset (`ai/dataset/`), `node_modules`, `target`, `.venv`. Riêng file model `ai/models/*.pth` **được commit** (chốt 12/10/2026, ~9 MB/lần train — chỉ commit bản tốt nhất, đừng commit checkpoint thử nghiệm).
 
 ## 11. Không làm
 
@@ -185,9 +186,9 @@ Phân công chi tiết từng tuần: file sheet của nhóm (ngoài repo).
 
 - Backend: **đủ 20 API người bán** (`/api/seller/**`) + **luồng khách hàng** (nhánh `feat/be-customer-flow`, 11/10): sổ địa chỉ đủ CRUD + mặc định, giỏ `/api/cart`, checkout tách đơn theo shop + trừ kho + `/api/orders` xem/huỷ, **admin duyệt sản phẩm** `/api/admin/products` (list/detail/review/review-bulk, lịch sử duyệt) + `PATCH /api/admin/shops/{id}/status` + `GET /api/admin/users`. Test H2 46/46. Chi tiết quy tắc + khuôn JSON: api.md v1.4.
 - **Còn thiếu backend** (theo api.md): `/users/me` + avatar, reviews sản phẩm, `/api/ai/**` khách (Premium), admin orders / users status-tier / shops list-detail / categories / dashboard / ai results-settings-statistics, `/auth/change-password`.
-- **AI chưa nối**: ảnh sản phẩm mới vào hàng chờ admin (UNCERTAIN/PENDING_REVIEW) qua `ProductAiLabeler` — nối AI thì chỉ sửa class này. Hợp đồng AI thực tế (`POST /classify`, field `image`) lệch api.md mục 5 (`/predict`) — chốt khi nối.
+- **AI chưa nối vào backend**: ảnh sản phẩm mới vẫn vào hàng chờ admin (UNCERTAIN/PENDING_REVIEW) qua `ProductAiLabeler` — nối AI thì chỉ sửa class này, gọi `POST /classify` theo hợp đồng mục 7 (đã thống nhất với api.md mục 5 ngày 12/10).
 - Còn trả entity ra ngoài: `ShopController` (`/api/shops/**`) — cần đổi sang DTO khi làm trang shop công khai (§4.4).
 - Lịch sử (13/09): khung config/security/JWT/Swagger/exception + auth hoàn chỉnh phía backend, test pass trên H2.
-- Frontend: đã tích hợp API thật cho giỏ hàng (`/api/cart`), thanh toán (`/api/orders/checkout`), đơn hàng (`/api/orders`), sổ địa chỉ (`/api/addresses` với dữ liệu 63 tỉnh/thành, quận/huyện, phường/xã), và admin duyệt sản phẩm (`/api/admin/products` đơn lẻ + duyệt hàng loạt). Auth đã gắn API thật (mật khẩu + Google).
-- AI: khung FastAPI chạy mock; chưa có model.
+- Frontend: đã tích hợp API thật cho giỏ hàng (`/api/cart`), thanh toán (`/api/orders/checkout`), đơn hàng (`/api/orders`), sổ địa chỉ (`/api/users/me/addresses` với dữ liệu 63 tỉnh/thành, quận/huyện, phường/xã), và admin duyệt sản phẩm (`/api/admin/products` đơn lẻ + duyệt hàng loạt). Auth đã gắn API thật (mật khẩu + Google).
+- AI (12/10): **đã có model thật** PyTorch MobileNetV2 28 lớp (accuracy 96,78%) do Duy train; FastAPI `ai/ai/main.py` trả đúng hợp đồng mục 7, thiếu model thì 503 thay vì mock.
 - Việc tiếp theo: Nối AI service (`ProductAiLabeler`) → hoàn thiện admin orders/dashboard/users/shops (tuần 6).

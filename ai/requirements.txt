@@ -1,6 +1,9 @@
-# Phụ thuộc tối thiểu để chạy AI service (chế độ mock khi chưa có model)
+# Chạy AI service (dự đoán). Máy không có GPU nên cài torch bản CPU cho nhẹ (~200 MB thay vì ~2 GB):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+torch>=2.2
+torchvision>=0.17
 fastapi>=0.115
 uvicorn[standard]>=0.30
 python-multipart>=0.0.9
 pillow>=10.0
-numpy>=1.26

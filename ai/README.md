@@ -1,59 +1,81 @@
 # AI service — phân loại chất lượng nông sản qua ảnh
 
-Python + FastAPI, model MobileNetV2 (TensorFlow/Keras). Spring Boot gọi service này qua REST;
-frontend **không** gọi thẳng.
+Python + **PyTorch** + FastAPI, model **MobileNetV2** (transfer learning từ ImageNet) phân loại **28 lớp** =
+14 loại nông sản × {tươi, hỏng}. Spring Boot gọi service này qua REST; frontend **không** gọi thẳng.
 
-> **Chưa biết gì về AI / lần đầu đọc phần này?** Đọc [`docs/GIAI-THICH-AI.md`](docs/GIAI-THICH-AI.md)
-> trước — giải thích từng thuật ngữ, vì sao chọn MobileNetV2 (có so sánh số liệu), và bản đồ chỉ rõ
-> từng bước nằm ở file/dòng nào. File README này chỉ là hướng dẫn thao tác nhanh.
+> **Chưa biết gì về AI?** Đọc [`docs/GIAI-THICH-AI.md`](docs/GIAI-THICH-AI.md) trước — giải thích thuật ngữ,
+> vì sao chọn MobileNetV2, pipeline train/serve và bản đồ bước ↔ file. README này chỉ là hướng dẫn thao tác.
 
-## Chạy local
+## Cấu trúc
+
+```
+ai/
+  ai/main.py                    FastAPI: nạp model, GET /health, POST /classify (bí danh /predict)
+  models/mobilenetv2_fruitquality_best.pth   model đã train (~9 MB, CÓ commit)
+  preprocessing/preprocess.py   chia dataset 70/15/15 (train/val/test)
+  preprocessing/dataset_distribution.py      biểu đồ số ảnh mỗi lớp
+  training/train.py             train MobileNetV2, lưu model val accuracy tốt nhất
+  training/evaluate.py          đánh giá trên tập test -> results/
+  results/                      metrics.txt, classification_report.txt, confusion_matrix.png, ...
+  dataset/                      (gitignore) ảnh gốc + processed_dataset/
+```
+
+## Chạy service (máy nào chạy backend cũng nên chạy cái này)
 
 ```bash
 cd ai
 python -m venv .venv
-.venv\Scripts\activate          # Windows  (Mac/Linux: source .venv/bin/activate)
+.venv\Scripts\activate                     # Mac/Linux: source .venv/bin/activate
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn ai.main:app --reload --port 8000
 ```
 
 - Swagger: http://localhost:8000/docs
-- `GET /health` — trạng thái + model đã nạp chưa
-- `POST /classify` — form-data field `image` → nhãn AI (xem docstring trong `app/main.py`)
+- `GET /health` → `model_loaded` phải là `true`, kèm `labels` (28 lớp) và `model_version`.
+- `POST /classify` (hoặc `/predict`) — form-data field **`image`** → JSON (hợp đồng với backend, CLAUDE.md mục 7):
 
-Chưa có file model → service chạy **chế độ mock** (kết quả ổn định theo ảnh) để web dev không bị chặn.
+```json
+{ "label": "apple_fresh", "produce_type": "apple", "condition": "fresh",
+  "confidence": 0.9312, "all_scores": { "apple_fresh": 0.9312, "...": 0.0 }, "model_version": "mobilenetv2-pt-v1" }
+```
 
-## Huấn luyện model thật (baseline, mốc tuần 3)
+| Tình huống | HTTP |
+|---|---|
+| Không phải ảnh / file rỗng | 400 |
+| Ảnh hỏng, không đọc được | 422 |
+| Thiếu / hỏng file model | 503 (service vẫn chạy, `/health` báo `model_loaded: false` + `error`) — backend đưa ảnh vào hàng chờ admin |
 
-Quyết định đã chốt (13/09/2026): **Transfer Learning MobileNetV2**, dataset khởi đầu **Kaggle "Fruits fresh and
-rotten for classification"** (tuần 6 bổ sung ảnh rau củ Việt Nam tự chụp), train trên **Google Colab** (GPU miễn phí),
-điểm "độ tươi %" hiển thị trên web = luôn dùng % tin cậy (confidence) model trả về cho nhãn nó chọn — không train
-model hồi quy riêng.
+Biến môi trường tuỳ chọn: `MODEL_PATH` (mặc định `models/mobilenetv2_fruitquality_best.pth`), `MODEL_VERSION`
+(mặc định `mobilenetv2-pt-v1` — **đổi mỗi khi train lại** để backend biết nhãn do model nào gắn).
 
-1. Mở `notebooks/01_train_baseline_mobilenetv2.ipynb` bằng Google Colab (File > Upload notebook, hoặc mở trực tiếp
-   từ GitHub sau khi push). Bật GPU: Runtime > Change runtime type > GPU.
-2. Chạy tuần tự từng ô theo thứ tự — notebook có hướng dẫn tiếng Việt ở từng bước, kể cả cách lấy `kaggle.json`
-   để tải dataset (kaggle.com/settings > API > Create New Token).
-3. Notebook tự in ra danh sách lớp thực tế (`class_names`) sau khi tải dữ liệu — copy đúng danh sách này dán vào
-   `LABELS` trong `app/classifier.py` (thứ tự phải khớp tuyệt đối, xem comment trong file).
-4. Cuối notebook tải về `produce_classifier.keras` — copy vào `ai/models/produce_classifier.keras` (đã gitignore,
-   chia sẻ file này cho nhóm qua Drive, không qua Git vì nặng).
+## Kết quả model hiện tại
 
-## Nạp model đã có sẵn (không cần train lại)
+Tập test 4.410 ảnh (15% dataset, chưa từng dùng lúc train): **Accuracy 96,78% · Precision 96,89% · Recall 96,78% ·
+F1 96,72%** — chi tiết từng lớp ở [`results/classification_report.txt`](results/classification_report.txt).
 
-1. Copy file `.keras` vào `ai/models/produce_classifier.keras`.
-2. `pip install -r requirements-model.txt` (cài thêm TensorFlow) rồi chạy lại uvicorn. `GET /health` phải báo
-   `model_loaded: true`.
-3. Kiểm tra `LABELS` trong `app/classifier.py` khớp đúng thứ tự với lúc train model đó — sai thứ tự thì server
-   vẫn chạy bình thường nhưng trả nhãn sai hoàn toàn dù "% tin cậy" vẫn cao.
+Lớp yếu cần thêm ảnh khi train lại: `bellpepper_rotten` (recall 0,61 — hay bị đoán nhầm sang lớp khác),
+`carrot_rotten` (0,85), `jujube_rotten` (0,83), `potato_rotten` (0,83). Các lớp rau củ chỉ có ~90 ảnh test, ít hơn
+hẳn táo/chuối/cam/xoài (300–440).
 
-## Lộ trình (theo tài liệu nhóm)
+28 lớp: apple, banana, bellpepper, carrot, cucumber, grape, guava, jujube, mango, orange, pomegranate, potato,
+strawberry, tomato — mỗi loại `_fresh` / `_rotten`.
 
-| Tuần | Việc AI |
-|------|---------|
-| 2 | EDA + tiền xử lý dataset baseline |
-| 3 | Train baseline MobileNetV2 (6 lớp), có accuracy |
-| 4 | Đóng gói FastAPI chạy local (khung này) |
-| 5 | Nối Spring Boot ↔ AI service |
-| 6 | Mở rộng dataset rau củ, train v2 |
-| 7 | Ngưỡng tin cậy + hàng chờ admin, lưu nhãn admin sửa để retrain |
+## Train lại model
+
+```bash
+pip install -r requirements-train.txt
+```
+
+1. Đặt ảnh gốc vào `ai/dataset/fruitquality1/train/<loại>/{fresh,rotten}/` (dataset không commit — lấy từ Duy).
+2. `python preprocessing/preprocess.py` → tạo `dataset/processed_dataset/{train,val,test}/<loại>_<tình trạng>/`
+   (chia 70/15/15, `random.seed(42)` nên chạy lại vẫn ra đúng cách chia cũ).
+3. (Tuỳ chọn) `python preprocessing/dataset_distribution.py` → `results/train_class_distribution.png`.
+4. `python training/train.py` — 10 epoch, lưu model có **val accuracy** tốt nhất vào `models/`. Có GPU (CUDA) thì
+   tự dùng, không thì chạy CPU (chậm, nên train trên Colab/máy có GPU).
+5. `python training/evaluate.py` → cập nhật `results/` (metrics, classification report, confusion matrix).
+6. Tăng `MODEL_VERSION`, commit file `.pth` mới + `results/`.
+
+⚠️ **Tiền xử lý lúc phục vụ (`ai/main.py`) phải giống hệt `val_transform` lúc train** (resize về `image_size` lưu
+trong checkpoint, `ToTensor`, chuẩn hoá mean/std ImageNet). Lệch là model vẫn chạy nhưng đoán sai dù % tin cậy cao.
+Danh sách lớp và kích thước ảnh được đọc **từ chính checkpoint**, nên không phải chép tay `LABELS` như bản cũ.

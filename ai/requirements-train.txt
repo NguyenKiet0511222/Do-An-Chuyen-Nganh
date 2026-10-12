@@ -1,0 +1,6 @@
+# Cài thêm khi chạy preprocessing/ và training/ (train lại model, vẽ biểu đồ, đánh giá).
+# Chỉ máy của người làm AI cần.
+-r requirements.txt
+scikit-learn>=1.4
+matplotlib>=3.8
+seaborn>=0.13
