@@ -4,7 +4,12 @@
 import os
 import shutil
 import random
+import sys
 from pathlib import Path
+
+# Windows ghi log ra file dùng mã cp1252 -> print tiếng Việt bị UnicodeEncodeError làm dừng script
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # ==============================
 # 1. CẤU HÌNH
@@ -29,6 +34,13 @@ random.seed(42)
 # ==============================
 
 assert TRAIN_RATIO + VAL_RATIO + TEST_RATIO == 1.0
+
+# Kiểm tra ảnh gốc TRƯỚC bước xoá bên dưới, để thiếu ảnh gốc thì không lỡ xoá mất processed_dataset đang có
+if not SOURCE_DIR.exists():
+    print("\nERROR: Không tìm thấy thư mục ảnh gốc!")
+    print(SOURCE_DIR)
+    print("Đặt dataset vào dataset/fruitquality1/train/<loại>/{fresh,rotten}/ (dataset không có trên git, xin Duy).")
+    sys.exit(1)
 
 
 # ==============================

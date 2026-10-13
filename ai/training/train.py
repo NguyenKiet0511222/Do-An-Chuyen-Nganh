@@ -9,6 +9,11 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 
+# Windows ghi log ra file (vd: python training/train.py > train.log) dùng mã cp1252 -> print tiếng Việt
+# bị UnicodeEncodeError làm dừng giữa chừng, mất công train. Ép stdout sang UTF-8.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 # ==========================================
 # 1. ĐƯỜNG DẪN PROJECT
@@ -55,12 +60,12 @@ val_dir = DATASET_DIR / "val"
 if not train_dir.exists():
     print("\nERROR: Không tìm thấy thư mục train!")
     print(train_dir)
-    sys.exit()
+    sys.exit(1)
 
 if not val_dir.exists():
     print("\nERROR: Không tìm thấy thư mục val!")
     print(val_dir)
-    sys.exit()
+    sys.exit(1)
 
 
 # ==========================================

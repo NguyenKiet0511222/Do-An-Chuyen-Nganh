@@ -2,6 +2,7 @@
 # Dùng tập test để kiểm tra model dự đoán chính xác đến đâu.
 # Tạo các chỉ số đánh giá và các kết quả như classification report,
 # confusion matrix và accuracy.
+import sys
 from pathlib import Path
 
 import torch
@@ -21,6 +22,10 @@ from sklearn.metrics import (
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Windows ghi log ra file dùng mã cp1252 -> print tiếng Việt bị UnicodeEncodeError làm dừng script
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 # ==========================================
 # 1. ĐƯỜNG DẪN
@@ -34,6 +39,19 @@ MODEL_PATH = BASE_DIR / "models" / "mobilenetv2_fruitquality_best.pth"
 
 RESULT_DIR = BASE_DIR / "results"
 RESULT_DIR.mkdir(exist_ok=True)
+
+# Dataset không commit lên git -> máy mới clone về sẽ chưa có tập test
+if not TEST_DIR.exists():
+    print("\nERROR: Không tìm thấy thư mục test!")
+    print(TEST_DIR)
+    print("Chạy preprocessing/preprocess.py trước (cần ảnh gốc trong dataset/fruitquality1/train).")
+    sys.exit(1)
+
+if not MODEL_PATH.exists():
+    print("\nERROR: Không tìm thấy model!")
+    print(MODEL_PATH)
+    print("Chạy training/train.py trước.")
+    sys.exit(1)
 
 
 # ==========================================

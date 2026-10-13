@@ -2,8 +2,13 @@
 # Dùng để kiểm tra dataset có bị mất cân bằng giữa các class hay không.
 # Kết quả có thể được dùng để tạo biểu đồ phân bố dữ liệu.
 
+import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
+
+# Windows ghi log ra file dùng mã cp1252 -> print tiếng Việt bị UnicodeEncodeError làm dừng script
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 # ============================================================
@@ -15,6 +20,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATASET_DIR = BASE_DIR / "dataset" / "processed_dataset"
 
 TRAIN_DIR = DATASET_DIR / "train"
+
+# Dataset không commit lên git -> máy mới clone về sẽ chưa có thư mục này
+if not TRAIN_DIR.exists():
+    print("\nERROR: Không tìm thấy thư mục train!")
+    print(TRAIN_DIR)
+    print("Chạy preprocessing/preprocess.py trước (cần ảnh gốc trong dataset/fruitquality1/train).")
+    sys.exit(1)
 
 
 # ============================================================
