@@ -10,6 +10,7 @@ import com.nhom5.backend.entity.Product;
 import com.nhom5.backend.entity.ProductImage;
 import com.nhom5.backend.entity.ProductReviewHistory;
 import com.nhom5.backend.entity.Shop;
+import com.nhom5.backend.entity.enums.AiReviewStatus;
 import com.nhom5.backend.entity.enums.HiddenBy;
 import com.nhom5.backend.entity.enums.ProductReviewAction;
 import com.nhom5.backend.entity.enums.ProductStatus;
@@ -142,7 +143,10 @@ public class SellerProductService {
 
     // ---------- Ảnh ----------
 
-    /** Upload 1..n ảnh (tổng tối đa 5/sản phẩm). Mỗi ảnh tạo 1 ai_result (hiện: chờ admin kiểm định). */
+    /**
+     * Upload 1..n ảnh (tổng tối đa 5/sản phẩm). Mỗi ảnh gửi AI gắn nhãn, tạo 1 ai_result (docs/1910.md mục 1).
+     * 1 ảnh gọi AI lỗi thì các ảnh còn lại của lần tải này không gọi AI nữa, vào thẳng hàng chờ admin.
+     */
     public ProductImagesResponse uploadImages(Long userId, Long productId, List<MultipartFile> files) {
         Product product = requireOwnProduct(userId, productId);
         ensureEditable(product);
@@ -162,6 +166,7 @@ public class SellerProductService {
 
         int nextOrder = product.getImages().stream().mapToInt(ProductImage::getDisplayOrder).max().orElse(0) + 1;
         boolean hasPrimary = product.getImages().stream().anyMatch(img -> Boolean.TRUE.equals(img.getPrimary()));
+        ProductAiLabeler.Batch aiBatch = productAiLabeler.newBatch();
         for (MultipartFile file : validFiles) {
             String url = fileStorageService.storeImage(file, "products/" + product.getId());
             ProductImage image = ProductImage.builder()
@@ -171,7 +176,7 @@ public class SellerProductService {
                     .primary(!hasPrimary)
                     .build();
             hasPrimary = true;
-            image.setAiResult(productAiLabeler.labelNewImage(image));
+            image.setAiResult(aiBatch.label(image, file));
             product.getImages().add(image);
         }
         productAiLabeler.recomputeOverall(product);
@@ -210,7 +215,10 @@ public class SellerProductService {
 
     // ---------- Trạng thái ----------
 
-    /** DRAFT / REJECTED / NEED_INFO -> PENDING. Điều kiện: ≥ 1 ảnh, giá > 0, tồn kho ≥ 0, có danh mục (mục 3.2). */
+    /**
+     * DRAFT / REJECTED / NEED_INFO -> PENDING. Điều kiện: ≥ 1 ảnh, giá > 0, tồn kho ≥ 0, có danh mục (mục 3.2),
+     * không còn ảnh admin yêu cầu chụp lại (RETAKE_REQUESTED — docs/1910.md mục 3).
+     */
     public SellerProductDetailResponse submit(Long userId, Long productId) {
         Product product = requireOwnProduct(userId, productId);
         sellerShopService.ensureActive(product.getShop());
@@ -219,6 +227,11 @@ public class SellerProductService {
         }
         List<String> missing = new ArrayList<>();
         if (product.getImages().isEmpty()) missing.add("cần ít nhất 1 ảnh");
+        long retakeImages = product.getImages().stream()
+                .map(ProductImage::getAiResult)
+                .filter(r -> r != null && r.getReviewStatus() == AiReviewStatus.RETAKE_REQUESTED)
+                .count();
+        if (retakeImages > 0) missing.add("có " + retakeImages + " ảnh admin yêu cầu chụp lại (xoá và tải ảnh mới)");
         if (product.getPrice() == null || product.getPrice() <= 0) missing.add("giá bán phải lớn hơn 0");
         if (product.getStockQuantity() == null || product.getStockQuantity() < 0) missing.add("tồn kho không được âm");
         if (product.getCategory() == null) missing.add("cần chọn danh mục");

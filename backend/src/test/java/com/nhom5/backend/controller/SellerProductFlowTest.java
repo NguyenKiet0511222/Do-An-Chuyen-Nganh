@@ -1,8 +1,11 @@
 package com.nhom5.backend.controller;
 
+import com.nhom5.backend.entity.AiResult;
 import com.nhom5.backend.entity.Product;
+import com.nhom5.backend.entity.enums.AiReviewStatus;
 import com.nhom5.backend.entity.enums.HiddenBy;
 import com.nhom5.backend.entity.enums.ProductStatus;
+import com.nhom5.backend.repository.AiResultRepository;
 import com.nhom5.backend.repository.ProductRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +32,8 @@ class SellerProductFlowTest extends ApiTestSupport {
 
     @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private AiResultRepository aiResultRepository;
 
     @Test
     void createValidatesInput() throws Exception {
@@ -60,7 +65,7 @@ class SellerProductFlowTest extends ApiTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("ít nhất 1 ảnh")));
 
-        // Ảnh đầu tiên: thành ảnh chính, AI chưa tích hợp -> UNCERTAIN chờ admin
+        // Ảnh đầu tiên: thành ảnh chính; test tắt AI (app.ai.enabled=false) -> UNCERTAIN chờ admin
         ResultActions first = uploadImage(token, id)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.images", hasSize(1)))
@@ -68,6 +73,7 @@ class SellerProductFlowTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.data.images[0].url", startsWith("/uploads/products/" + id + "/")))
                 .andExpect(jsonPath("$.data.images[0].ai.label").value("UNCERTAIN"))
                 .andExpect(jsonPath("$.data.images[0].ai.reviewStatus").value("PENDING_REVIEW"))
+                .andExpect(jsonPath("$.data.images[0].ai.note").value("AI đang tắt — chờ admin kiểm định"))
                 .andExpect(jsonPath("$.data.aiOverallLabel").value("UNCERTAIN"))
                 .andExpect(jsonPath("$.data.status").value("DRAFT"));
         long firstImageId = readLong(first, "$.data.images[0].id");
@@ -199,6 +205,33 @@ class SellerProductFlowTest extends ApiTestSupport {
         call(post("/api/seller/products/" + id + "/submit"), token)
                 .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andExpect(jsonPath("$.data.rejectReason").doesNotExist());
+    }
+
+    @Test
+    void cannotResubmitUntilImageAdminAskedToRetakeIsReplaced() throws Exception {
+        String token = sellerToken();
+        long id = createProduct(token, "Ớt chuông test chụp lại", 40000, 10);
+        ResultActions upload = uploadImage(token, id).andExpect(status().isCreated());
+        long imageId = readLong(upload, "$.data.images[0].id");
+        long aiResultId = readLong(upload, "$.data.images[0].ai.id");
+
+        // Admin yêu cầu chụp lại (docs/1910.md mục 3) — đặt thẳng trong DB, không đi qua API kiểm định AI
+        AiResult aiResult = aiResultRepository.findById(aiResultId).orElseThrow();
+        aiResult.setReviewStatus(AiReviewStatus.RETAKE_REQUESTED);
+        aiResultRepository.save(aiResult);
+        setStatus(id, ProductStatus.NEED_INFO, null);
+
+        call(post("/api/seller/products/" + id + "/submit"), token)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "Chưa đủ điều kiện gửi duyệt: có 1 ảnh admin yêu cầu chụp lại (xoá và tải ảnh mới)"));
+
+        // Xoá ảnh cũ, tải ảnh mới -> gửi duyệt được
+        call(delete("/api/seller/products/" + id + "/images/" + imageId), token).andExpect(status().isOk());
+        uploadImage(token, id).andExpect(status().isCreated());
+        call(post("/api/seller/products/" + id + "/submit"), token)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PENDING"));
     }
 
     @Test

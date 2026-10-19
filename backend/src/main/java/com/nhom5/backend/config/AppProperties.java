@@ -19,8 +19,13 @@ public record AppProperties(Jwt jwt, Ai ai, Cors cors, Google google, Admin admi
 	public record Jwt(String secret, long expirationMinutes) {
 	}
 
-	/** Cấu hình gọi sang AI service (Python FastAPI). */
-	public record Ai(String baseUrl, double autoAcceptThreshold) {
+	/**
+	 * Cấu hình gọi sang AI service (Python FastAPI) — docs/1910.md mục 1, 4, 6.
+	 * enabled=false: không gọi AI, mọi ảnh mới vào hàng chờ admin. 2 ngưỡng là giá trị mặc định
+	 * (AiSettingsService đọc), timeoutMs: quá hạn coi như AI lỗi.
+	 */
+	public record Ai(String baseUrl, boolean enabled, double autoAcceptThreshold, double reviewThreshold,
+			int timeoutMs) {
 	}
 
 	/** Danh sách origin frontend được phép gọi API. */

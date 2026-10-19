@@ -76,7 +76,7 @@ public class ProductSeeder implements ApplicationRunner {
                 .imageUrl("https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=300")
                 .displayOrder(1)
                 .active(true)
-                .aiProduceKeys("tomato,potato,carrot")
+                .aiProduceKeys("tomato,potato,carrot,bellpepper,cucumber") // khớp 14 loại model AI biết (docs/1910.md mục 1)
                 .build();
         categoryRepository.save(catCuQua);
 
@@ -88,7 +88,7 @@ public class ProductSeeder implements ApplicationRunner {
                 .imageUrl("https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=300")
                 .displayOrder(2)
                 .active(true)
-                .aiProduceKeys("cabbage,lettuce")
+                .aiProduceKeys("cabbage,lettuce") // model chưa có rau lá -> ảnh rau lá luôn UNCERTAIN, AI không phán bừa
                 .build();
         categoryRepository.save(catRauLa);
 
@@ -99,7 +99,7 @@ public class ProductSeeder implements ApplicationRunner {
                 .imageUrl("https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=300")
                 .displayOrder(2)
                 .active(true)
-                .aiProduceKeys("mango,apple,banana,orange,strawberry")
+                .aiProduceKeys("mango,apple,banana,orange,strawberry,grape,guava,jujube,pomegranate")
                 .build();
         categoryRepository.save(rootFruit);
 

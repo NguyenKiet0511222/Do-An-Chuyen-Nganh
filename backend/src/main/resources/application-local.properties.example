@@ -26,4 +26,11 @@ app.admin.password=DoiMatKhauNay@123
 # --- Dang nhap Google (Google Cloud Console > APIs & Services > Credentials > OAuth client ID, loai Web) ---
 app.google.client-id=xxxxxxxx.apps.googleusercontent.com
 
+# --- AI service (cd ai && uvicorn ai.main:app --port 8000) ---
 app.ai.base-url=http://localhost:8000
+# May khong chay AI service: dat false de khoi cho timeout, moi anh moi vao hang cho admin kiem dinh
+#app.ai.enabled=false
+# Nguong mac dinh (docs/1910.md muc 1) + thoi gian cho AI tra loi
+#app.ai.auto-accept-threshold=0.90
+#app.ai.review-threshold=0.70
+#app.ai.timeout-ms=5000

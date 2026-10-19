@@ -88,7 +88,8 @@ public class SellerProductController {
     @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Upload ảnh (field \"files\" hoặc \"file\", tối đa 5 ảnh/sản phẩm, JPG/PNG/WEBP ≤ 5 MB)",
-            description = "Trả toàn bộ ảnh hiện tại + nhãn AI. Hiện chưa gọi AI: ảnh mới ở trạng thái chờ admin kiểm định")
+            description = "Trả toàn bộ ảnh hiện tại + nhãn AI. Mỗi ảnh mới gửi AI gắn nhãn; AI tắt / lỗi thì ảnh vẫn được "
+                    + "lưu và vào hàng chờ admin kiểm định")
     public ApiResponse<ProductImagesResponse> uploadImages(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
@@ -116,7 +117,7 @@ public class SellerProductController {
 
     @PostMapping("/{id}/submit")
     @Operation(summary = "Gửi duyệt: DRAFT / REJECTED / NEED_INFO -> PENDING",
-            description = "Điều kiện: ≥ 1 ảnh, giá > 0, tồn kho ≥ 0, có danh mục")
+            description = "Điều kiện: ≥ 1 ảnh, giá > 0, tồn kho ≥ 0, có danh mục, không còn ảnh admin yêu cầu chụp lại")
     public ApiResponse<SellerProductDetailResponse> submit(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         return ApiResponse.ok("Đã gửi duyệt sản phẩm", sellerProductService.submit(currentUserId(jwt), id));
     }
