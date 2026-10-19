@@ -18,7 +18,11 @@ import {
   Typography
 } from "@mui/material";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { adminApi } from "../../services/api";
+import { adminApi, resolveAssetUrl } from "../../services/api";
+import AiLabelChip from "./components/AiLabelChip";
+import AiReviewActions from "./components/AiReviewActions";
+import AiReviewStatusChip from "./components/AiReviewStatusChip";
+import { displayLabelOf, formatProduce, handleImageError, notifyAiPendingChanged } from "./components/aiReview";
 
 const QUICK_REASONS = [
   "Ảnh sản phẩm bị mờ, không rõ ràng",
@@ -39,8 +43,9 @@ export default function AdminProductDetailPage() {
   const [toastMsg, setToastMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const loadProduct = useCallback(async () => {
-    setLoading(true);
+  // silent = tải lại ngầm (sau khi kiểm định ảnh AI) để không nháy cả trang "Đang tải..."
+  const loadProduct = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await adminApi.product.getById(id);
       setProduct(data);
@@ -78,12 +83,41 @@ export default function AdminProductDetailPage() {
       });
       setToastMsg(`Thao tác ${action} thành công!`);
       setReason("");
+      // Từ chối / yêu cầu bổ sung đưa ảnh chờ kiểm định ra khỏi hàng chờ (docs/1910.md mục 2) -> badge menu tải lại
+      notifyAiPendingChanged();
       await loadProduct();
     } catch (err) {
       setToastMsg(err.response?.data?.message || err.message || "Thao tác không thành công");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Sau khi kiểm định 1 ảnh AI: áp ngay kết quả PATCH trả về (nút của ảnh đó ẩn luôn, tránh bấm lần 2 bị 409
+  // trong lúc chờ tải lại), rồi tải lại ngầm sản phẩm (nhãn tổng, trạng thái có thể đổi khi RETAKE)
+  const handleAiReviewed = (updated, message) => {
+    setToastMsg(message);
+    if (updated?.id) {
+      setProduct((prev) => prev && {
+        ...prev,
+        status: updated.product?.status ?? prev.status,
+        images: (prev.images || []).map((img) =>
+          img.ai?.id === updated.id
+            ? {
+                ...img,
+                ai: {
+                  ...img.ai,
+                  reviewStatus: updated.reviewStatus,
+                  finalLabel: updated.finalLabel,
+                  displayLabel: updated.displayLabel,
+                  note: updated.note
+                }
+              }
+            : img
+        )
+      });
+    }
+    loadProduct(true);
   };
 
   if (loading) {
@@ -116,9 +150,12 @@ export default function AdminProductDetailPage() {
   ];
 
   const currentImg = images[activeImageIndex] || images[0];
-  const freshCount = images.filter((img) => img.ai?.label === "FRESH").length;
-  const rottenCount = images.filter((img) => img.ai?.label === "ROTTEN").length;
-  const uncertainCount = images.filter((img) => img.ai?.label === "UNCERTAIN").length;
+  // Nhãn hiển thị = nhãn admin chốt (finalLabel) nếu có, không thì nhãn AI
+  const currentLabel = displayLabelOf(currentImg.ai);
+  const freshCount = images.filter((img) => displayLabelOf(img.ai) === "FRESH").length;
+  const rottenCount = images.filter((img) => displayLabelOf(img.ai) === "ROTTEN").length;
+  const uncertainCount = images.filter((img) => displayLabelOf(img.ai) === "UNCERTAIN").length;
+  const aiImages = images.filter((img) => img.ai?.id);
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto" }}>
@@ -177,12 +214,13 @@ export default function AdminProductDetailPage() {
                 overflow: "hidden",
                 bgcolor: "#0f172a",
                 position: "relative",
-                border: currentImg.ai?.label === "ROTTEN" ? "2px solid #ef4444" : "1px solid #e2e8f0"
+                border: currentLabel === "ROTTEN" ? "2px solid #ef4444" : "1px solid #e2e8f0"
               }}
             >
               <img
-                src={currentImg.url}
+                src={resolveAssetUrl(currentImg.url)}
                 alt="Product preview"
+                onError={handleImageError}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
               <Box
@@ -190,7 +228,7 @@ export default function AdminProductDetailPage() {
                   position: "absolute",
                   bottom: 12,
                   left: 12,
-                  bgcolor: currentImg.ai?.label === "ROTTEN" ? "rgba(239, 68, 68, 0.9)" : "rgba(15, 23, 42, 0.8)",
+                  bgcolor: currentLabel === "ROTTEN" ? "rgba(239, 68, 68, 0.9)" : "rgba(15, 23, 42, 0.8)",
                   color: "#fff",
                   px: 1.5,
                   py: 0.5,
@@ -200,8 +238,10 @@ export default function AdminProductDetailPage() {
                   backdropFilter: "blur(4px)"
                 }}
               >
-                Nhãn AI: {currentImg.ai?.label === "FRESH" ? "TƯƠI" : currentImg.ai?.label === "ROTTEN" ? "HỎNG" : "KHÔNG CHẮC"}
-                {currentImg.ai?.confidence ? ` (${Math.round(currentImg.ai.confidence * 100)}%)` : ""}
+                Nhãn AI: {currentLabel === "FRESH" ? "TƯƠI" : currentLabel === "ROTTEN" ? "HỎNG" : "KHÔNG CHẮC"}
+                {currentImg.ai?.confidence && currentLabel === currentImg.ai?.label
+                  ? ` (${Math.round(currentImg.ai.confidence * 100)}%)`
+                  : ""}
               </Box>
             </Box>
 
@@ -210,7 +250,7 @@ export default function AdminProductDetailPage() {
               <Grid container spacing={1.5} sx={{ mt: 1 }}>
                 {images.map((img, idx) => {
                   const isActive = activeImageIndex === idx;
-                  const isRotten = img.ai?.label === "ROTTEN";
+                  const isRotten = displayLabelOf(img.ai) === "ROTTEN";
                   return (
                     <Grid item xs={3} key={img.id || idx}>
                       <Box
@@ -230,8 +270,9 @@ export default function AdminProductDetailPage() {
                       >
                         <Box sx={{ height: 75, bgcolor: "#f1f5f9" }}>
                           <img
-                            src={img.url}
+                            src={resolveAssetUrl(img.url)}
                             alt="thumb"
+                            onError={handleImageError}
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />
                         </Box>
@@ -284,6 +325,67 @@ export default function AdminProductDetailPage() {
                 </TableRow>
               </TableBody>
             </Table>
+
+            {/* Kiểm định từng ảnh — dùng chung nút với màn Kiểm định AI */}
+            {aiImages.length > 0 && (
+              <Box sx={{ mt: 2.5 }}>
+                <Typography sx={{ fontSize: 14, fontWeight: 700, mb: 1.5 }}>Kiểm định từng ảnh</Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                  {aiImages.map((img) => {
+                    const idx = images.indexOf(img);
+                    const corrected = img.ai.finalLabel && img.ai.finalLabel !== img.ai.label;
+                    return (
+                      <Box
+                        key={img.id}
+                        sx={{
+                          display: "flex",
+                          gap: 1.5,
+                          p: 1.25,
+                          borderRadius: 1.5,
+                          border: "1px solid",
+                          borderColor: idx === activeImageIndex ? "#0f172a" : "#e2e8f0"
+                        }}
+                      >
+                        <Box
+                          onClick={() => setActiveImageIndex(idx)}
+                          title="Xem ảnh này"
+                          sx={{ width: 64, height: 64, flexShrink: 0, borderRadius: 1, overflow: "hidden", cursor: "pointer", bgcolor: "#f1f5f9" }}
+                        >
+                          <img
+                            src={resolveAssetUrl(img.url)}
+                            alt={`Ảnh ${idx + 1}`}
+                            onError={handleImageError}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+                          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+                            <AiLabelChip label={displayLabelOf(img.ai)} confidence={corrected ? null : img.ai.confidence} size="small" />
+                            <AiReviewStatusChip status={img.ai.reviewStatus} />
+                            {img.ai.produce && (
+                              <Typography component="span" sx={{ fontSize: 12, color: "text.secondary" }}>
+                                {formatProduce(img.ai.produce)}
+                              </Typography>
+                            )}
+                          </Box>
+                          {img.ai.note && (
+                            <Typography sx={{ fontSize: 12, color: "text.secondary", lineHeight: 1.5 }}>{img.ai.note}</Typography>
+                          )}
+                          <AiReviewActions
+                            aiResultId={img.ai.id}
+                            label={img.ai.label}
+                            reviewStatus={img.ai.reviewStatus}
+                            productStatus={product.status}
+                            onDone={handleAiReviewed}
+                            onError={setToastMsg}
+                          />
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
           </Paper>
         </Grid>
 

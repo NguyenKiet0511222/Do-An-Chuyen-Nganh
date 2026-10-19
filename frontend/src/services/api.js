@@ -40,6 +40,12 @@ apiClient.interceptors.response.use(
 // Backend luôn trả { success, message, data } (ApiResponse) -> chỉ lấy phần data
 const unwrap = (response) => response.data?.data ?? response.data;
 
+// Ảnh upload backend trả dạng tương đối "/uploads/..." -> ghép với origin backend (bỏ đuôi /api), api.md mục 6.
+// URL tuyệt đối (ảnh seed Unsplash, placeholder) giữ nguyên.
+const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
+export const resolveAssetUrl = (url) =>
+  typeof url === "string" && url.startsWith("/uploads/") ? `${BACKEND_ORIGIN}${url}` : url;
+
 // ==========================================
 // 1. API Xác thực (Auth) — backend làm ở tuần 3
 // ==========================================
@@ -237,7 +243,8 @@ export const sellerApi = {
   // --- Dashboard ---
   dashboard: {
     getSummary: () => apiClient.get("/seller/dashboard/summary").then(unwrap),
-    getAiResults: () => apiClient.get("/seller/ai/results").then(unwrap)
+    // params: reviewStatus (vd "RETAKE_REQUESTED"), page (từ 0), size
+    getAiResults: (params = {}) => apiClient.get("/seller/ai/results", { params }).then(unwrap)
   }
 };
 
@@ -272,6 +279,28 @@ export const adminApi = {
     updateStatus: (id, action) => apiClient.patch(`/admin/users/${id}/status`, { action }).then(unwrap),
     updateTier: (id, tier) => apiClient.patch(`/admin/users/${id}/tier`, { tier }).then(unwrap),
     createAdmin: (payload) => apiClient.post("/admin/users", payload).then(unwrap)
+  },
+  // Kiểm định AI — docs/1910.md mục 7.2
+  ai: {
+    // params: { reviewStatus ("PENDING_REVIEW" hoặc nhiều giá trị cách dấu phẩy), label, shopId, produce, from, to, sort, page, size }
+    getResults: (params = {}) => apiClient.get("/admin/ai/results", { params }).then(unwrap),
+    getResult: (id) => apiClient.get(`/admin/ai/results/${id}`).then(unwrap),
+    // payload: { action: "ACCEPT" | "CORRECT" | "RETAKE", finalLabel?, note? }
+    review: (id, payload) => apiClient.patch(`/admin/ai/results/${id}/review`, payload).then(unwrap),
+    // payload: { minConfidence } -> { succeeded }
+    acceptBulk: (payload) => apiClient.patch("/admin/ai/results/accept-bulk", payload).then(unwrap),
+    // Thử mô hình, không lưu -> { label, produce, condition, confidence, top, modelVersion, inferenceMs }
+    classify: (file) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      return apiClient.post("/admin/ai/classify", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      }).then(unwrap);
+    },
+    getSettings: () => apiClient.get("/admin/ai/settings").then(unwrap),
+    updateSettings: (payload) => apiClient.put("/admin/ai/settings", payload).then(unwrap),
+    // params: { from, to } (yyyy-MM-dd)
+    getStatistics: (params = {}) => apiClient.get("/admin/ai/statistics", { params }).then(unwrap)
   }
 };
 

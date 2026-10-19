@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   AppBar,
   Avatar,
   Box,
-  Button,
   Chip,
   Divider,
   Drawer,
@@ -30,7 +29,6 @@ import {
   Users,
   FolderTree,
   ScanSearch,
-  Sprout,
   LogOut,
   Home,
   Search,
@@ -39,6 +37,8 @@ import {
   ChevronDown
 } from "lucide-react";
 import { useAuth } from "../context/useAuth";
+import { adminApi } from "../services/api";
+import { AI_PENDING_CHANGED_EVENT } from "../pages/admin/components/aiReview";
 
 const DRAWER_WIDTH = 240;
 
@@ -61,7 +61,8 @@ const NAV_BY_ROLE = {
       { label: "Tổng quan", to: "/admin", icon: LayoutDashboard, end: true },
       { label: "Sản phẩm", to: "/admin/products", icon: Package, badge: "14 chờ", badgeColor: "warning" },
       { label: "Đơn hàng", to: "/admin/orders", icon: ClipboardList, badge: "23 mới", badgeColor: "info" },
-      { label: "Kiểm định AI", to: "/admin/ai-review", icon: ScanSearch, badge: "32", badgeColor: "error" },
+      // Badge = số ảnh đang chờ kiểm định thật (pendingReview), xem DashboardLayout bên dưới
+      { label: "Kiểm định AI", to: "/admin/ai-review", icon: ScanSearch, dynamicBadge: "aiPending", badgeColor: "error" },
       { label: "Người dùng", to: "/admin/users", icon: Users },
       { label: "Danh mục", to: "/admin/categories", icon: FolderTree }
     ],
@@ -72,11 +73,37 @@ const NAV_BY_ROLE = {
 };
 
 export default function DashboardLayout({ role }) {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [aiPending, setAiPending] = useState(0);
   const location = useLocation();
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.admin;
+  const isAdminArea = role === "admin" && hasRole("ADMIN");
+
+  // Số ảnh chờ kiểm định AI cho badge menu — chỉ gọi khi là ADMIN; tải lại khi có ảnh vừa được kiểm định
+  useEffect(() => {
+    if (!isAdminArea) return undefined;
+    let ignore = false;
+    const loadPending = () => {
+      adminApi.ai
+        .getStatistics()
+        .then((stats) => {
+          if (!ignore) setAiPending(Number(stats?.pendingReview) || 0);
+        })
+        .catch(() => {
+          if (!ignore) setAiPending(0); // lỗi -> ẩn badge
+        });
+    };
+    loadPending();
+    window.addEventListener(AI_PENDING_CHANGED_EVENT, loadPending);
+    return () => {
+      ignore = true;
+      window.removeEventListener(AI_PENDING_CHANGED_EVENT, loadPending);
+    };
+  }, [isAdminArea]);
+
+  const dynamicBadges = { aiPending: isAdminArea && aiPending > 0 ? String(aiPending) : null };
 
   const handleProfileClick = (event) => setAnchorEl(event.currentTarget);
   const handleProfileClose = () => setAnchorEl(null);
@@ -103,8 +130,9 @@ export default function DashboardLayout({ role }) {
 
       {/* Main Nav Items */}
       <List sx={{ flex: 1, px: 2, py: 2 }}>
-        {nav.items.map(({ label, to, icon: Icon, end, badge, badgeColor }) => {
+        {nav.items.map(({ label, to, icon: Icon, end, badge: staticBadge, dynamicBadge, badgeColor }) => {
           const isActive = end ? location.pathname === to : location.pathname.startsWith(to);
+          const badge = dynamicBadge ? dynamicBadges[dynamicBadge] : staticBadge;
           return (
             <ListItemButton
               key={to}

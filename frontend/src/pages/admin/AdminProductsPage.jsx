@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { Search } from "lucide-react";
 import { adminApi } from "../../services/api";
+import { notifyAiPendingChanged } from "./components/aiReview";
 
 const TAB_STATUS_MAP = [
   null,          // 0: Tất cả
@@ -96,6 +97,7 @@ export default function AdminProductsPage() {
         action: "APPROVE"
       });
       setToastMsg(`Đã duyệt thành công ${res.succeeded || selectedIds.length} sản phẩm.`);
+      notifyAiPendingChanged();
       loadProducts();
     } catch (err) {
       setToastMsg(err.response?.data?.message || err.message || "Lỗi khi duyệt hàng loạt");
@@ -117,6 +119,8 @@ export default function AdminProductsPage() {
         reason: reason.trim()
       });
       setToastMsg(`Đã từ chối ${res.succeeded || selectedIds.length} sản phẩm.`);
+      // Sản phẩm bị từ chối -> ảnh chờ kiểm định rời hàng chờ (docs/1910.md mục 2), badge menu tải lại
+      notifyAiPendingChanged();
       loadProducts();
     } catch (err) {
       setToastMsg(err.response?.data?.message || err.message || "Lỗi khi từ chối hàng loạt");
@@ -137,6 +141,7 @@ export default function AdminProductsPage() {
     try {
       await adminApi.product.review(id, { action, reason: reason || undefined });
       setToastMsg(`Đã cập nhật trạng thái sản phẩm thành công.`);
+      notifyAiPendingChanged();
       loadProducts();
     } catch (err) {
       setToastMsg(err.response?.data?.message || err.message || "Lỗi khi xử lý");

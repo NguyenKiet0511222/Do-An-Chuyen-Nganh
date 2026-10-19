@@ -1,6 +1,7 @@
-import { Box, Typography, Paper, Grid, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, TextField, Chip, Avatar } from "@mui/material";
+import { Box, Typography, Paper, Grid, Button, Tabs, Tab, TextField, Avatar } from "@mui/material";
 import { useState } from "react";
 import { Upload, Save, CheckCircle2, Check } from "lucide-react";
+import SellerAiResultsPanel from "./components/SellerAiResultsPanel";
 
 export default function SellerInfoAIPage() {
   const [tabValue, setTabValue] = useState(0);
@@ -8,12 +9,6 @@ export default function SellerInfoAIPage() {
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
-
-  const aiResults = [
-    { image: "https://images.unsplash.com/photo-1557800636-894a64c1696f?w=100", name: "Cam sành loại 2", badge: "Hỏng 85%", badgeStyle: { bgcolor: "#f43f5e", color: "#fff", border: "none" }, admin: "Đã xác nhận hỏng", action: "Thay ảnh" },
-    { image: "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=100", name: "Quýt đường", badge: "Không chắc 64%", badgeStyle: { bgcolor: "#fffbeb", color: "#d97706", border: "1px solid #fcd34d" }, admin: "Chờ admin duyệt", action: "Thay ảnh" },
-    { image: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=100", name: "Dâu tây Đà Lạt", badge: "Tươi 89%", badgeStyle: { bgcolor: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" }, admin: "Tự chấp nhận", action: "—" }
-  ];
 
   return (
     <Box sx={{ pb: 4, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -190,60 +185,7 @@ export default function SellerInfoAIPage() {
       )}
 
       {/* Tab 1: Kết quả AI */}
-      {tabValue === 1 && (
-        <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid #e2e8f0", bgcolor: "#fff", overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-          <Box sx={{ p: 3, borderBottom: "1px solid #f1f5f9" }}>
-            <Typography sx={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-              Kết quả AI của shop (ảnh cần chú ý)
-            </Typography>
-          </Box>
-          
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: "rgba(248, 250, 252, 0.75)" }}>
-                  <TableCell sx={{ fontWeight: 700, color: "#64748b", py: 2, pl: 4, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Ảnh</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Sản phẩm</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Nhãn AI</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9" }}>Admin</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: "#64748b", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, borderBottom: "1px solid #f1f5f9", pr: 4 }} align="right"></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {aiResults.map((row, idx) => (
-                  <TableRow key={idx} sx={{ "&:hover": { bgcolor: "rgba(248, 250, 252, 0.8)" } }}>
-                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", py: 2, pl: 4 }}>
-                      <Avatar src={row.image} variant="rounded" sx={{ width: 64, height: 64, border: "1px solid #e2e8f0", borderRadius: 2 }} />
-                    </TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", color: "#1e293b", fontSize: 13, fontWeight: 600 }}>{row.name}</TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <Box sx={{ display: "inline-flex", px: 1.5, py: 0.5, borderRadius: 10, fontSize: 11, fontWeight: 600, ...row.badgeStyle }}>
-                        {row.badge}
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", color: "#475569", fontSize: 13, fontWeight: 500 }}>{row.admin}</TableCell>
-                    <TableCell sx={{ borderBottom: "1px solid #f1f5f9", pr: 4 }} align="right">
-                      {row.action !== "—" ? (
-                        <Typography component="span" sx={{ fontSize: 13, color: "#059669", textDecoration: "none", cursor: "pointer", fontWeight: 600, "&:hover": { textDecoration: "underline", color: "#047857" } }}>
-                          {row.action}
-                        </Typography>
-                      ) : (
-                        <Typography sx={{ fontSize: 13, color: "#94a3b8" }}>—</Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          
-          <Box sx={{ p: 3, borderTop: "1px solid #f1f5f9", bgcolor: "rgba(248, 250, 252, 0.5)" }}>
-            <Typography sx={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>
-              Tổng 30 ngày: <Box component="span" sx={{ color: "#0f172a", fontWeight: 600 }}>24 ảnh</Box> · Tươi 22 · Không chắc 1 · Hỏng 1
-            </Typography>
-          </Box>
-        </Paper>
-      )}
+      {tabValue === 1 && <SellerAiResultsPanel />}
     </Box>
   );
 }

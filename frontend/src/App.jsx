@@ -30,6 +30,7 @@ import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminProductDetailPage from "./pages/admin/AdminProductDetailPage";
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage";
+import AdminAiReviewPage from "./pages/admin/AdminAiReviewPage";
 
 import "./App.css";
 
@@ -101,8 +102,8 @@ export default function App() {
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="orders/:id" element={<AdminOrderDetailPage />} />
 
-              {/* Kiểm định AI (điều hướng nhanh tới danh sách sản phẩm) */}
-              <Route path="ai-review" element={<AdminProductsPage />} />
+              {/* Kiểm định AI: hàng chờ, thử mô hình, ngưỡng & thống kê (docs/1910.md mục 7.3) */}
+              <Route path="ai-review" element={<AdminAiReviewPage />} />
               
               <Route path="profile" element={<ProfilePage />} />
 
