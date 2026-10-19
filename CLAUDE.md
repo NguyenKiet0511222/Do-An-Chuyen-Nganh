@@ -46,7 +46,7 @@ CLAUDE.md  file này
 | AI service | `cd ai && python -m venv .venv && .venv\Scripts\activate && pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements.txt && uvicorn ai.main:app --reload --port 8000` → http://localhost:8000/docs |
 
 **Cấu hình cục bộ (không commit):**
-- Backend: copy `backend/src/main/resources/application-local.properties.example` → `application-local.properties`, chạy với profile `local`. Hoặc đặt biến môi trường `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `AI_SERVICE_URL`, `CORS_ALLOWED_ORIGINS`, `SHIPPING_FEE_FLAT` (phí ship mỗi đơn, mặc định 20000).
+- Backend: copy `backend/src/main/resources/application-local.properties.example` → `application-local.properties`, chạy với profile `local`. Hoặc đặt biến môi trường `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `AI_SERVICE_URL`, `AI_ENABLED` (mặc định `true`; máy không chạy AI service đặt `false` để khỏi chờ timeout), `AI_AUTO_ACCEPT_THRESHOLD` (0.90) / `AI_REVIEW_THRESHOLD` (0.70) (ngưỡng mặc định khi bảng `settings` trống, mục 7), `AI_TIMEOUT_MS` (5000), `CORS_ALLOWED_ORIGINS`, `SHIPPING_FEE_FLAT` (phí ship mỗi đơn, mặc định 20000).
 - Frontend: copy `frontend/.env.example` → `.env`.
 - AI: model `ai/models/mobilenetv2_fruitquality_best.pth` **có trong git** (~9 MB), không cần tải riêng. Dataset (`ai/dataset/`) không commit.
 
@@ -62,7 +62,7 @@ Package `com.nhom5.backend.*`:
 |---------|---------|
 | `config` | `SecurityConfig` (JWT, CORS, phân quyền theo URL, 401/403 JSON), `JwtConfig` (encoder/decoder HS256), `OpenApiConfig`, `JpaConfig`, `AppProperties` (map `app.*`), `AdminSeeder` (tạo ADMIN đầu tiên) |
 | `controller` | `@RestController`, prefix `/api/...`, chỉ nhận request → gọi service → trả `ApiResponse`. Mẫu: `AuthController`, `HealthController` |
-| `service` | Toàn bộ nghiệp vụ, `@Service @RequiredArgsConstructor @Transactional`; client gọi AI cũng ở đây. Mẫu: `AuthService` |
+| `service` | Toàn bộ nghiệp vụ, `@Service @RequiredArgsConstructor @Transactional`; client gọi AI cũng ở đây (`AiServiceClient`, mục 7). Mẫu: `AuthService` |
 | `security` | `JwtService` (sinh token), `GoogleTokenVerifier` (xác minh ID token Google qua JWKS), `RestAuthenticationHandler` (401/403 → ApiResponse) |
 | `repository` | `JpaRepository<Entity, Long>` mỗi entity một interface. Mẫu: `UserRepository` |
 | `entity` | `@Entity extends BaseEntity` (id, createdAt, updatedAt tự động); enum `Role`, `AuthProvider`. Chuỗi tiếng Việt dùng `@Nationalized` (→ NVARCHAR) |
@@ -88,7 +88,7 @@ Quy tắc:
   - `GET /api/auth/me` → `data: user`. `user = { id, fullName, email, phone, role, accountTier, provider, avatarUrl, active, createdAt, shopId, shopStatus }` (`shopId/shopStatus` null nếu chưa đăng ký bán; sau khi admin xác minh shop phải đăng nhập lại để JWT mang role SELLER).
   - Google login: frontend lấy ID token từ Google Identity Services, backend xác minh bằng JWKS của Google (`GoogleTokenVerifier`), không dùng OAuth2 redirect flow, không thêm google-api-client.
   - OAuth Client (loại Web) nằm ở project Google Cloud **AgriFresh AI** (`agrifresh-ai`), tạo 05/10/2026. Authorized JavaScript origins: `http://localhost:5173`, `http://localhost` — deploy domain khác thì thêm origin. App đang ở chế độ *Testing*: chỉ Gmail trong **Audience → Test users** đăng nhập được, thành viên mới phải được thêm vào. Client ID điền **giống nhau** ở `app.google.client-id` (backend) và `VITE_GOOGLE_CLIENT_ID` (frontend); không cần client secret.
-- Test: `@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")` (H2), MockMvc. Mẫu: `AuthControllerTest`, `HealthControllerTest`. `AdminSeeder` cũng chạy trong test → có sẵn `admin@nongsan.local / Admin@123`.
+- Test: `@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")` (H2), MockMvc. Mẫu: `AuthControllerTest`, `HealthControllerTest`. `AdminSeeder` cũng chạy trong test → có sẵn `admin@nongsan.local / Admin@123`. Profile test đặt `app.ai.enabled=false` (không gọi AI thật); test cần kết quả AI thì mock `AiServiceClient` bằng `@MockitoBean` — mẫu `SellerProductAiFlowTest`, `AdminAiReviewFlowTest`.
 
 ## 6. Frontend — quy ước
 
@@ -109,11 +109,12 @@ src/
 - **Khu khách hàng dùng CSS thuần** (design system đã có trong `index.css`, biến `--primary`...), **khu seller/admin/auth dùng MUI**. Không trộn: không nhét MUI vào trang khách, không viết CSS tay dài cho dashboard.
 - Icon: `lucide-react` ở mọi nơi (kể cả trong MUI).
 - Text giao diện + comment: tiếng Việt. Tên biến/hàm/file: tiếng Anh. Component `PascalCase.jsx`, hook `useXxx.js`.
-- Gọi API: thêm hàm vào `services/api.js` theo nhóm (`authApi`, `productApi`, `orderApi`, `aiApi`, sắp tới `sellerApi`, `adminApi`), dùng `unwrap` để lấy `data` từ `ApiResponse`. Interceptor đã tự gắn Bearer token và tự logout khi 401.
+- Gọi API: thêm hàm vào `services/api.js` theo nhóm (`authApi`, `productApi`, `orderApi`, `aiApi`, `sellerApi`, `adminApi` — có nhóm con, vd `adminApi.ai`), dùng `unwrap` để lấy `data` từ `ApiResponse`. Interceptor đã tự gắn Bearer token và tự logout khi 401.
 - Auth: `useAuth()` → `{ user, token, isAuthenticated, login, logout, hasRole }`; token trong `localStorage["agri_token"]`. Nút Google: `components/GoogleLoginButton.jsx` (dùng ở Login + Register) — phải là nút do Google tự vẽ (`renderButton`) vì chỉ nó trả **ID token**; nút tự vẽ/`useGoogleLogin` trả access token, backend từ chối. Route cần quyền bọc bằng `<RequireAuth roles={[...]}>` (không truyền `roles` = chỉ cần đăng nhập). `LoginPage` gọi API thật — **không thêm lại "đăng nhập giả"/mock login** (đã gỡ 05/10).
 - **Người xem chưa đăng nhập** xem được trang chủ, sản phẩm, chi tiết, trang shop. Thao tác cần tài khoản (thêm giỏ, mua ngay, giỏ hàng, thanh toán, đơn của tôi, tài khoản, Kiểm tra AI) phải đăng nhập: route bọc `RequireAuth`, nút bấm dùng `useRequireLogin()` (đã gắn sẵn trong `CartContext.addToCart`, trả `false` khi chưa đăng nhập). Đăng nhập xong `LoginPage` đưa về trang cũ (`location.state.from`).
 - Giỏ hàng tạm lưu `localStorage["agri_cart_<userId>"]` (mỗi tài khoản một giỏ) cho tới khi có `/api/cart` (tuần 5).
 - Thêm trang dashboard mới: tạo file trong `pages/seller|admin/`, thêm `<Route>` con trong `App.jsx`, thêm mục menu trong `NAV_BY_ROLE` của `DashboardLayout.jsx`.
+- Kiểm định AI (admin): `pages/admin/AdminAiReviewPage.jsx` (`/admin/ai-review`, 3 tab Hàng chờ · Thử mô hình · Ngưỡng & thống kê), component con trong `pages/admin/components/Ai*.jsx`, hằng số/tiện ích chung ở `aiReview.js` (màu badge nhãn theo api.md mục 8). `AiReviewActions` dùng lại ở `AdminProductDetailPage`. Badge menu "Kiểm định AI" lấy `pendingReview` từ `adminApi.ai.getStatistics()`; thao tác làm đổi hàng chờ thì gọi `notifyAiPendingChanged()` để badge tải lại. Ảnh `/uploads/...` hiển thị qua `resolveAssetUrl` trong `api.js`.
 - Fallback mock trong `api.js` (products/orders/ai) chỉ để dev không bị chặn — **xoá khi backend có API tương ứng**.
 - Chạy `npm run lint` trước khi PR (oxlint: rules-of-hooks, only-export-components → vì thế context tách 3 file).
 
@@ -128,8 +129,16 @@ src/
 
 - `label` = tên lớp lúc train dạng `{loại}_{tình trạng}`; `condition`: `fresh` | `rotten`; `confidence` **0..1** (không phải %).
 - Lỗi: 400 không phải ảnh/rỗng, 422 ảnh hỏng, **503 chưa nạp được model** (service vẫn chạy, `GET /health` báo `model_loaded: false`) → backend coi như AI lỗi, đưa ảnh vào hàng chờ admin.
-- Backend so `confidence` với `app.ai.auto-accept-threshold` (mặc định 0.85): ≥ ngưỡng → tự chấp nhận nhãn; < ngưỡng → hàng chờ admin kiểm định. Admin chỉnh ngưỡng ở tuần 7.
-- Nhãn admin sửa phải được lưu (bảng riêng) để retrain — thiết kế bảng này ngay trong ERD.
+- Backend gọi qua `service/AiServiceClient` (RestClient; part `image` **kèm content-type của ảnh** — FastAPI từ chối nếu thiếu; timeout `app.ai.timeout-ms` 5s). Lỗi gì (tắt, timeout, 4xx/5xx, 503, JSON sai hợp đồng) cũng trả `Optional.empty()` + log warn, không ném lỗi. `app.ai.enabled=false` → không gọi mạng. Tải nhiều ảnh: 1 ảnh lỗi thì các ảnh sau cùng lần tải không gọi AI nữa.
+- **Gắn nhãn** (`ProductAiLabeler`, 2 ngưỡng — chốt 19/10/2026, [`docs/1910.md`](docs/1910.md) mục 1; thay quy tắc 1 ngưỡng 0.85 cũ). Xét từ trên xuống, gặp dòng đầu tiên khớp thì dừng:
+  1. AI tắt / lỗi / timeout / 503 → `UNCERTAIN`, confidence 0, `PENDING_REVIEW`.
+  2. `produce_type` ∉ `aiProduceKeys` của danh mục (trống → lấy của danh mục cha; cả hai trống → bỏ qua luật này) → `UNCERTAIN`, `PENDING_REVIEW`. Bù cho việc model không có lớp "không nhận ra" (vd ảnh rau muống bị đoán là dưa leo).
+  3. confidence < `review_threshold` (0.70) → `UNCERTAIN`, `PENDING_REVIEW`.
+  4. `condition = rotten` → `ROTTEN`, `PENDING_REVIEW` (ảnh hỏng **luôn** có admin xem).
+  5. fresh, confidence < `auto_accept_threshold` (0.90) → `FRESH`, `PENDING_REVIEW`.
+  6. fresh, confidence ≥ 0.90 → `FRESH`, `AUTO_ACCEPTED`.
+- **Ngưỡng** ở bảng `settings` (`ai.auto_accept_threshold`, `ai.review_threshold`), đọc/ghi qua `AiSettingsService`; admin đổi bằng `PUT /api/admin/ai/settings`, không cần restart, áp cho ảnh tải lên sau đó (không gắn lại nhãn cũ). Thiếu dòng → mặc định `app.ai.auto-accept-threshold` / `app.ai.review-threshold`. `model_version` **không** lưu ở `settings` — đọc từ `GET /health`. Toàn bộ API kiểm định AI: api.md mục 4.9.
+- **Nhãn admin sửa để train lại**: dùng luôn `ai_results` (`review_status = CORRECTED`, `final_label`, `produce`, `image_url`), **không** thêm bảng riêng; ghi chú admin nối sau ghi chú AI (chốt 19/10/2026, chờ nhóm xác nhận — [`docs/1910.md`](docs/1910.md) mục 5). Lấy dữ liệu: `SELECT image_url, produce, label AS ai_label, final_label FROM ai_results WHERE review_status = 'CORRECTED'`.
 - Đổi model không được đổi tên field; train lại thì tăng `MODEL_VERSION`.
 - Chi tiết chạy/train lại: `ai/README.md`.
 
@@ -146,7 +155,7 @@ src/
 - SQL Server, DB `nongsan_db`. ERD do **Duy & Hà** thiết kế — **mọi thay đổi bảng/cột phải báo nhóm** trước khi sửa entity.
 - ⚠️ 27–28/09/2026: `pom.xml`/`application.properties` từng bị đổi ngầm sang MySQL (commit `dd58cd6`) rồi đổi lại SQL Server (đã chốt lại với cả nhóm: **giữ SQL Server**, khớp `docs/api.md` và ERD gốc). Không tự đổi engine DB lần nữa mà không hỏi — kể cả khi máy cá nhân cài sẵn MySQL cho tiện. **Lần 2** (02/10, commit `c2ad04f`): mặc định trong `application.properties` lại bị đổi sang MySQL → 05/10 đổi về SQL Server, nhóm chốt lại **giữ SQL Server**. Máy nào muốn thử DB khác thì chỉ ghi đè trong `application-local.properties` của mình, không sửa `application.properties`.
 - Instance SQL Server phải **bật TCP/IP cổng 1433** (SQL Server Configuration Manager → Protocols → Enable → restart service) thì backend mới connect được — mặc định cài đặt để tắt. Nếu backend báo `TCP/IP connection ... has failed`, đây là nguyên nhân số 1.
-- Script tạo DB/bảng: `backend/src/main/resources/db/` — chạy theo số thứ tự trong SSMS **trước khi** start backend (`01_create_database.sql`, `02_users.sql`, `03_catalog.sql` shop/danh mục/sản phẩm/ảnh/ai_results, `04_orders.sql` đơn hàng, `05_addresses_cart.sql` sổ địa chỉ + giỏ, `06_product_review_history.sql` lịch sử duyệt sản phẩm — **bảng mới 11/10, ngoài ERD gốc**). Thêm bảng mới = thêm file `07_xxx.sql` + entity tương ứng. ⚠️ `02_users.sql` chưa có cột `phone`, `status`, `account_tier` mà entity `User` đã có (ddl-auto tự thêm) — cần cập nhật script.
+- Script tạo DB/bảng: `backend/src/main/resources/db/` — chạy theo số thứ tự trong SSMS **trước khi** start backend (`01_create_database.sql`, `02_users.sql`, `03_catalog.sql` shop/danh mục/sản phẩm/ảnh/ai_results, `04_orders.sql` đơn hàng, `05_addresses_cart.sql` sổ địa chỉ + giỏ, `06_product_review_history.sql` lịch sử duyệt sản phẩm — **bảng mới 11/10, ngoài ERD gốc**, `07_settings.sql` ngưỡng AI dạng key-value — **bảng mới 19/10, đã có trong ERD api.md mục 2** nhưng trước đó chưa tạo; entity `Setting`). Thêm bảng mới = thêm file `08_xxx.sql` + entity tương ứng. DB đã có dữ liệu từ trước 19/10: chạy `07_settings.sql` rồi chạy tay `UPDATE categories SET ai_produce_keys = 'mango,apple,banana,orange,strawberry,grape,guava,jujube,pomegranate' WHERE name = N'Trái cây';` và `... = 'tomato,potato,carrot,bellpepper,cucumber' WHERE name = N'Củ quả';` (seeder không chạy lại — [`docs/1910.md`](docs/1910.md) mục 7.4). ⚠️ `02_users.sql` chưa có cột `phone`, `status`, `account_tier` mà entity `User` đã có (ddl-auto tự thêm) — cần cập nhật script.
 - Kiểm tra script bằng sqlcmd: dùng `-S tcp:localhost,1433` (máy có thể có nhiều instance; `-S localhost` đi shared memory vào instance khác → "Login failed").
 - Bảng: `snake_case`, số nhiều (`users`, `products`, `order_items`); entity map bằng `@Table(name=...)`, `@Column(name=...)`; chuỗi tiếng Việt `@Nationalized`.
 - Dev dùng `ddl-auto=update` (`JPA_DDL_AUTO`) để không vỡ khi ai đó quên chạy script, nhưng script SQL vẫn là nguồn chuẩn của schema.
@@ -182,13 +191,13 @@ Phân công chi tiết từng tuần: file sheet của nhóm (ngoài repo).
 - Không đổi Spring Boot / Java version, không thêm UI library khác ngoài MUI, khi chưa hỏi nhóm.
 - Không sửa schema DB "cho tiện" mà không báo; không hardcode secret/mật khẩu trong code.
 
-## 12. Trạng thái hiện tại (cập nhật 11/10/2026 — tuần 5)
+## 12. Trạng thái hiện tại (cập nhật 19/10/2026 — tuần 6)
 
-- Backend: **đủ 20 API người bán** (`/api/seller/**`) + **luồng khách hàng** (nhánh `feat/be-customer-flow`, 11/10): sổ địa chỉ đủ CRUD + mặc định, giỏ `/api/cart`, checkout tách đơn theo shop + trừ kho + `/api/orders` xem/huỷ, **admin duyệt sản phẩm** `/api/admin/products` (list/detail/review/review-bulk, lịch sử duyệt) + `PATCH /api/admin/shops/{id}/status` + `GET /api/admin/users`. Test H2 46/46. Chi tiết quy tắc + khuôn JSON: api.md v1.4.
-- **Còn thiếu backend** (theo api.md): `/users/me` + avatar, reviews sản phẩm, `/api/ai/**` khách (Premium), admin orders / users status-tier / shops list-detail / categories / dashboard / ai results-settings-statistics, `/auth/change-password`.
-- **AI chưa nối vào backend**: ảnh sản phẩm mới vẫn vào hàng chờ admin (UNCERTAIN/PENDING_REVIEW) qua `ProductAiLabeler` — nối AI thì chỉ sửa class này, gọi `POST /classify` theo hợp đồng mục 7 (đã thống nhất với api.md mục 5 ngày 12/10).
+- Backend: **đủ 20 API người bán** (`/api/seller/**`) + **luồng khách hàng** (nhánh `feat/be-customer-flow`, 11/10): sổ địa chỉ đủ CRUD + mặc định, giỏ `/api/cart`, checkout tách đơn theo shop + trừ kho + `/api/orders` xem/huỷ, **admin duyệt sản phẩm** `/api/admin/products` (list/detail/review/review-bulk, lịch sử duyệt) + `PATCH /api/admin/shops/{id}/status` + `GET /api/admin/users`. Chi tiết quy tắc + khuôn JSON: api.md v1.6.
+- **AI đã nối vào backend + admin kiểm định AI xong** (nhánh `feat/ai-integration-admin-review`, 19/10): ảnh sản phẩm mới gọi `POST /classify` và áp bảng quy tắc mục 7; `/api/admin/ai/**` đủ 8 endpoint (hàng chờ, review ACCEPT/CORRECT/RETAKE, accept-bulk, thử mô hình, ngưỡng, thống kê); bảng `settings`; `submit` chặn ảnh `RETAKE_REQUESTED`. Test H2 98/98. 5 quyết định trong [`docs/1910.md`](docs/1910.md) **chốt tạm theo phương án ★ — chờ nhóm xác nhận**.
+- **Còn thiếu backend** (theo api.md): `/users/me` + avatar, reviews sản phẩm, `/api/ai/**` khách (Premium), admin orders / users status-tier / shops list-detail / categories / dashboard, `/auth/change-password`.
 - Còn trả entity ra ngoài: `ShopController` (`/api/shops/**`) — cần đổi sang DTO khi làm trang shop công khai (§4.4).
 - Lịch sử (13/09): khung config/security/JWT/Swagger/exception + auth hoàn chỉnh phía backend, test pass trên H2.
-- Frontend: đã tích hợp API thật cho giỏ hàng (`/api/cart`), thanh toán (`/api/orders/checkout`), đơn hàng (`/api/orders`), sổ địa chỉ (`/api/users/me/addresses` với dữ liệu 63 tỉnh/thành, quận/huyện, phường/xã), và admin duyệt sản phẩm (`/api/admin/products` đơn lẻ + duyệt hàng loạt). Auth đã gắn API thật (mật khẩu + Google).
+- Frontend: đã tích hợp API thật cho giỏ hàng (`/api/cart`), thanh toán (`/api/orders/checkout`), đơn hàng (`/api/orders`), sổ địa chỉ (`/api/users/me/addresses` với dữ liệu 63 tỉnh/thành, quận/huyện, phường/xã), và admin duyệt sản phẩm (`/api/admin/products` đơn lẻ + duyệt hàng loạt). Auth đã gắn API thật (mật khẩu + Google). 19/10: màn **Kiểm định AI** `/admin/ai-review` (API thật), nút kiểm định từng ảnh ở trang chi tiết duyệt sản phẩm, badge menu = số ảnh chờ thật, "Kết quả AI của shop" của người bán gọi `/api/seller/ai/results` thật. Badge "Sản phẩm" / "Đơn hàng" ở menu admin vẫn viết cứng.
 - AI (12/10): **đã có model thật** PyTorch MobileNetV2 28 lớp (accuracy 96,78%) do Duy train; FastAPI `ai/ai/main.py` trả đúng hợp đồng mục 7, thiếu model thì 503 thay vì mock.
-- Việc tiếp theo: Nối AI service (`ProductAiLabeler`) → hoàn thiện admin orders/dashboard/users/shops (tuần 6).
+- Việc tiếp theo: nhóm xác nhận `docs/1910.md` (DB cũ chạy `07_settings.sql` + `UPDATE ai_produce_keys`, mục 8) → hoàn thiện admin orders / dashboard (`aiPendingReview`, `aiRottenFlags`) / users / shops / categories (tuần 6) → test tích hợp toàn hệ thống (mốc tuần 7).
