@@ -1,9 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import CustomerLayout from "./layouts/CustomerLayout";
 import DashboardLayout from "./layouts/DashboardLayout";
 import ComingSoon from "./components/ComingSoon";
+import ErrorBoundary from "./components/ErrorBoundary";
 import RequireAuth from "./components/RequireAuth";
 import HomePage from "./pages/customer/HomePage";
 import ProductsPage from "./pages/customer/ProductsPage";
@@ -34,11 +35,24 @@ import AdminAiReviewPage from "./pages/admin/AdminAiReviewPage";
 
 import "./App.css";
 
+// Tạo mới -> sửa dùng chung 1 component: key theo id để chuyển /new -> /:id/edit thì form dựng lại sạch (không giữ file đã chọn)
+function SellerProductFormRoute() {
+  const { id } = useParams();
+  return <SellerProductFormPage key={id ?? "new"} />;
+}
+
+// Trang lỗi lúc render không làm trắng cả app; chuyển sang đường dẫn khác là hết trạng thái lỗi
+function AppRoutes({ children }) {
+  const location = useLocation();
+  return <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>;
+}
+
 export default function App() {
   return (
     <Router>
       <AuthProvider>
         <CartProvider>
+          <AppRoutes>
           <Routes>
             {/* Khu khách hàng + trang đăng nhập/đăng ký (CSS thuần, có Navbar/Footer/Giỏ hàng) */}
             <Route element={<CustomerLayout />}>
@@ -73,8 +87,8 @@ export default function App() {
             >
               <Route index element={<SellerDashboardPage />} />
               <Route path="products" element={<SellerProductsPage />} />
-              <Route path="products/new" element={<SellerProductFormPage />} />
-              <Route path="products/:id/edit" element={<SellerProductFormPage />} />
+              <Route path="products/new" element={<SellerProductFormRoute />} />
+              <Route path="products/:id/edit" element={<SellerProductFormRoute />} />
               <Route path="orders" element={<SellerOrdersPage />} />
               <Route path="orders/:id" element={<SellerOrderDetailPage />} />
               <Route path="info" element={<SellerInfoAIPage />} />
@@ -112,6 +126,7 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </AppRoutes>
         </CartProvider>
       </AuthProvider>
     </Router>

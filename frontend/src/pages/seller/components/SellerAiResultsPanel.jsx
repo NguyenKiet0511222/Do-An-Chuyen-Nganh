@@ -19,9 +19,10 @@ import {
 } from "@mui/material";
 import { Camera } from "lucide-react";
 import { resolveAssetUrl, sellerApi } from "../../../services/api";
-import AiLabelChip from "../../admin/components/AiLabelChip";
-import AiReviewStatusChip from "../../admin/components/AiReviewStatusChip";
-import { apiErrorMessage, displayLabelOf, formatProduce } from "../../admin/components/aiReview";
+import AiLabelChip from "../../../components/ai/AiLabelChip";
+import AiReviewStatusChip from "../../../components/ai/AiReviewStatusChip";
+import { displayLabelOf, formatProduce } from "../../../utils/aiLabel";
+import { apiErrorMessage } from "../../../utils/format";
 
 const PAGE_SIZE = 10;
 const RETAKE = "RETAKE_REQUESTED";

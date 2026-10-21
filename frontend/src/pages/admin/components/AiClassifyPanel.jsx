@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, LinearProgress, Paper, Typography } from "@mui/material";
 import { Cpu, ImageUp, ScanSearch, Timer } from "lucide-react";
 import { adminApi } from "../../../services/api";
-import AiLabelChip from "./AiLabelChip";
+import AiLabelChip from "../../../components/ai/AiLabelChip";
 import { apiErrorMessage, formatClassLabel, formatPercent, formatProduce } from "./aiReview";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];

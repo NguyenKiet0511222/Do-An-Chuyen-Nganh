@@ -1,5 +1,5 @@
 import { Chip } from "@mui/material";
-import { REVIEW_STATUS_META } from "./aiReview";
+import { REVIEW_STATUS_META } from "../../utils/aiLabel";
 
 /** Chip trạng thái kiểm định của 1 ảnh (Chờ kiểm định / Tự chấp nhận / Đã chấp nhận / Đã sửa / Yêu cầu chụp lại). */
 export default function AiReviewStatusChip({ status }) {

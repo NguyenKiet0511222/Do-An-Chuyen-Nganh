@@ -23,7 +23,7 @@ import {
 } from "@mui/material";
 import { CheckCheck, Inbox, RefreshCw, X } from "lucide-react";
 import { adminApi, resolveAssetUrl } from "../../../services/api";
-import AiLabelChip from "./AiLabelChip";
+import AiLabelChip from "../../../components/ai/AiLabelChip";
 import AiResultCard from "./AiResultCard";
 import {
   AI_LABEL_OPTIONS,

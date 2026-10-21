@@ -19,9 +19,9 @@ import {
 } from "@mui/material";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { adminApi, resolveAssetUrl } from "../../services/api";
-import AiLabelChip from "./components/AiLabelChip";
+import AiLabelChip from "../../components/ai/AiLabelChip";
 import AiReviewActions from "./components/AiReviewActions";
-import AiReviewStatusChip from "./components/AiReviewStatusChip";
+import AiReviewStatusChip from "../../components/ai/AiReviewStatusChip";
 import { displayLabelOf, formatProduce, handleImageError, notifyAiPendingChanged } from "./components/aiReview";
 
 const QUICK_REASONS = [

@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { AI_LABEL_META, formatPercent } from "./aiReview";
+import { AI_LABEL_META, formatPercent } from "../../utils/aiLabel";
 
 /**
  * Badge nhãn AI theo api.md mục 8: TƯƠI viền xanh, HỎNG nền đỏ, KHÔNG CHẮC nét đứt vàng.

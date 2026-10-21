@@ -15,8 +15,8 @@ import {
 import { Cpu, Gauge, Hourglass, Images, PenLine, RefreshCw, Save, Wifi, WifiOff } from "lucide-react";
 import { adminApi } from "../../../services/api";
 import StatCardGrid from "../../../components/StatCardGrid";
-import AiLabelChip from "./AiLabelChip";
-import AiReviewStatusChip from "./AiReviewStatusChip";
+import AiLabelChip from "../../../components/ai/AiLabelChip";
+import AiReviewStatusChip from "../../../components/ai/AiReviewStatusChip";
 import { REVIEW_STATUS_ORDER, apiErrorMessage, formatPercent } from "./aiReview";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));

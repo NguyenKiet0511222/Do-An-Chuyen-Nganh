@@ -228,8 +228,10 @@ export const sellerApi = {
     update: (id, payload) => apiClient.put(`/seller/products/${id}`, payload).then(unwrap),
     delete: (id) => apiClient.delete(`/seller/products/${id}`).then(unwrap),
     submit: (id) => apiClient.post(`/seller/products/${id}/submit`).then(unwrap),
+    // Backend gọi AI đồng bộ cho từng ảnh (timeout 5s/ảnh) -> timeout 10s mặc định không đủ cho nhiều ảnh
     uploadImages: (id, formData) => apiClient.post(`/seller/products/${id}/images`, formData, {
-      headers: { "Content-Type": "multipart/form-data" }
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 60000
     }).then(unwrap),
     deleteImage: (id, imageId) => apiClient.delete(`/seller/products/${id}/images/${imageId}`).then(unwrap),
     changeVisibility: (id, hidden) => apiClient.patch(`/seller/products/${id}/visibility`, { hidden }).then(unwrap),

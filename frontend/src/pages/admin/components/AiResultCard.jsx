@@ -2,9 +2,9 @@ import { Link as RouterLink } from "react-router-dom";
 import { Box, Chip, Divider, Link, Paper, Typography } from "@mui/material";
 import { Store, ZoomIn } from "lucide-react";
 import { resolveAssetUrl } from "../../../services/api";
-import AiLabelChip from "./AiLabelChip";
+import AiLabelChip from "../../../components/ai/AiLabelChip";
 import AiReviewActions from "./AiReviewActions";
-import AiReviewStatusChip from "./AiReviewStatusChip";
+import AiReviewStatusChip from "../../../components/ai/AiReviewStatusChip";
 import { PRODUCT_STATUS_META, displayLabelOf, formatProduce, handleImageError } from "./aiReview";
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString("vi-VN") : "");
