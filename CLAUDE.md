@@ -99,10 +99,12 @@ src/
   pages/seller/     dashboard người bán                          → MUI
   pages/admin/      dashboard quản trị                           → MUI
   layouts/          CustomerLayout (Navbar/Footer/CartDrawer), DashboardLayout (MUI AppBar+Drawer, prop role)
-  components/       dùng chung: ProductCard, Navbar, RequireAuth, StatCardGrid, ComingSoon...
+  components/       dùng chung: ProductCard, Navbar, SearchAutocomplete, RequireAuth, StatCardGrid, ErrorBoundary, AiQualityBadge (badge AI trang khách, CSS thuần)...
+  components/ai/    AiLabelChip, AiReviewStatusChip (MUI — dùng ở khu admin + người bán)
   context/          pattern 3 file: XxxContext.jsx (Provider) + xxxContextInstance.js + useXxx.js
   services/api.js   NƠI DUY NHẤT gọi axios; aiService.js chỉ còn mock demo
-  data/             mock data, xoá dần khi có API thật
+  utils/            hằng số/tiện ích dùng chung (file .js thường): aiLabel, format, orderStatus, categories, text (normalizeVi), sellerEvents
+  data/             vietnamAddressData (63 tỉnh) + adminMockData (chỉ còn cho màn admin chưa có API)
   theme.js          theme MUI (màu đồng bộ biến CSS)
 ```
 
@@ -112,11 +114,13 @@ src/
 - Gọi API: thêm hàm vào `services/api.js` theo nhóm (`authApi`, `productApi`, `orderApi`, `aiApi`, `sellerApi`, `adminApi` — có nhóm con, vd `adminApi.ai`), dùng `unwrap` để lấy `data` từ `ApiResponse`. Interceptor đã tự gắn Bearer token và tự logout khi 401.
 - Auth: `useAuth()` → `{ user, token, isAuthenticated, login, logout, hasRole }`; token trong `localStorage["agri_token"]`. Nút Google: `components/GoogleLoginButton.jsx` (dùng ở Login + Register) — phải là nút do Google tự vẽ (`renderButton`) vì chỉ nó trả **ID token**; nút tự vẽ/`useGoogleLogin` trả access token, backend từ chối. Route cần quyền bọc bằng `<RequireAuth roles={[...]}>` (không truyền `roles` = chỉ cần đăng nhập). `LoginPage` gọi API thật — **không thêm lại "đăng nhập giả"/mock login** (đã gỡ 05/10).
 - **Người xem chưa đăng nhập** xem được trang chủ, sản phẩm, chi tiết, trang shop. Thao tác cần tài khoản (thêm giỏ, mua ngay, giỏ hàng, thanh toán, đơn của tôi, tài khoản, Kiểm tra AI) phải đăng nhập: route bọc `RequireAuth`, nút bấm dùng `useRequireLogin()` (đã gắn sẵn trong `CartContext.addToCart`, trả `false` khi chưa đăng nhập). Đăng nhập xong `LoginPage` đưa về trang cũ (`location.state.from`).
-- Giỏ hàng tạm lưu `localStorage["agri_cart_<userId>"]` (mỗi tài khoản một giỏ) cho tới khi có `/api/cart` (tuần 5).
+- Giỏ hàng dùng API thật `/api/cart` (không còn lưu localStorage).
+- **Không fallback dữ liệu giả cho API đã có** (đã gỡ hết ở khu người bán + trang khách 21/10, xoá `data/productStore.js`, `data/mockProducts.js`): lỗi API → `Alert`/Snackbar với `apiErrorMessage(err, "…")` (`utils/format.js`), danh sách trống → trạng thái trống thật, không bao giờ báo "thành công" khi API lỗi. Trạng thái đơn và các bước người bán được chuyển lấy từ `utils/orderStatus.js` (chép đúng `SellerOrderService.SELLER_TRANSITIONS` — sửa backend thì sửa cả đây). Danh mục luôn lấy từ `categoryApi.getAll()` + `utils/categories.js`, không viết cứng danh sách/slug.
+- Thao tác người bán làm đổi số liệu (gửi duyệt, xoá, ẩn, đổi trạng thái đơn) gọi `notifySellerDataChanged()` (`utils/sellerEvents.js`) để badge menu + tổng quan tải lại.
 - Thêm trang dashboard mới: tạo file trong `pages/seller|admin/`, thêm `<Route>` con trong `App.jsx`, thêm mục menu trong `NAV_BY_ROLE` của `DashboardLayout.jsx`.
-- Kiểm định AI (admin): `pages/admin/AdminAiReviewPage.jsx` (`/admin/ai-review`, 3 tab Hàng chờ · Thử mô hình · Ngưỡng & thống kê), component con trong `pages/admin/components/Ai*.jsx`, hằng số/tiện ích chung ở `aiReview.js` (màu badge nhãn theo api.md mục 8). `AiReviewActions` dùng lại ở `AdminProductDetailPage`. Badge menu "Kiểm định AI" lấy `pendingReview` từ `adminApi.ai.getStatistics()`; thao tác làm đổi hàng chờ thì gọi `notifyAiPendingChanged()` để badge tải lại. Ảnh `/uploads/...` hiển thị qua `resolveAssetUrl` trong `api.js`.
+- Kiểm định AI (admin): `pages/admin/AdminAiReviewPage.jsx` (`/admin/ai-review`, 3 tab Hàng chờ · Thử mô hình · Ngưỡng & thống kê), component con trong `pages/admin/components/Ai*.jsx`; hằng số nhãn AI ở `utils/aiLabel.js` (màu badge theo api.md mục 8 — `aiReview.js` chỉ còn re-export + sự kiện admin). Badge nhãn AI: khu MUI dùng `components/ai/AiLabelChip`, trang khách (CSS thuần) dùng `components/AiQualityBadge` — không có nhãn thì không hiện badge, không tự bịa %. `AiReviewActions` dùng lại ở `AdminProductDetailPage`. Badge menu "Kiểm định AI" lấy `pendingReview` từ `adminApi.ai.getStatistics()`; thao tác làm đổi hàng chờ thì gọi `notifyAiPendingChanged()` để badge tải lại. Ảnh `/uploads/...` hiển thị qua `resolveAssetUrl` trong `api.js`.
 - Fallback mock trong `api.js` (products/orders/ai) chỉ để dev không bị chặn — **xoá khi backend có API tương ứng**.
-- Chạy `npm run lint` trước khi PR (oxlint: rules-of-hooks, only-export-components → vì thế context tách 3 file).
+- Chạy `npm run lint` trước khi PR (oxlint: rules-of-hooks, only-export-components → vì thế context tách 3 file; **`no-undef` bật từ 21/10** — biến chưa khai báo là lỗi, không chỉ cảnh báo). `App.jsx` bọc `<Routes>` trong `ErrorBoundary`: 1 trang lỗi lúc render không làm trắng cả app.
 
 ## 7. AI service — contract
 
@@ -191,13 +195,14 @@ Phân công chi tiết từng tuần: file sheet của nhóm (ngoài repo).
 - Không đổi Spring Boot / Java version, không thêm UI library khác ngoài MUI, khi chưa hỏi nhóm.
 - Không sửa schema DB "cho tiện" mà không báo; không hardcode secret/mật khẩu trong code.
 
-## 12. Trạng thái hiện tại (cập nhật 19/10/2026 — tuần 6)
+## 12. Trạng thái hiện tại (cập nhật 21/10/2026 — tuần 6)
 
 - Backend: **đủ 20 API người bán** (`/api/seller/**`) + **luồng khách hàng** (nhánh `feat/be-customer-flow`, 11/10): sổ địa chỉ đủ CRUD + mặc định, giỏ `/api/cart`, checkout tách đơn theo shop + trừ kho + `/api/orders` xem/huỷ, **admin duyệt sản phẩm** `/api/admin/products` (list/detail/review/review-bulk, lịch sử duyệt) + `PATCH /api/admin/shops/{id}/status` + `GET /api/admin/users`. Chi tiết quy tắc + khuôn JSON: api.md v1.6.
 - **AI đã nối vào backend + admin kiểm định AI xong** (nhánh `feat/ai-integration-admin-review`, 19/10): ảnh sản phẩm mới gọi `POST /classify` và áp bảng quy tắc mục 7; `/api/admin/ai/**` đủ 8 endpoint (hàng chờ, review ACCEPT/CORRECT/RETAKE, accept-bulk, thử mô hình, ngưỡng, thống kê); bảng `settings`; `submit` chặn ảnh `RETAKE_REQUESTED`. Test H2 98/98. 5 quyết định trong [`docs/1910.md`](docs/1910.md) **chốt tạm theo phương án ★ — chờ nhóm xác nhận**.
 - **Còn thiếu backend** (theo api.md): `/users/me` + avatar, reviews sản phẩm, `/api/ai/**` khách (Premium), admin orders / users status-tier / shops list-detail / categories / dashboard, `/auth/change-password`.
 - Còn trả entity ra ngoài: `ShopController` (`/api/shops/**`) — cần đổi sang DTO khi làm trang shop công khai (§4.4).
 - Lịch sử (13/09): khung config/security/JWT/Swagger/exception + auth hoàn chỉnh phía backend, test pass trên H2.
-- Frontend: đã tích hợp API thật cho giỏ hàng (`/api/cart`), thanh toán (`/api/orders/checkout`), đơn hàng (`/api/orders`), sổ địa chỉ (`/api/users/me/addresses` với dữ liệu 63 tỉnh/thành, quận/huyện, phường/xã), và admin duyệt sản phẩm (`/api/admin/products` đơn lẻ + duyệt hàng loạt). Auth đã gắn API thật (mật khẩu + Google). 19/10: màn **Kiểm định AI** `/admin/ai-review` (API thật), nút kiểm định từng ảnh ở trang chi tiết duyệt sản phẩm, badge menu = số ảnh chờ thật, "Kết quả AI của shop" của người bán gọi `/api/seller/ai/results` thật. Badge "Sản phẩm" / "Đơn hàng" ở menu admin vẫn viết cứng.
+- Frontend: đã tích hợp API thật cho giỏ hàng (`/api/cart`), thanh toán (`/api/orders/checkout`), đơn hàng (`/api/orders`), sổ địa chỉ (`/api/users/me/addresses` với dữ liệu 63 tỉnh/thành, quận/huyện, phường/xã), và admin duyệt sản phẩm (`/api/admin/products` đơn lẻ + duyệt hàng loạt). Auth đã gắn API thật (mật khẩu + Google). 19/10: màn **Kiểm định AI** `/admin/ai-review` (API thật), nút kiểm định từng ảnh ở trang chi tiết duyệt sản phẩm, badge menu = số ảnh chờ thật, "Kết quả AI của shop" của người bán gọi `/api/seller/ai/results` thật. 21/10: badge menu người bán ("cần sửa", "đơn mới") và badge "Sản phẩm" của admin lấy số thật; badge "Đơn hàng" admin + chuông thông báo đã gỡ chờ API. Màn admin dashboard / đơn hàng vẫn dùng `adminMockData` (chưa có API).
+- **21/10 — sửa khu người bán + tìm kiếm sau commit `c3ad5b8`** (kế hoạch + kết quả: [`docs/2110.md`](docs/2110.md)): form sản phẩm hết trắng màn hình; khu người bán (sản phẩm, đơn, tổng quan, thông tin shop, badge menu) chỉ dùng API thật; đơn chuyển trạng thái đúng enum/luật backend; form sản phẩm quản lý ảnh (xoá, ảnh chính, nhãn AI từng ảnh, luồng "chụp lại"), khoá/mở theo trạng thái; trang khách hiện ảnh `/uploads` + badge AI đúng; tìm kiếm + danh mục lấy từ DB. Chưa test trên trình duyệt thật — chạy kịch bản mục 6 của `2110.md`.
 - AI (12/10): **đã có model thật** PyTorch MobileNetV2 28 lớp (accuracy 96,78%) do Duy train; FastAPI `ai/ai/main.py` trả đúng hợp đồng mục 7, thiếu model thì 503 thay vì mock.
 - Việc tiếp theo: nhóm xác nhận `docs/1910.md` (DB cũ chạy `07_settings.sql` + `UPDATE ai_produce_keys`, mục 8) → hoàn thiện admin orders / dashboard (`aiPendingReview`, `aiRottenFlags`) / users / shops / categories (tuần 6) → test tích hợp toàn hệ thống (mốc tuần 7).
