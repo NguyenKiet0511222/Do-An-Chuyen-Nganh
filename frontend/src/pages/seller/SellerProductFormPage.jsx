@@ -24,10 +24,11 @@ export default function SellerProductFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
 
-  const [images, setImages] = useState([]);
   const [newImages, setNewImages] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
 
   const [categoryObjects, setCategoryObjects] = useState(DEFAULT_CATEGORIES);
   const categories = categoryObjects.map(c => c.name);
