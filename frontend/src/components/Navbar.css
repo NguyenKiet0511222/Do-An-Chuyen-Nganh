@@ -23,6 +23,9 @@
 .search-container {
   flex: 1;
   margin: 0 32px;
+  position: relative;
+  display: flex;
+  justify-content: center;
 }
 .search-form {
   display: flex;

@@ -1,9 +1,10 @@
-import { Box, Typography, Paper, Grid, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Breadcrumbs, Divider, TextField, Chip, Avatar, Stepper, Step, StepLabel, StepConnector, stepConnectorClasses, styled, IconButton } from "@mui/material";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import { CheckCircle2, ChevronRight, MapPin, Phone, User, Clock, Wallet, Receipt, Check, PhoneCall, ArrowRightCircle, Circle, Cpu } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Box, Typography, Paper, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Breadcrumbs, Stepper, Step, StepLabel, StepConnector, stepConnectorClasses, styled } from "@mui/material";
+import { Link, useParams } from "react-router-dom";
+import { ChevronRight, MapPin, Phone, User, Clock, Wallet, Receipt, Check, PhoneCall, ArrowRightCircle, Circle, Cpu } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { sellerApi, resolveAssetUrl } from "../../services/api";
 
-const CustomStepperConnector = styled(StepConnector)(({ theme }) => ({
+const CustomStepperConnector = styled(StepConnector)(() => ({
   [`&.${stepConnectorClasses.alternativeLabel}`]: {
     top: 14,
     left: 'calc(-50% + 20px)',
@@ -45,11 +46,46 @@ function CustomStepIcon(props) {
 
 export default function SellerOrderDetailPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const [orderStatus, setOrderStatus] = useState(null);
+  const [apiOrder, setApiOrder] = useState(null);
+
+  useEffect(() => {
+    if (id) {
+      sellerApi.order.getById(id).then(res => {
+        if (res) {
+          setApiOrder({
+            id: res.orderCode || `DH-${res.id}`,
+            rawId: res.id,
+            status: res.status,
+            customer: {
+              name: res.receiverName || res.customer?.fullName || "Khách hàng",
+              phone: res.phone || res.customer?.phone || "0987 654 321",
+              address: res.shippingAddress || "Địa chỉ nhận hàng",
+              note: res.note || "(Không có)"
+            },
+            time: res.createdAt ? new Date(res.createdAt).toLocaleString("vi-VN") : "13/09/2026 16:45",
+            payment: res.paymentMethod || "COD",
+            items: (res.items || []).map(it => ({
+              id: it.productId,
+              name: it.productName,
+              image: resolveAssetUrl(it.imageUrl),
+              qty: it.quantity || 1,
+              price: it.price || 0,
+              unit: it.unit || "kg"
+            })),
+            shippingFee: res.shippingFee || 20000,
+            total: res.total || 0
+          });
+        }
+      }).catch(err => {
+        console.warn("Không tìm thấy đơn trên API, dùng store:", err?.message);
+      });
+    }
+  }, [id]);
 
   const orderData = useMemo(() => {
+    if (apiOrder) return apiOrder;
     try {
       const stored = localStorage.getItem("customer_orders");
       if (stored) {
@@ -102,12 +138,26 @@ export default function SellerOrderDetailPage() {
       shippingFee: 20000,
       total: 160000
     };
-  }, [id]);
+  }, [id, apiOrder]);
 
   const currentStatus = orderStatus || orderData.status;
 
-  const handleUpdateStatus = (newStatus) => {
+  const handleUpdateStatus = async (newStatus) => {
     setOrderStatus(newStatus);
+    const targetRawId = apiOrder?.rawId || id;
+    if (targetRawId && !isNaN(Number(targetRawId))) {
+      try {
+        let payload = { status: newStatus };
+        if (newStatus === "CANCELLED") {
+          const reason = window.prompt("Vui lòng nhập lý do huỷ đơn hàng:");
+          if (!reason) return;
+          payload.cancelReason = reason;
+        }
+        await sellerApi.order.changeStatus(targetRawId, payload);
+      } catch (err) {
+        console.warn("Lỗi cập nhật trạng thái đơn qua API:", err);
+      }
+    }
     try {
       const stored = localStorage.getItem("customer_orders");
       if (stored) {
@@ -125,11 +175,12 @@ export default function SellerOrderDetailPage() {
 
   const getActiveStep = () => {
     switch (currentStatus) {
-      case "PENDING": return 1;
+      case "PENDING": return 0;
+      case "CONFIRMED": return 1;
       case "PROCESSING": return 2;
-      case "DELIVERING": return 3;
-      case "COMPLETED": return 4;
-      default: return 1;
+      case "SHIPPING": case "DELIVERING": return 3;
+      case "DELIVERED": case "COMPLETED": return 4;
+      default: return 0;
     }
   };
 
@@ -245,9 +296,8 @@ export default function SellerOrderDetailPage() {
       </Paper>
 
       {/* Details Grid */}
-      <Grid container spacing={3}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "7fr 5fr" }, gap: 3, alignItems: "start" }}>
         {/* Left Column */}
-        <Grid item xs={12} lg={7}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             
             {/* Sản phẩm trong đơn */}
@@ -359,10 +409,7 @@ export default function SellerOrderDetailPage() {
             </Paper>
 
           </Box>
-        </Grid>
-
         {/* Right Column */}
-        <Grid item xs={12} lg={5}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             
             {/* Thông tin khách hàng */}
@@ -440,8 +487,7 @@ export default function SellerOrderDetailPage() {
             </Paper>
 
           </Box>
-        </Grid>
-      </Grid>
+      </Box>
     </Box>
   );
 }

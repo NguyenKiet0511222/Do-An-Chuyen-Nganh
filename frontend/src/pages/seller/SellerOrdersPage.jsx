@@ -1,7 +1,8 @@
-import { Box, Typography, Paper, Tabs, Tab, TextField, InputAdornment, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Grid, Pagination } from "@mui/material";
+import { Box, Typography, Paper, Tabs, Tab, TextField, InputAdornment, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Pagination } from "@mui/material";
 import { Search, Download, AlertCircle, Package, Truck, DollarSign, CheckCircle2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { sellerApi } from "../../services/api";
 
 const DEFAULT_ORDERS = [
   { id: "DH-2026-00003", customer: "Lê Văn Nam", phone: "0987 654 321", product: "Khoai tây Đà Lạt", count: 5, total: "160.000", payment: "COD", time: "13/09 16:45", status: "Chờ xác nhận" },
@@ -60,8 +61,54 @@ export default function SellerOrdersPage() {
     { label: "Tất cả", filter: null, activeColor: "#0f172a" },
   ];
 
-  const handleConfirmOrder = (id) => {
+  const STATUS_TEXT_MAP = {
+    PENDING: "Chờ xác nhận",
+    CONFIRMED: "Chờ xác nhận",
+    PROCESSING: "Đang chuẩn bị",
+    SHIPPING: "Đang giao",
+    DELIVERED: "Hoàn thành",
+    CANCELLED: "Đã huỷ"
+  };
+
+  const loadOrders = async () => {
+    try {
+      const res = await sellerApi.order.getAll({ size: 100 });
+      const items = res?.content || (Array.isArray(res) ? res : []);
+      if (items.length > 0) {
+        const fromApi = items.map((o) => ({
+          id: o.orderCode || `DH-${o.id}`,
+          rawId: o.id,
+          customer: o.receiverName || o.customer?.fullName || "Khách hàng",
+          phone: o.phone || o.customer?.phone || "0912 345 678",
+          product: (o.items && o.items.length > 0)
+            ? o.items.map((it) => it.productName || it.name).join(", ")
+            : "Nông sản tươi",
+          count: o.itemCount || 1,
+          total: Number(o.total || 0).toLocaleString("vi-VN"),
+          payment: o.paymentMethod || "COD",
+          time: o.createdAt ? new Date(o.createdAt).toLocaleDateString("vi-VN") : "Hôm nay",
+          status: STATUS_TEXT_MAP[o.status] || o.status
+        }));
+        setOrdersList(fromApi);
+      }
+    } catch (err) {
+      console.warn("Không thể tải đơn từ sellerApi, dùng dữ liệu lưu trữ:", err?.message);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const handleConfirmOrder = async (id, rawId) => {
     setOrdersList(prev => prev.map(o => o.id === id ? { ...o, status: "Đang chuẩn bị" } : o));
+    if (rawId) {
+      try {
+        await sellerApi.order.changeStatus(rawId, { status: "CONFIRMED" });
+      } catch (err) {
+        console.warn("Lỗi xác nhận đơn qua API:", err);
+      }
+    }
     try {
       const stored = localStorage.getItem("customer_orders");
       if (stored) {
@@ -119,67 +166,59 @@ export default function SellerOrdersPage() {
       </Box>
 
       {/* Quick Summary Cards */}
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-            <Box>
-              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Cần xác nhận ngay</Typography>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 0.5 }}>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#059669" }}>{pendingCount}</Typography>
-                <Box sx={{ px: 1, py: 0.25, borderRadius: 1, bgcolor: "#fffbeb", color: "#d97706", fontSize: 11, fontWeight: 600 }}>Gấp trong 24h</Box>
-              </Box>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 2 }}>
+        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+          <Box>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Cần xác nhận ngay</Typography>
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 0.5 }}>
+              <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#059669" }}>{pendingCount}</Typography>
+              <Box sx={{ px: 1, py: 0.25, borderRadius: 1, bgcolor: "#fffbeb", color: "#d97706", fontSize: 11, fontWeight: 600 }}>Gấp trong 24h</Box>
             </Box>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <AlertCircle size={20} />
-            </Box>
-          </Paper>
-        </Grid>
+          </Box>
+          <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <AlertCircle size={20} />
+          </Box>
+        </Paper>
         
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-            <Box>
-              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Đang chuẩn bị gói</Typography>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 0.5 }}>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#1e293b" }}>{preparingCount}</Typography>
-                <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#64748b" }}>đơn hàng</Typography>
-              </Box>
+        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+          <Box>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Đang chuẩn bị gói</Typography>
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 0.5 }}>
+              <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#1e293b" }}>{preparingCount}</Typography>
+              <Typography sx={{ fontSize: 12, fontWeight: 500, color: "#64748b" }}>đơn hàng</Typography>
             </Box>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Package size={20} />
-            </Box>
-          </Paper>
-        </Grid>
+          </Box>
+          <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Package size={20} />
+          </Box>
+        </Paper>
 
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-            <Box>
-              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Đang giao hàng</Typography>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 0.5 }}>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#1e293b" }}>{deliveringCount}</Typography>
-                <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#059669" }}>Đang luân chuyển</Typography>
-              </Box>
+        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+          <Box>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Đang giao hàng</Typography>
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mt: 0.5 }}>
+              <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#1e293b" }}>{deliveringCount}</Typography>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#059669" }}>Đang luân chuyển</Typography>
             </Box>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#faf5ff", color: "#9333ea", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Truck size={20} />
-            </Box>
-          </Paper>
-        </Grid>
+          </Box>
+          <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#faf5ff", color: "#9333ea", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Truck size={20} />
+          </Box>
+        </Paper>
 
-        <Grid item xs={12} sm={6} lg={3}>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
-            <Box>
-              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Tổng số đơn hàng</Typography>
-              <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5, mt: 0.5 }}>
-                <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#1e293b" }}>{ordersList.length}</Typography>
-                <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#64748b" }}>đơn</Typography>
-              </Box>
+        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.7)", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+          <Box>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1 }}>Tổng số đơn hàng</Typography>
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5, mt: 0.5 }}>
+              <Typography sx={{ fontSize: 24, fontWeight: 700, color: "#1e293b" }}>{ordersList.length}</Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#64748b" }}>đơn</Typography>
             </Box>
-            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#f0fdfa", color: "#0d9488", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <DollarSign size={20} />
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
+          </Box>
+          <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#f0fdfa", color: "#0d9488", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <DollarSign size={20} />
+          </Box>
+        </Paper>
+      </Box>
 
       {/* Main Table Paper */}
       <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid rgba(226, 232, 240, 0.8)", bgcolor: "#fff", overflow: "hidden", boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
@@ -286,7 +325,7 @@ export default function SellerOrdersPage() {
                         <Button 
                           variant="contained" 
                           size="small" 
-                          onClick={() => handleConfirmOrder(row.id)}
+                          onClick={() => handleConfirmOrder(row.id, row.rawId)}
                           sx={{ 
                             bgcolor: "#059669", 
                             color: "#fff",
@@ -302,7 +341,7 @@ export default function SellerOrdersPage() {
                           {row.status}
                         </Box>
                       )}
-                      <Button component={Link} to={`/seller/orders/${row.id}`} variant="text" size="small" sx={{ color: "#475569", "&:hover": { color: "#0f172a", bgcolor: "#f1f5f9" }, textTransform: "none", fontWeight: 600, borderRadius: 2, minWidth: "auto", px: 1.5 }}>
+                      <Button component={Link} to={`/seller/orders/${row.rawId || row.id}`} variant="text" size="small" sx={{ color: "#475569", "&:hover": { color: "#0f172a", bgcolor: "#f1f5f9" }, textTransform: "none", fontWeight: 600, borderRadius: 2, minWidth: "auto", px: 1.5 }}>
                         Xem
                       </Button>
                     </Box>

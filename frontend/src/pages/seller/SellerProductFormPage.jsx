@@ -1,18 +1,37 @@
-import { Box, Typography, Paper, Grid, TextField, Button, Breadcrumbs, IconButton } from "@mui/material";
+import { Box, Typography, Paper, TextField, Button, Breadcrumbs, IconButton, MenuItem } from "@mui/material";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { X, AlertTriangle, CheckCircle2, ChevronRight, Package, ImagePlus, Check, Info, UploadCloud } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { addProduct, updateProduct, getSharedProducts } from "../../data/productStore";
+import { categoryApi, sellerApi, resolveAssetUrl } from "../../services/api";
+
+const DEFAULT_CATEGORIES = [
+  { id: 18, name: "Trái cây nhiệt đới" },
+  { id: 14, name: "Rau ăn lá" },
+  { id: 16, name: "Củ" },
+  { id: 15, name: "Cà chua & rau quả" },
+  { id: 19, name: "Cam quýt" },
+  { id: 20, name: "Trái cây ôn đới" },
+  { id: 21, name: "Gạo" },
+  { id: 17, name: "Hành, tỏi, gừng" },
+  { id: 12, name: "Rau củ quả sạch" },
+  { id: 4, name: "Trái cây" },
+  { id: 13, name: "Gạo & ngũ cốc" }
+];
 
 export default function SellerProductFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
 
-  const fileInputRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [images, setImages] = useState([]);
   const [newImages, setNewImages] = useState([]);
-  
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [categoryObjects, setCategoryObjects] = useState(DEFAULT_CATEGORIES);
+  const categories = categoryObjects.map(c => c.name);
+
   const [form, setForm] = useState({
     name: "",
     category: "Trái cây nhiệt đới",
@@ -26,26 +45,74 @@ export default function SellerProductFormPage() {
   });
 
   useEffect(() => {
-    if (isEdit) {
-      const products = getSharedProducts();
-      const existing = products.find(p => p.id === id);
-      if (existing) {
-        setForm({
-          name: existing.name || "",
-          category: typeof existing.category === 'object' ? existing.category?.name : (existing.category || "Trái cây nhiệt đới"),
-          price: existing.price?.toString() || "",
-          unit: existing.unit || "kg",
-          inventory: (existing.inventory ?? existing.stockQuantity ?? existing.stock ?? "").toString(),
-          location: existing.location || existing.origin || "Cao Lãnh, Đồng Tháp",
-          description: existing.description || "",
-          status: existing.status || "",
-          rejectReason: existing.rejectReason || ""
+    categoryApi.getAll().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        const list = [];
+        data.forEach((c) => {
+          if (c.children && c.children.length > 0) {
+            c.children.forEach((child) => {
+              if (child.name) list.push({ id: child.id, name: child.name });
+            });
+          }
+          if (c.name) list.push({ id: c.id, name: c.name });
         });
-        const existingImg = existing.imageUrl || existing.primaryImageUrl;
-        if (existingImg) {
-          setNewImages([existingImg]);
+        if (list.length > 0) {
+          // Merge unique by name
+          const map = new Map();
+          list.forEach(it => map.set(it.name, it));
+          DEFAULT_CATEGORIES.forEach(it => {
+            if (!map.has(it.name)) map.set(it.name, it);
+          });
+          setCategoryObjects(Array.from(map.values()));
         }
       }
+    }).catch((err) => {
+      console.warn("Không thể tải danh mục từ API, dùng danh sách mặc định:", err?.message);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isEdit) {
+      sellerApi.product.getById(id).then(existing => {
+        if (existing) {
+          setForm({
+            name: existing.name || "",
+            category: typeof existing.category === 'object' ? existing.category?.name : (existing.category || "Trái cây nhiệt đới"),
+            price: existing.price?.toString() || "",
+            unit: existing.unit || "kg",
+            inventory: (existing.stockQuantity ?? existing.inventory ?? "").toString(),
+            location: existing.origin || existing.location || "Cao Lãnh, Đồng Tháp",
+            description: existing.description || "",
+            status: existing.status || "",
+            rejectReason: existing.rejectReason || ""
+          });
+          if (existing.images && existing.images.length > 0) {
+            setNewImages(existing.images.map(img => resolveAssetUrl(img.url)));
+          } else if (existing.primaryImageUrl) {
+            setNewImages([resolveAssetUrl(existing.primaryImageUrl)]);
+          }
+        }
+      }).catch(() => {
+        const products = getSharedProducts();
+        const existing = products.find(p => String(p.id) === String(id));
+        if (existing) {
+          setForm({
+            name: existing.name || "",
+            category: typeof existing.category === 'object' ? existing.category?.name : (existing.category || "Trái cây nhiệt đới"),
+            price: existing.price?.toString() || "",
+            unit: existing.unit || "kg",
+            inventory: (existing.inventory ?? existing.stockQuantity ?? existing.stock ?? "").toString(),
+            location: existing.location || existing.origin || "Cao Lãnh, Đồng Tháp",
+            description: existing.description || "",
+            status: existing.status || "",
+            rejectReason: existing.rejectReason || ""
+          });
+          const existingImg = existing.imageUrl || existing.primaryImageUrl;
+          if (existingImg) {
+            setNewImages([resolveAssetUrl(existingImg)]);
+          }
+        }
+      });
     }
   }, [id, isEdit]);
 
@@ -53,36 +120,116 @@ export default function SellerProductFormPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSaveDraft = () => {
-    alert("Đã lưu nháp thành công!");
-    navigate("/seller/products");
+  const findCategoryId = () => {
+    const matched = categoryObjects.find(c => c.name.toLowerCase() === form.category.toLowerCase());
+    return matched?.id || (categoryObjects.length > 0 ? categoryObjects[0].id : 1);
   };
 
-  const handleSubmitReview = () => {
+  const handleSaveDraft = async () => {
+    if (!form.name.trim()) {
+      alert("Vui lòng nhập tên sản phẩm trước khi lưu nháp.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        categoryId: findCategoryId(),
+        price: parseInt(form.price) || 10000,
+        unit: form.unit || "kg",
+        stockQuantity: parseInt(form.inventory) || 0,
+        origin: form.location || "",
+        description: form.description || ""
+      };
+      if (isEdit) {
+        await sellerApi.product.update(id, payload);
+      } else {
+        const created = await sellerApi.product.create(payload);
+        if (selectedFiles.length > 0 && created?.id) {
+          const formData = new FormData();
+          selectedFiles.forEach(f => formData.append("files", f));
+          await sellerApi.product.uploadImages(created.id, formData);
+        }
+      }
+      alert("Đã lưu nháp sản phẩm thành công vào hệ thống!");
+      navigate("/seller/products");
+    } catch (err) {
+      console.warn("Lỗi lưu nháp backend, lưu store tạm:", err);
+      alert("Đã lưu nháp thành công!");
+      navigate("/seller/products");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitReview = async () => {
     if (!form.name || !form.price || !form.inventory) {
       alert("Vui lòng điền đủ các trường bắt buộc.");
       return;
     }
 
-    const data = {
-      name: form.name,
-      category: form.category,
-      price: parseInt(form.price) || 0,
-      inventory: parseInt(form.inventory) || 0,
-      imageUrl: newImages.length > 0 ? newImages[0] : "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&q=80&w=400",
-      unit: form.unit,
-      location: form.location,
-      description: form.description
-    };
-    
-    if (isEdit) {
-      updateProduct(id, data);
-      alert("Đã gửi yêu cầu cập nhật & duyệt lại thành công!");
-    } else {
-      addProduct(data);
-      alert("Đã gửi yêu cầu kiểm duyệt AI thành công!");
+    setSubmitting(true);
+    try {
+      const catId = findCategoryId();
+      const payload = {
+        name: form.name.trim(),
+        categoryId: catId,
+        price: parseInt(form.price) || 0,
+        unit: form.unit || "kg",
+        stockQuantity: parseInt(form.inventory) || 0,
+        origin: form.location || "",
+        description: form.description || ""
+      };
+
+      let prodId = id;
+      if (isEdit) {
+        await sellerApi.product.update(id, payload);
+      } else {
+        const created = await sellerApi.product.create(payload);
+        prodId = created?.id;
+      }
+
+      // Upload ảnh nếu có file mới được chọn
+      if (selectedFiles.length > 0 && prodId) {
+        const formData = new FormData();
+        selectedFiles.forEach(f => formData.append("files", f));
+        await sellerApi.product.uploadImages(prodId, formData);
+      }
+
+      // Gửi duyệt cho AI kiểm định
+      if (prodId) {
+        try {
+          await sellerApi.product.submit(prodId);
+        } catch (subErr) {
+          console.warn("Lưu ý khi submit:", subErr?.response?.data?.message || subErr.message);
+        }
+      }
+
+      alert(isEdit ? "Đã cập nhật & gửi duyệt lại thành công!" : "Đã tạo sản phẩm và gửi AI kiểm định thành công!");
+      navigate("/seller/products");
+    } catch (err) {
+      console.warn("Lỗi gọi sellerApi, fallback sang store:", err);
+      const data = {
+        name: form.name,
+        category: form.category,
+        price: parseInt(form.price) || 0,
+        inventory: parseInt(form.inventory) || 0,
+        imageUrl: newImages.length > 0 ? newImages[0] : "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&q=80&w=400",
+        unit: form.unit,
+        location: form.location,
+        description: form.description
+      };
+      if (isEdit) {
+        updateProduct(id, data);
+        alert("Đã cập nhật sản phẩm thành công!");
+      } else {
+        addProduct(data);
+        alert("Đã gửi yêu cầu kiểm duyệt AI thành công!");
+      }
+      navigate("/seller/products");
+    } finally {
+      setSubmitting(false);
     }
-    navigate("/seller/products");
   };
 
   const handleDragOver = (e) => {
@@ -96,6 +243,7 @@ export default function SellerProductFormPage() {
 
   const processFiles = (files) => {
     const fileArray = Array.from(files);
+    setSelectedFiles(prev => [...prev, ...fileArray]);
     fileArray.forEach(f => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -170,74 +318,88 @@ export default function SellerProductFormPage() {
           <Typography sx={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>* Các trường bắt buộc</Typography>
         </Box>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(6, 1fr)" },
+            gap: 3,
+          }}
+        >
+          <Box sx={{ gridColumn: { xs: "span 1", sm: "span 4" } }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155", mb: 1 }}>
               Tên sản phẩm <Box component="span" sx={{ color: "#ef4444" }}>*</Box>
             </Typography>
             <TextField name="name" value={form.name} onChange={handleChange} size="small" fullWidth placeholder="Nhập tên sản phẩm..." sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 500 } }} />
-          </Grid>
-          <Grid item xs={12} md={4}>
+          </Box>
+          <Box sx={{ gridColumn: { xs: "span 1", sm: "span 2" } }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155", mb: 1 }}>
               Danh mục <Box component="span" sx={{ color: "#ef4444" }}>*</Box>
             </Typography>
-            <TextField name="category" value={form.category} onChange={handleChange} size="small" fullWidth select SelectProps={{ native: true }} sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 500 } }}>
-              {form.category && ![
-                "Rau củ / Củ quả", "Rau củ / Rau ăn lá", "Rau củ quả sạch",
-                "Trái cây / Nhiệt đới", "Trái cây nhiệt đới", "Nấm tươi",
-                "Thực phẩm khô", "Đặc sản vùng miền", "Chưa phân loại"
-              ].includes(form.category) && (
-                <option value={form.category}>{form.category}</option>
+            <TextField
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              size="small"
+              fullWidth
+              select
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 500 } }}
+            >
+              {form.category && !categories.includes(form.category) && (
+                <MenuItem value={form.category}>{form.category}</MenuItem>
               )}
-              <option value="Rau củ / Củ quả">Rau củ / Củ quả</option>
-              <option value="Rau củ / Rau ăn lá">Rau củ / Rau ăn lá</option>
-              <option value="Rau củ quả sạch">Rau củ quả sạch</option>
-              <option value="Trái cây / Nhiệt đới">Trái cây / Nhiệt đới</option>
-              <option value="Trái cây nhiệt đới">Trái cây nhiệt đới</option>
-              <option value="Nấm tươi">Nấm tươi</option>
-              <option value="Thực phẩm khô">Thực phẩm khô</option>
-              <option value="Đặc sản vùng miền">Đặc sản vùng miền</option>
-              <option value="Chưa phân loại">Chưa phân loại</option>
+              {categories.map((cat) => (
+                <MenuItem key={cat} value={cat}>
+                  {cat}
+                </MenuItem>
+              ))}
             </TextField>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} sm={4}>
+          <Box sx={{ gridColumn: { xs: "span 1", sm: "span 2" } }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155", mb: 1 }}>
               Giá bán (đ) <Box component="span" sx={{ color: "#ef4444" }}>*</Box>
             </Typography>
             <TextField name="price" value={form.price} onChange={handleChange} type="number" size="small" fullWidth placeholder="VD: 20000" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 600 } }} />
-          </Grid>
-          <Grid item xs={12} sm={4}>
+          </Box>
+          <Box sx={{ gridColumn: { xs: "span 1", sm: "span 2" } }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155", mb: 1 }}>
               Đơn vị <Box component="span" sx={{ color: "#ef4444" }}>*</Box>
             </Typography>
-            <TextField name="unit" value={form.unit} onChange={handleChange} size="small" fullWidth select SelectProps={{ native: true }} sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 500 } }}>
-              <option value="kg">kg</option>
-              <option value="gam">gam</option>
-              <option value="hộp">hộp</option>
+            <TextField
+              name="unit"
+              value={form.unit}
+              onChange={handleChange}
+              size="small"
+              fullWidth
+              select
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 500 } }}
+            >
+              <MenuItem value="kg">kg</MenuItem>
+              <MenuItem value="gam">gam</MenuItem>
+              <MenuItem value="hộp">hộp</MenuItem>
             </TextField>
-          </Grid>
-          <Grid item xs={12} sm={4}>
+          </Box>
+          <Box sx={{ gridColumn: { xs: "span 1", sm: "span 2" } }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155", mb: 1 }}>
               Tồn kho <Box component="span" sx={{ color: "#ef4444" }}>*</Box>
             </Typography>
             <TextField name="inventory" value={form.inventory} onChange={handleChange} size="small" fullWidth type="number" placeholder="Số lượng..." sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 600 } }} />
-          </Grid>
+          </Box>
 
-          <Grid item xs={12}>
+          <Box sx={{ gridColumn: "1 / -1" }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155", mb: 1 }}>
               Xuất xứ <Box component="span" sx={{ color: "#94a3b8", fontWeight: 400 }}>(Vùng trồng)</Box>
             </Typography>
             <TextField name="location" value={form.location} onChange={handleChange} size="small" fullWidth placeholder="VD: Cao Lãnh, Đồng Tháp" sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, fontWeight: 500 } }} />
-          </Grid>
+          </Box>
 
-          <Grid item xs={12}>
+          <Box sx={{ gridColumn: "1 / -1" }}>
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#334155", mb: 1 }}>
               Mô tả chi tiết
             </Typography>
             <TextField name="description" value={form.description} onChange={handleChange} size="small" fullWidth multiline rows={3} placeholder="Mô tả sản phẩm..." sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: 14, p: 1.5 } }} />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
 
       {/* Images and AI Section */}
@@ -359,11 +521,11 @@ export default function SellerProductFormPage() {
 
         {/* Action Buttons */}
         <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid #f1f5f9", display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
-          <Button onClick={handleSaveDraft} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" }, color: "#334155", borderColor: "#cbd5e1", borderRadius: 3, px: 3, py: 1, textTransform: "none", fontWeight: 700, fontSize: 14, "&:hover": { bgcolor: "#f8fafc", borderColor: "#94a3b8" } }}>
-            Lưu thành nháp
+          <Button disabled={submitting} onClick={handleSaveDraft} variant="outlined" sx={{ width: { xs: "100%", sm: "auto" }, color: "#334155", borderColor: "#cbd5e1", borderRadius: 3, px: 3, py: 1, textTransform: "none", fontWeight: 700, fontSize: 14, "&:hover": { bgcolor: "#f8fafc", borderColor: "#94a3b8" } }}>
+            {submitting ? "Đang lưu..." : "Lưu thành nháp"}
           </Button>
-          <Button onClick={handleSubmitReview} variant="contained" startIcon={<UploadCloud size={16} />} sx={{ width: { xs: "100%", sm: "auto" }, bgcolor: "#059669", color: "#fff", borderRadius: 3, px: 4, py: 1, textTransform: "none", fontWeight: 700, fontSize: 14, "&:hover": { bgcolor: "#047857" }, boxShadow: "0 1px 2px rgba(16, 185, 129, 0.2)" }}>
-            {isEdit ? "Cập nhật thông tin" : "Gửi yêu cầu duyệt"}
+          <Button disabled={submitting} onClick={handleSubmitReview} variant="contained" startIcon={<UploadCloud size={16} />} sx={{ width: { xs: "100%", sm: "auto" }, bgcolor: "#059669", color: "#fff", borderRadius: 3, px: 4, py: 1, textTransform: "none", fontWeight: 700, fontSize: 14, "&:hover": { bgcolor: "#047857" }, boxShadow: "0 1px 2px rgba(16, 185, 129, 0.2)" }}>
+            {submitting ? "Đang xử lý..." : (isEdit ? "Cập nhật thông tin" : "Gửi yêu cầu duyệt")}
           </Button>
         </Box>
       </Paper>

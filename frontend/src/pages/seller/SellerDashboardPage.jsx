@@ -1,9 +1,10 @@
 import { Box, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import { CheckCircle2, TrendingUp } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { getSharedProducts } from "../../data/productStore";
+import { sellerApi, resolveAssetUrl } from "../../services/api";
 
 const chartData = [
   { name: 'T2', doanhThu: 4200000, donHang: 24 },
@@ -17,14 +18,37 @@ const chartData = [
 
 export default function SellerDashboardPage() {
   const [confirmedOrders, setConfirmedOrders] = useState({});
+  const [summary, setSummary] = useState(null);
+  const [liveOrders, setLiveOrders] = useState([]);
+  const [liveProducts, setLiveProducts] = useState([]);
+
+  useEffect(() => {
+    sellerApi.dashboard.getSummary().then(res => {
+      if (res) setSummary(res);
+    }).catch(err => console.warn("Lỗi tải dashboard summary:", err?.message));
+
+    sellerApi.order.getAll({ size: 10 }).then(res => {
+      const items = res?.content || (Array.isArray(res) ? res : []);
+      if (items.length > 0) setLiveOrders(items);
+    }).catch(err => console.warn(err));
+
+    sellerApi.product.getAll({ size: 20 }).then(res => {
+      const items = res?.content || (Array.isArray(res) ? res : []);
+      if (items.length > 0) setLiveProducts(items);
+    }).catch(err => console.warn(err));
+  }, []);
 
   const products = useMemo(() => getSharedProducts(), []);
   
-  // Real stats
+  // Real stats fallback
   const pendingProducts = products.filter(p => p.status === "PENDING");
   const rejectedProducts = products.filter(p => p.status === "REJECTED" || p.status === "NEED_INFO" || p.aiLabel?.type === "rotten");
 
-  // Orders from local storage
+  const displayRejectedProducts = liveProducts.length > 0
+    ? liveProducts.filter(p => p.status === "REJECTED" || p.status === "NEED_INFO")
+    : rejectedProducts;
+
+  // Orders from local storage fallback
   const pendingOrders = useMemo(() => {
     try {
       const stored = localStorage.getItem("customer_orders");
@@ -44,8 +68,27 @@ export default function SellerDashboardPage() {
     ];
   }, []);
 
-  const handleConfirmOrder = (id) => {
+  const displayPendingOrders = liveOrders.length > 0 
+    ? liveOrders.filter(o => o.status === "PENDING").slice(0, 4).map(o => ({
+        id: o.orderCode || `DH-${o.id}`,
+        rawId: o.id,
+        customer: { fullName: o.receiverName || o.customer?.fullName || "Khách hàng" },
+        items: (o.items && o.items.length > 0) ? o.items.map(it => ({ name: it.productName })) : [{ name: "Nông sản tươi" }],
+        total: o.total || 0,
+        date: o.createdAt ? new Date(o.createdAt).toLocaleDateString("vi-VN") : "Hôm nay",
+        status: o.status
+      }))
+    : pendingOrders;
+
+  const handleConfirmOrder = async (id, rawId) => {
     setConfirmedOrders(prev => ({ ...prev, [id]: true }));
+    if (rawId) {
+      try {
+        await sellerApi.order.changeStatus(rawId, { status: "CONFIRMED" });
+      } catch (err) {
+        console.warn("Lỗi xác nhận đơn qua API:", err);
+      }
+    }
     try {
       const stored = localStorage.getItem("customer_orders");
       if (stored) {
@@ -70,6 +113,10 @@ export default function SellerDashboardPage() {
     flexDirection: "column",
     height: "100%",
   };
+
+  const activeRejectedCount = summary 
+    ? ((summary.productsByStatus?.REJECTED || 0) + (summary.productsByStatus?.NEED_INFO || 0))
+    : displayRejectedProducts.length;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "100%" }}>
@@ -108,7 +155,9 @@ export default function SellerDashboardPage() {
         <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 3" } }}>
           <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Doanh thu hôm nay</Typography>
           <Typography sx={{ mt: "16px", fontSize: "28px", fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
-            1.240.000 <Box component="span" sx={{ fontSize: "18px", color: "#6B7280" }}>₫</Box>
+            {summary?.todayRevenue !== undefined && summary?.todayRevenue !== null 
+              ? Number(summary.todayRevenue).toLocaleString('vi-VN') 
+              : "1.240.000"} <Box component="span" sx={{ fontSize: "18px", color: "#6B7280" }}>₫</Box>
           </Typography>
           <Box sx={{ mt: "auto", pt: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
             <Typography sx={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", color: "#059669", fontWeight: 600 }}>
@@ -123,7 +172,7 @@ export default function SellerDashboardPage() {
           <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Đơn chờ xác nhận</Typography>
           <Box sx={{ mt: "16px", display: "flex", alignItems: "baseline", gap: "12px" }}>
             <Typography sx={{ fontSize: "28px", fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
-              {pendingOrders.filter(o => o.status === "PENDING" && !confirmedOrders[o.id]).length}
+              {summary?.pendingOrders ?? displayPendingOrders.filter(o => o.status === "PENDING" && !confirmedOrders[o.id]).length}
             </Typography>
             <Box sx={{ width: "10px", height: "10px", borderRadius: "50%", bgcolor: "#F59E0B" }} />
           </Box>
@@ -136,21 +185,21 @@ export default function SellerDashboardPage() {
         <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 3" } }}>
           <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Sản phẩm chờ duyệt</Typography>
           <Typography sx={{ mt: "16px", fontSize: "28px", fontWeight: 700, color: "#111827", letterSpacing: "-0.02em" }}>
-            {pendingProducts.length}
+            {summary?.productsByStatus?.PENDING ?? (liveProducts.length > 0 ? liveProducts.filter(p => p.status === 'PENDING').length : pendingProducts.length)}
           </Typography>
           <Typography sx={{ mt: "auto", pt: "16px", fontSize: "13px", color: "#6B7280" }}>
-            {pendingProducts[0]?.name || "Nông sản mới"}
+            {(liveProducts.find(p => p.status === 'PENDING') || pendingProducts[0])?.name || "Nông sản mới"}
           </Typography>
         </Box>
 
         {/* KPI 4 */}
         <Box sx={{ ...cardStyle, gridColumn: { xs: "span 1", lg: "span 3" } }}>
           <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#4B5563" }}>Sản phẩm cần sửa</Typography>
-          <Typography sx={{ mt: "16px", fontSize: "28px", fontWeight: 700, color: rejectedProducts.length > 0 ? "#DC2626" : "#059669", letterSpacing: "-0.02em" }}>
-            {rejectedProducts.length}
+          <Typography sx={{ mt: "16px", fontSize: "28px", fontWeight: 700, color: activeRejectedCount > 0 ? "#DC2626" : "#059669", letterSpacing: "-0.02em" }}>
+            {activeRejectedCount}
           </Typography>
           <Typography sx={{ mt: "auto", pt: "16px", fontSize: "13px", color: "#6B7280" }}>
-            {rejectedProducts.length > 0 ? `${rejectedProducts.length} cần cập nhật` : "Tất cả đã đạt chuẩn"}
+            {activeRejectedCount > 0 ? `${activeRejectedCount} cần cập nhật` : "Tất cả đã đạt chuẩn"}
           </Typography>
         </Box>
 
@@ -194,12 +243,12 @@ export default function SellerDashboardPage() {
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: "16px" }}>
               <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#111827", display: "flex", alignItems: "center", gap: "8px" }}>
                 Sản phẩm cần sửa
-                <Box sx={{ width: "8px", height: "8px", borderRadius: "50%", bgcolor: rejectedProducts.length > 0 ? "#DC2626" : "#059669" }} />
+                <Box sx={{ width: "8px", height: "8px", borderRadius: "50%", bgcolor: activeRejectedCount > 0 ? "#DC2626" : "#059669" }} />
               </Typography>
               <Typography component={Link} to="/seller/products" sx={{ fontSize: "13px", fontWeight: 600, color: "#059669", textDecoration: "none" }}>Xem</Typography>
             </Box>
             <Box sx={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {rejectedProducts.length > 0 ? rejectedProducts.slice(0, 2).map(prod => (
+              {displayRejectedProducts.length > 0 ? displayRejectedProducts.slice(0, 2).map(prod => (
                 <Box key={prod.id} component={Link} to={`/seller/products/${prod.id}/edit`} sx={{ display: "flex", gap: "12px", p: "12px", bgcolor: "#FEF2F2", borderRadius: "8px", border: "1px solid #FEE2E2", textDecoration: "none", transition: "all 0.2s", "&:hover": { bgcolor: "#fee2e2" } }}>
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: "4px" }}>
@@ -247,7 +296,7 @@ export default function SellerDashboardPage() {
             <Box sx={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#111827" }}>Đơn mới cần xử lý</Typography>
               <Box sx={{ fontSize: "13px", fontWeight: 600, color: "#059669", bgcolor: "#ECFDF5", px: "12px", py: "4px", borderRadius: "16px" }}>
-                {pendingOrders.length} đơn
+                {displayPendingOrders.length} đơn
               </Box>
             </Box>
             <Typography component={Link} to="/seller/orders" sx={{ fontSize: "14px", fontWeight: 600, color: "#059669", textDecoration: "none" }}>Xem tất cả</Typography>
@@ -265,7 +314,7 @@ export default function SellerDashboardPage() {
                 </tr>
               </Box>
               <Box component="tbody">
-                {pendingOrders.map((order) => {
+                {displayPendingOrders.map((order) => {
                   const isDone = confirmedOrders[order.id] || order.status !== "PENDING";
                   const customerName = order.customer?.fullName || order.customer?.name || "Khách hàng";
                   const productCount = order.items?.length || 1;
@@ -274,7 +323,7 @@ export default function SellerDashboardPage() {
                   return (
                     <Box component="tr" key={order.id} sx={{ borderBottom: "1px solid #E5E7EB", "&:last-child": { borderBottom: "none" }, transition: "background 0.2s", "&:hover": { bgcolor: "#F9FAFB" } }}>
                       <Box component="td" sx={{ p: "16px 24px", fontWeight: 600, color: "#111827" }}>
-                        <Link to={`/seller/orders/${order.id}`} style={{ textDecoration: 'none', color: '#111827' }}>
+                        <Link to={`/seller/orders/${order.rawId || order.id}`} style={{ textDecoration: 'none', color: '#111827' }}>
                           {order.id}
                         </Link>
                       </Box>
@@ -285,7 +334,7 @@ export default function SellerDashboardPage() {
                       <Box component="td" sx={{ p: "16px 24px", textAlign: "right" }}>
                         <Box 
                           component="button" 
-                          onClick={() => handleConfirmOrder(order.id)}
+                          onClick={() => handleConfirmOrder(order.id, order.rawId)}
                           disabled={isDone}
                           sx={{ 
                             px: "16px", py: "8px", fontSize: "14px", fontWeight: 600, borderRadius: "8px", 

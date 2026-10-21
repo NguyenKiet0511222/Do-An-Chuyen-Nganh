@@ -1,28 +1,18 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/useCart";
 import { useAuth } from "../context/useAuth";
-import { ShoppingBag, Search, ChevronDown, Menu, X, Wand2, User } from "lucide-react";
+import { ShoppingBag, ChevronDown, Menu, X, Wand2, User } from "lucide-react";
+import SearchAutocomplete from "./SearchAutocomplete";
 import "./Navbar.css";
 
 export default function Navbar() {
   const { totalCount } = useCart();
   const { user } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const isActive = (path) => location.pathname === path;
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      navigate("/products");
-    }
-  };
 
   return (
     <header className="site-header">
@@ -35,19 +25,9 @@ export default function Navbar() {
             <span style={{ fontSize: '20px', fontWeight: '800', color: '#00A651', whiteSpace: 'nowrap' }}>Nông sản Việt</span>
           </Link>
 
-          {/* Search Bar */}
+          {/* Search Bar with live autocomplete suggestions */}
           <div className="search-container">
-            <form onSubmit={handleSearch} className="search-form">
-              <Search size={18} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Tìm rau củ, trái cây sạch, nấm hữu cơ..."
-                className="search-input"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <button type="submit" className="search-submit-btn">Tìm</button>
-            </form>
+            <SearchAutocomplete />
           </div>
 
           {/* Action Buttons */}

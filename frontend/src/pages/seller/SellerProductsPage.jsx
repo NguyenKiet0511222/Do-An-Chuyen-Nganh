@@ -1,8 +1,9 @@
-import { Box, Typography, Paper, Tabs, Tab, TextField, InputAdornment, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Pagination } from "@mui/material";
+import { Box, Typography, Paper, Tabs, Tab, TextField, InputAdornment, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Pagination, MenuItem } from "@mui/material";
 import { Search, Plus, CheckCircle2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getSharedProducts, updateProductStatus, syncSharedProductsWithApi } from "../../data/productStore";
+import { getSharedProducts, updateProductStatus } from "../../data/productStore";
+import { sellerApi, resolveAssetUrl } from "../../services/api";
 
 export default function SellerProductsPage() {
   const navigate = useNavigate();
@@ -14,15 +15,24 @@ export default function SellerProductsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  useEffect(() => {
+  const loadSellerProducts = async () => {
     setLoading(true);
+    try {
+      const res = await sellerApi.product.getAll({ size: 100 });
+      if (res && res.content && res.content.length > 0) {
+        setProducts(res.content);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Không thể tải sản phẩm từ sellerApi, dùng shared store:", err?.message);
+    }
     setProducts(getSharedProducts());
-    syncSharedProductsWithApi().then((synced) => {
-      if (synced && synced.length > 0) setProducts(synced);
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadSellerProducts();
   }, []);
 
   const handleTabChange = (event, newValue) => {
@@ -39,9 +49,36 @@ export default function SellerProductsPage() {
     { label: "Đang ẩn", filter: ["HIDDEN"], activeColor: "#334155", badgeBg: "#f1f5f9", badgeColor: "#475569" },
   ];
 
-  const handleHideProduct = (id) => {
-    updateProductStatus(id, "HIDDEN");
-    setProducts(getSharedProducts());
+  const handleToggleHide = async (row) => {
+    const isHidden = row.status === "HIDDEN";
+    try {
+      await sellerApi.product.changeVisibility(row.id, !isHidden);
+      loadSellerProducts();
+    } catch (err) {
+      updateProductStatus(row.id, isHidden ? "APPROVED" : "HIDDEN");
+      setProducts(getSharedProducts());
+    }
+  };
+
+  const handleSubmitDraft = async (id) => {
+    try {
+      await sellerApi.product.submit(id);
+      alert("Đã gửi duyệt sản phẩm thành công!");
+      loadSellerProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || "Không thể gửi duyệt");
+    }
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xoá sản phẩm này?")) return;
+    try {
+      await sellerApi.product.delete(id);
+      alert("Đã xoá sản phẩm!");
+      loadSellerProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || "Không thể xoá sản phẩm");
+    }
   };
 
   const filteredProducts = useMemo(() => {
@@ -189,13 +226,12 @@ export default function SellerProductsPage() {
               size="small" 
               value={categoryFilter}
               onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-              sx={{ width: 150, "& .MuiOutlinedInput-root": { bgcolor: "#f8fafc", borderRadius: 2, "& fieldset": { borderColor: "#e2e8f0" } } }} 
-              SelectProps={{ native: true }}
+              sx={{ minWidth: 160, "& .MuiOutlinedInput-root": { bgcolor: "#f8fafc", borderRadius: 2, "& fieldset": { borderColor: "#e2e8f0" } } }} 
             >
-              <option value="all">Tất cả danh mục</option>
-              <option value="rau-la">Rau lá</option>
-              <option value="trai-cay">Trái cây</option>
-              <option value="cu-qua">Củ quả</option>
+              <MenuItem value="all">Tất cả danh mục</MenuItem>
+              <MenuItem value="rau-la">Rau lá</MenuItem>
+              <MenuItem value="trai-cay">Trái cây</MenuItem>
+              <MenuItem value="cu-qua">Củ quả</MenuItem>
             </TextField>
           </Box>
           <Button 
@@ -234,7 +270,7 @@ export default function SellerProductsPage() {
               ) : filteredProducts.length > 0 ? pagedProducts.map((row) => {
                 const statusConf = mapStatusConfig(row.status);
                 const aiConf = mapAiConfig(row);
-                const imgUrl = row.imageUrl || row.primaryImageUrl;
+                const imgUrl = resolveAssetUrl(row.imageUrl || row.primaryImageUrl);
                 const categoryStr = typeof row.category === 'object' ? row.category?.name : (row.category || "---");
                 const stockVal = row.inventory ?? row.stockQuantity ?? row.stock ?? 100;
                 const unitStr = row.unit || "kg";
@@ -291,7 +327,27 @@ export default function SellerProductsPage() {
                         {row.status === "APPROVED" && (
                           <>
                             <Box component="span" sx={{ color: "#cbd5e1" }}>|</Box>
-                            <Typography onClick={() => handleHideProduct(row.id)} component="span" sx={{ fontSize: 13, color: "#64748b", textDecoration: "none", cursor: "pointer", "&:hover": { color: "#e11d48", textDecoration: "underline" } }}>Ẩn</Typography>
+                            <Typography onClick={() => handleToggleHide(row)} component="span" sx={{ fontSize: 13, color: "#64748b", textDecoration: "none", cursor: "pointer", "&:hover": { color: "#e11d48", textDecoration: "underline" } }}>Ẩn</Typography>
+                          </>
+                        )}
+                        {row.status === "HIDDEN" && (
+                          <>
+                            <Box component="span" sx={{ color: "#cbd5e1" }}>|</Box>
+                            <Typography onClick={() => handleToggleHide(row)} component="span" sx={{ fontSize: 13, color: "#059669", textDecoration: "none", cursor: "pointer", "&:hover": { color: "#047857", textDecoration: "underline" } }}>Bỏ ẩn</Typography>
+                          </>
+                        )}
+                        {row.status === "DRAFT" && (
+                          <>
+                            <Box component="span" sx={{ color: "#cbd5e1" }}>|</Box>
+                            <Typography onClick={() => handleSubmitDraft(row.id)} component="span" sx={{ fontSize: 13, color: "#2563eb", textDecoration: "none", cursor: "pointer", "&:hover": { color: "#1d4ed8", textDecoration: "underline" } }}>Gửi duyệt</Typography>
+                            <Box component="span" sx={{ color: "#cbd5e1" }}>|</Box>
+                            <Typography onClick={() => handleDeleteProduct(row.id)} component="span" sx={{ fontSize: 13, color: "#e11d48", textDecoration: "none", cursor: "pointer", "&:hover": { color: "#be123c", textDecoration: "underline" } }}>Xoá</Typography>
+                          </>
+                        )}
+                        {row.status === "REJECTED" && (
+                          <>
+                            <Box component="span" sx={{ color: "#cbd5e1" }}>|</Box>
+                            <Typography onClick={() => handleDeleteProduct(row.id)} component="span" sx={{ fontSize: 13, color: "#e11d48", textDecoration: "none", cursor: "pointer", "&:hover": { color: "#be123c", textDecoration: "underline" } }}>Xoá</Typography>
                           </>
                         )}
                       </Box>

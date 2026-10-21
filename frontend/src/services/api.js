@@ -231,13 +231,17 @@ export const sellerApi = {
     uploadImages: (id, formData) => apiClient.post(`/seller/products/${id}/images`, formData, {
       headers: { "Content-Type": "multipart/form-data" }
     }).then(unwrap),
-    deleteImage: (id, imageId) => apiClient.delete(`/seller/products/${id}/images/${imageId}`).then(unwrap)
+    deleteImage: (id, imageId) => apiClient.delete(`/seller/products/${id}/images/${imageId}`).then(unwrap),
+    changeVisibility: (id, hidden) => apiClient.patch(`/seller/products/${id}/visibility`, { hidden }).then(unwrap),
+    updateStock: (id, stockQuantity) => apiClient.patch(`/seller/products/${id}/stock`, { stockQuantity }).then(unwrap),
+    setPrimaryImage: (id, imageId) => apiClient.patch(`/seller/products/${id}/images/${imageId}/primary`).then(unwrap)
   },
 
   // --- Orders ---
   order: {
     getAll: (params = {}) => apiClient.get("/seller/orders", { params }).then(unwrap),
     getById: (id) => apiClient.get(`/seller/orders/${id}`).then(unwrap),
+    changeStatus: (id, payload) => apiClient.patch(`/seller/orders/${id}/status`, payload).then(unwrap)
   },
 
   // --- Dashboard ---
