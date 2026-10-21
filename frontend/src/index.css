@@ -2765,34 +2765,45 @@ img {
   transform: scale(1.06);
 }
 
-/* Clean AI Badge matching wireframe Image 2 */
+/* Nhãn AI cho khách (components/AiQualityBadge.jsx) — api.md mục 8:
+   Tươi viền xanh · Hỏng nền đỏ chữ trắng · Không chắc nét đứt vàng. Màu ở đây, vị trí do class của từng nơi dùng. */
+.ai-quality-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.3;
+  padding: 2px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.ai-quality-badge.fresh {
+  background: var(--primary-subtle);
+  color: var(--primary-hover);
+  border: 1.5px solid var(--primary);
+}
+
+.ai-quality-badge.rotten {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1.5px solid #dc2626;
+}
+
+.ai-quality-badge.uncertain {
+  background: var(--amber-subtle);
+  color: var(--amber-dark);
+  border: 1.5px dashed var(--amber);
+}
+
+/* Vị trí badge trên ảnh thẻ sản phẩm */
 .card-ai-badge {
   position: absolute;
   top: 10px;
   left: 10px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 6px;
-  letter-spacing: 0.2px;
-}
-
-.card-ai-badge.fresh {
-  background: #ecfdf5;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
-}
-
-.card-ai-badge.uncertain {
-  background: #fef3c7;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.card-ai-badge.rotten {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  z-index: 2;
 }
 
 .product-content {
@@ -2860,6 +2871,12 @@ img {
 
 .product-card-rating .star-icon {
   color: #f59e0b;
+}
+
+.product-card-no-rating {
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+  white-space: nowrap;
 }
 
 .rating-num {
@@ -4285,6 +4302,19 @@ img {
   flex-direction: column;
   gap: 12px;
   margin-top: 8px;
+}
+
+/* Danh mục ở cột lọc (ProductsPage) — dựng từ /api/categories */
+.category-filter-link {
+  display: block;
+  text-decoration: none;
+}
+
+.category-filter-count {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-subtle);
 }
 
 .checkbox-label {

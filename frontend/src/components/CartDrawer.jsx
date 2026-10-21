@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/useCart";
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight } from "lucide-react";
+import { resolveAssetUrl } from "../services/api";
+import { handleImageError } from "../utils/format";
 
 export default function CartDrawer() {
   const navigate = useNavigate();
@@ -78,9 +80,10 @@ export default function CartDrawer() {
               {cart.map((item) => (
                 <div key={item.id || item.product?.id} className="cart-item-row">
                   <img
-                    src={item.product?.primaryImageUrl || item.product?.image || item.product?.imageUrl || "https://placehold.co/100x100?text=No+Image"}
+                    src={resolveAssetUrl(item.product?.primaryImageUrl) || "https://placehold.co/100x100?text=No+Image"}
                     alt={item.product?.name}
                     className="cart-item-thumb"
+                    onError={handleImageError}
                   />
                   <div className="cart-item-info">
                     <h4 className="cart-item-name">{item.product?.name}</h4>

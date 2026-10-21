@@ -197,11 +197,7 @@ export const orderApi = {
   checkout: (payload) => apiClient.post("/orders/checkout", payload).then(unwrap),
   getMyOrders: (params = {}) => apiClient.get("/orders", { params }).then(unwrap),
   getById: (id) => apiClient.get(`/orders/${id}`).then(unwrap),
-  cancel: (id, cancelReason) => apiClient.patch(`/orders/${id}/cancel`, { cancelReason }).then(unwrap),
-  // Giữ alias tương thích nếu component cũ còn gọi
-  createOrder: async (orderData) => {
-    return apiClient.post("/orders/checkout", orderData).then(unwrap);
-  }
+  cancel: (id, cancelReason) => apiClient.patch(`/orders/${id}/cancel`, { cancelReason }).then(unwrap)
 };
 
 // ==========================================

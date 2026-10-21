@@ -2,79 +2,33 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/useCart";
 import { Check, Plus, Star } from "lucide-react";
+import { resolveAssetUrl } from "../services/api";
+import { handleImageError } from "../utils/format";
+import AiQualityBadge from "./AiQualityBadge";
 
+const PLACEHOLDER_IMAGE = "https://placehold.co/400x400?text=No+Image";
+
+const formatPrice = (amount) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount || 0);
+
+// Thẻ sản phẩm khu khách — nhận đúng khuôn "Product (list item)" của GET /api/products (api.md mục 4.4)
 export default function ProductCard({ product }) {
   const { addToCart } = useCart();
   const [isAdded, setIsAdded] = useState(false);
 
-  const imageUrl = product.imageUrl || product.primaryImageUrl || product.image || "https://placehold.co/400x400?text=No+Image";
-  const originName = product.origin || product.shop?.province || "Việt Nam";
-  const confidencePercent = 
-    product.aiOverallConfidence != null 
-      ? Math.round(Number(product.aiOverallConfidence) * 100) 
-      : (product.aiLabel?.confidence 
-          ? Math.round(product.aiLabel.confidence * 100) 
-          : product.freshnessScore);
+  // Ảnh người bán tải lên là "/uploads/..." -> ghép địa chỉ backend; ảnh URL tuyệt đối giữ nguyên
+  const imageUrl = resolveAssetUrl(product.primaryImageUrl) || PLACEHOLDER_IMAGE;
   const unit = product.unit || "kg";
+  const hasRating = Number(product.ratingCount) > 0 && product.ratingAvg != null;
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const isFresh = 
-      product.aiOverallLabel === "FRESH" || 
-      product.aiLabel?.type === "fresh" || 
-      (!product.aiOverallLabel && !product.aiLabel);
-
-    const normalizedProduct = {
-      ...product,
-      image: imageUrl,
-      aiGrade: isFresh
-        ? `Tươi sạch AI${confidencePercent ? ` (${confidencePercent}%)` : ""}`
-        : product.aiOverallLabel === "UNCERTAIN" || product.aiLabel?.type === "uncertain"
-        ? "Cần kiểm tra"
-        : product.aiGrade || "Kiểm định AI",
-      origin: originName,
-      certification: product.certification || "VietGAP",
-      unit
-    };
-
-    if (!addToCart(normalizedProduct, 1)) return; // chưa đăng nhập -> đã chuyển tới /login
+    // addToCart trả false khi chưa đăng nhập (đã chuyển tới /login) hoặc API lỗi (đã báo lỗi)
+    if (!(await addToCart(product, 1))) return;
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1200);
-  };
-
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND"
-    }).format(amount || 0);
-  };
-
-  const renderAiBadge = () => {
-    const isRotten = product.aiOverallLabel === "ROTTEN" || product.aiLabel?.type === "rotten";
-    const isUncertain = product.aiOverallLabel === "UNCERTAIN" || product.aiLabel?.type === "uncertain";
-    const pct = confidencePercent || 95;
-
-    if (isRotten) {
-      return (
-        <div className="card-ai-badge rotten">
-          <span>AI ALERT</span>
-        </div>
-      );
-    }
-    if (isUncertain) {
-      return (
-        <div className="card-ai-badge uncertain">
-          <span>AI REVIEW {pct}%</span>
-        </div>
-      );
-    }
-    return (
-      <div className="card-ai-badge fresh">
-        <span>AI FRESH {pct}%</span>
-      </div>
-    );
   };
 
   return (
@@ -86,10 +40,15 @@ export default function ProductCard({ product }) {
             alt={product.name}
             className="product-image"
             loading="lazy"
+            onError={handleImageError}
           />
 
-          {/* Clean AI Badge matching wireframe */}
-          {renderAiBadge()}
+          {/* Nhãn AI tổng hợp — sản phẩm chưa có nhãn thì không hiện */}
+          <AiQualityBadge
+            label={product.aiOverallLabel}
+            confidence={product.aiOverallConfidence}
+            className="card-ai-badge"
+          />
         </div>
       </Link>
 
@@ -98,22 +57,22 @@ export default function ProductCard({ product }) {
           <h3 className="product-title">{product.name}</h3>
         </Link>
 
-        {/* Price on left, Rating on right (Khớp hoàn toàn Wireframe Image 2) */}
         <div className="product-price-rating-row">
           <div className="product-price-block">
             <span className="product-price">{formatPrice(product.price)}</span>
             <span className="product-unit">/{unit}</span>
           </div>
 
-          <div className="product-card-rating">
-            <Star size={13} className="star-icon" fill="currentColor" />
-            <span className="rating-num">
-              {Number(product.ratingAvg || 4.8).toFixed(1)}
-            </span>
-          </div>
+          {hasRating ? (
+            <div className="product-card-rating" title={`${product.ratingCount} đánh giá`}>
+              <Star size={13} className="star-icon" fill="currentColor" />
+              <span className="rating-num">{Number(product.ratingAvg).toFixed(1)}</span>
+            </div>
+          ) : (
+            <span className="product-card-no-rating">Chưa có đánh giá</span>
+          )}
         </div>
 
-        {/* Full-width Add to Cart button matching Image 2 */}
         <button
           type="button"
           className={`card-add-to-cart-btn ${isAdded ? "added" : ""}`}
@@ -126,7 +85,7 @@ export default function ProductCard({ product }) {
             </>
           ) : (
             <>
-              <Plus size={16} /> Add to Cart
+              <Plus size={16} /> Thêm vào giỏ
             </>
           )}
         </button>
@@ -134,4 +93,3 @@ export default function ProductCard({ product }) {
     </div>
   );
 }
-

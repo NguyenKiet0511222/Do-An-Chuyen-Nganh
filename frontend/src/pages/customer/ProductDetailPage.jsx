@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { productApi } from "../../services/api";
+import { productApi, resolveAssetUrl } from "../../services/api";
 import { useCart } from "../../context/useCart";
 import { useAuth } from "../../context/useAuth";
-import { getSharedProducts } from "../../data/productStore";
+import { CUSTOMER_AI_TAG, formatPercent } from "../../utils/aiLabel";
+import { apiErrorMessage, handleImageError } from "../../utils/format";
+import AiQualityBadge from "../../components/AiQualityBadge";
 import {
   Star,
   ShieldCheck,
@@ -27,9 +29,19 @@ import {
   ThumbsUp,
   UserCheck,
   Tag,
-  ChevronDown
+  ChevronDown,
+  AlertCircle
 } from "lucide-react";
 import "./ProductDetailPage.css";
+
+const PLACEHOLDER_IMAGE = "https://placehold.co/600x600?text=No+Image";
+const RELATED_COUNT = 4;
+
+// Mốc thời gian cho đánh giá lưu tạm ở trình duyệt (gọi trong handler, tách ra ngoài component cho React Compiler)
+const nowStamp = () => {
+  const d = new Date();
+  return { id: d.getTime(), text: d.toISOString().slice(0, 16).replace("T", " ") };
+};
 
 // Helper render số sao thập phân (ví dụ 4.8★ -> 4 sao vàng + 1 sao 80% vàng + 0 sao xám)
 function renderStarRating(score, size = 13) {
@@ -126,7 +138,11 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [topSellers, setTopSellers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [shopProductCount, setShopProductCount] = useState(null);
+  // key = lần tải đã xong (id + lượt thử lại); khác requestKey hiện tại nghĩa là đang tải
+  const [reloadToken, setReloadToken] = useState(0);
+  const requestKey = `${id}|${reloadToken}`;
+  const [loadState, setLoadState] = useState({ key: null, notFound: false, error: null });
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariation, setSelectedVariation] = useState("Mix 3 màu (Bán chạy)");
@@ -181,22 +197,28 @@ export default function ProductDetailPage() {
   useEffect(() => {
     let ignore = false;
     async function loadData() {
-      setLoading(true);
+      let pData = null;
       try {
-        let pData = null;
-        try {
-          pData = await productApi.getById(id);
-        } catch (apiErr) {
-          console.warn("Lỗi API getById, fallback sharedProducts:", apiErr.message);
-        }
+        pData = await productApi.getById(id);
+      } catch (err) {
+        if (ignore) return;
+        // 404: chưa duyệt / bị ẩn / shop bị khoá / đã xoá; 400: id sai định dạng -> cùng thông báo "ngừng bán"
+        const status = err?.response?.status;
+        const notFound = status === 404 || status === 400;
+        setProduct(null);
+        setLoadState({
+          key: requestKey,
+          notFound,
+          error: notFound ? null : apiErrorMessage(err, "Không tải được sản phẩm. Kiểm tra kết nối rồi thử lại.")
+        });
+        return;
+      }
 
-        if (!pData) {
-          const shared = getSharedProducts();
-          pData = shared.find((p) => String(p.id) === String(id));
-        }
-
+      try {
         if (!ignore && pData) {
           setProduct(pData);
+          setSelectedImageIndex(0);
+          setQuantity(1);
 
           // Nạp trạng thái yêu thích từ LocalStorage
           const likedKey = `pdp_fav_${pData.id}`;
@@ -205,8 +227,7 @@ export default function ProductDetailPage() {
           setLikeCount(isFav ? 1241 : 1240);
 
           // Nạp trạng thái theo dõi shop
-          const shopId = pData.shop?.id || pData.shopId || 1;
-          const followKey = `pdp_follow_shop_${shopId}`;
+          const followKey = `pdp_follow_shop_${pData.shop?.id}`;
           const isFollow = localStorage.getItem(followKey) === "true";
           setIsFollowingShop(isFollow);
           setFollowerCount(isFollow ? "12.5k" : "12.4k");
@@ -241,30 +262,32 @@ export default function ProductDetailPage() {
             }
           ]);
 
-          // Tải danh sách sản phẩm liên quan và bán chạy
-          try {
-            const listRes = await productApi.getAll({ size: 12 });
-            const allItems = listRes?.content || (Array.isArray(listRes) ? listRes : []);
-            const others = allItems.filter((item) => String(item.id) !== String(id));
-            setRelatedProducts(others.slice(0, 4));
-            setTopSellers(others.slice(0, 4));
-          } catch (e) {
-            const shared = getSharedProducts();
-            const others = shared.filter((p) => String(p.id) !== String(id));
-            setRelatedProducts(others.slice(0, 4));
-            setTopSellers(others.slice(0, 4));
-          }
+          setLoadState({ key: requestKey, notFound: false, error: null });
+
+          // Sản phẩm mới khác + bán chạy của chính shop (dữ liệu thật; lỗi thì chỉ ẩn 2 khối phụ này)
+          const shopId = pData.shop?.id;
+          const [relatedRes, shopRes] = await Promise.allSettled([
+            productApi.getAll({ sort: "newest", size: RELATED_COUNT * 2 }),
+            shopId != null ? productApi.getAll({ shopId, sort: "bestSelling", size: RELATED_COUNT + 1 }) : Promise.resolve(null)
+          ]);
+          if (ignore) return;
+          const isOther = (item) => String(item.id) !== String(pData.id);
+          setRelatedProducts(
+            relatedRes.status === "fulfilled" ? (relatedRes.value?.content ?? []).filter(isOther).slice(0, RELATED_COUNT) : []
+          );
+          setTopSellers(
+            shopRes.status === "fulfilled" ? (shopRes.value?.content ?? []).filter(isOther).slice(0, RELATED_COUNT) : []
+          );
+          setShopProductCount(shopRes.status === "fulfilled" && shopRes.value ? shopRes.value.totalElements ?? null : null);
         }
       } catch (err) {
         if (!ignore) console.error("Lỗi tải chi tiết sản phẩm:", err);
-      } finally {
-        if (!ignore) setLoading(false);
       }
     }
 
     // Khởi tạo đúng 24 đánh giá khớp hoàn hảo với 4.8★ (21 năm sao, 2 bốn sao, 1 ba sao, 18 có ảnh)
     function initDefaultReviews(pData) {
-      const pImg = pData.imageUrl || pData.primaryImageUrl || "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&q=80&w=600";
+      const pImg = resolveAssetUrl(pData.primaryImageUrl) || PLACEHOLDER_IMAGE;
       
       const defaultList = [
         {
@@ -540,7 +563,9 @@ export default function ProductDetailPage() {
     return () => {
       ignore = true;
     };
-  }, [id]);
+  }, [id, requestKey]);
+
+  const loading = loadState.key !== requestKey;
 
   // Cuộn chat xuống cuối khi có tin nhắn mới
   useEffect(() => {
@@ -548,6 +573,29 @@ export default function ProductDetailPage() {
       chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [chatMessages, isChatOpen]);
+
+  if (!loading && (loadState.notFound || loadState.error || !product)) {
+    return (
+      <div className="pdp-page">
+        <div className="detail-error-card" role="alert">
+          <AlertCircle size={40} color="#dc2626" />
+          <h2>{loadState.error ? "Không tải được sản phẩm" : "Sản phẩm không tồn tại hoặc đã ngừng bán"}</h2>
+          <p>
+            {loadState.error ||
+              "Sản phẩm có thể đã bị ẩn, đang chờ duyệt lại hoặc đã bị xoá. Mời bạn xem các sản phẩm khác."}
+          </p>
+          <div className="error-actions">
+            {loadState.error && (
+              <button type="button" className="btn-secondary" onClick={() => setReloadToken((t) => t + 1)}>
+                Thử lại
+              </button>
+            )}
+            <Link to="/products" className="btn-primary">Xem sản phẩm khác</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !product) {
     return (
@@ -575,34 +623,39 @@ export default function ProductDetailPage() {
   const countImages = reviews.filter((r) => r.images && r.images.length > 0).length;
   const countComments = reviews.filter((r) => r.comment && r.comment.trim().length > 0).length;
 
-  const mainImage =
-    product.imageUrl ||
-    product.primaryImageUrl ||
-    "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?auto=format&fit=crop&q=80&w=600";
-
-  let galleryImages = [];
-  if (Array.isArray(product.images) && product.images.length > 0) {
-    galleryImages = product.images.map((img) => (typeof img === "string" ? img : img.url || mainImage));
-  } else {
-    galleryImages = [mainImage, mainImage, mainImage, mainImage, mainImage];
-  }
+  // Ảnh người bán tải lên là "/uploads/..." -> ghép địa chỉ backend (resolveAssetUrl); ảnh URL tuyệt đối giữ nguyên
+  const mainImage = resolveAssetUrl(product.primaryImageUrl) || PLACEHOLDER_IMAGE;
+  // Ảnh chính người bán chọn (⭐) đứng đầu gallery, còn lại theo displayOrder
+  const sortedImages = Array.isArray(product.images)
+    ? [...product.images].sort(
+        (a, b) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary)) || (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+      )
+    : [];
+  const galleryImages = sortedImages.length > 0 ? sortedImages.map((img) => resolveAssetUrl(img.url) || mainImage) : [mainImage];
 
   const currentImgUrl = galleryImages[selectedImageIndex] || galleryImages[0] || mainImage;
   const unit = product.unit || "kg";
-  const stock = product.stockQuantity || product.inventory || product.stock || 40;
+  const stock = Math.max(0, Number(product.stockQuantity) || 0);
+  const outOfStock = stock <= 0;
+  const soldCount = product.soldCount ?? 0;
   const price = Number(product.price || 0);
   const originalPrice = Math.round(price * 1.15);
   const discountPercent = Math.round(((originalPrice - price) / originalPrice) * 100) || 12;
 
-  const originName = product.origin || product.location || product.shop?.province || "TP. Đà Lạt, Tỉnh Lâm Đồng";
-  const sellerName = product.shop?.shopName || product.seller || product.farmName || "HTX Nông Nghiệp Xanh Đà Lạt";
-  const categoryName = product.category || "Rau Củ Quả Đà Lạt";
+  const originName = product.origin || product.shop?.province || "—";
+  const sellerName = product.shop?.shopName || "";
+  // ProductDetailDto hiện chưa có danh mục -> chỉ hiện khi backend trả về (không hiện danh mục giả)
+  const categoryName = product.category?.name || null;
+  const categorySlug = product.category?.slug || null;
 
-  const aiScore = product.aiOverallConfidence
-    ? Math.round(Number(product.aiOverallConfidence) * 100)
-    : product.aiLabel?.confidence
-    ? Math.round(product.aiLabel.confidence * 100)
-    : product.freshnessScore || 95;
+  // Nhãn AI tổng hợp thật của sản phẩm; chưa có nhãn -> không nói gì về AI, không bịa %
+  const aiTag = CUSTOMER_AI_TAG[product.aiOverallLabel] || null;
+  const aiPercent = formatPercent(product.aiOverallConfidence);
+  const aiSummary = aiTag ? `${aiTag.text}${aiPercent ? ` ${aiPercent}` : ""}` : null;
+  const shopRatingText =
+    Number(product.shop?.ratingCount) > 0 && product.shop?.ratingAvg != null
+      ? `${Number(product.shop.ratingAvg).toFixed(1)} (${product.shop.ratingCount} đánh giá)`
+      : "Chưa có đánh giá";
 
   let variationOptions = ["Loại 1 (Tuyển chọn)", "Loại 2 (Tiêu chuẩn)", "Mix tươi ngon (Bán chạy)"];
   if (product.name && product.name.toLowerCase().includes("ớt")) {
@@ -612,26 +665,18 @@ export default function ProductDetailPage() {
   }
 
   // --- Xử lý Thêm giỏ hàng & Mua ngay ---
-  const triggerAddToCart = (targetProduct, targetQty = 1) => {
+  // addToCart (CartContext) là async: false khi chưa đăng nhập (đã chuyển /login) hoặc API lỗi (đã báo lỗi)
+  const triggerAddToCart = async (targetProduct, targetQty = 1) => {
     const prodToAdd = targetProduct || product;
-    const itemToAdd = {
-      ...prodToAdd,
-      image: currentImgUrl,
-      aiGrade: `Tươi sạch AI (${aiScore}%)`,
-      origin: originName,
-      unit: prodToAdd.unit || unit,
-      selectedVariation
-    };
-
-    const success = addToCart(itemToAdd, targetQty);
+    const success = await addToCart(prodToAdd, targetQty);
     if (success) {
-      triggerToast(`Đã thêm ${targetQty} ${itemToAdd.unit} "${itemToAdd.name}" vào giỏ hàng!`);
+      triggerToast(`Đã thêm ${targetQty} ${prodToAdd.unit || unit} "${prodToAdd.name}" vào giỏ hàng!`);
     }
     return success;
   };
 
-  const handleBuyNow = () => {
-    if (triggerAddToCart(product, quantity)) {
+  const handleBuyNow = async () => {
+    if (await triggerAddToCart(product, quantity)) {
       navigate("/checkout");
     }
   };
@@ -657,7 +702,7 @@ export default function ProductDetailPage() {
 
   // --- Xử lý Theo dõi Shop ---
   const handleToggleFollowShop = () => {
-    const shopId = product.shop?.id || product.shopId || 1;
+    const shopId = product.shop?.id;
     const newFollow = !isFollowingShop;
     setIsFollowingShop(newFollow);
     setFollowerCount(newFollow ? "12.5k" : "12.4k");
@@ -681,7 +726,9 @@ export default function ProductDetailPage() {
     setTimeout(() => {
       let replyText = "Dạ cảm ơn bạn! Shop đã nhận được tin nhắn và sẽ hỗ trợ đóng hàng giao hỏa tốc sớm nhất cho bạn nhé.";
       if (textToSend.includes("còn tươi") || textToSend.includes("chất lượng")) {
-        replyText = `Dạ sản phẩm ${product.name} được thu hoạch sáng nay, kiểm định AI Fresh đạt ${aiScore}% độ tươi, cam kết nguyên vị giòn ngọt ạ!`;
+        replyText = aiSummary
+          ? `Dạ sản phẩm ${product.name} có nhãn AI "${aiSummary}" từ ảnh sản phẩm shop tải lên ạ!`
+          : `Dạ sản phẩm ${product.name} chưa có nhãn AI, shop sẽ gửi thêm ảnh thực tế cho bạn ạ!`;
       } else if (textToSend.includes("giao") || textToSend.includes("ship")) {
         replyText = "Dạ khu vực TP.HCM shop giao hỏa tốc nhận trong 2 giờ. Các tỉnh khác từ 1-2 ngày bọc xốp bảo quản mát ạ!";
       } else if (textToSend.includes("freeship") || textToSend.includes("mã")) {
@@ -733,11 +780,12 @@ export default function ProductDetailPage() {
     }
 
     const reviewerName = user?.fullName || "Khách hàng thân thiết";
+    const createdAt = nowStamp();
     const newRev = {
-      id: Date.now(),
+      id: createdAt.id,
       user: reviewerName,
       rating: newReviewRating,
-      date: new Date().toISOString().slice(0, 16).replace("T", " "),
+      date: createdAt.text,
       variation: newReviewVariation || selectedVariation,
       comment: newReviewComment.trim(),
       images: [currentImgUrl],
@@ -797,10 +845,18 @@ export default function ProductDetailPage() {
           <nav>
             <Link to="/" className="pdp-breadcrumb-link">Nông Sản Việt</Link>
             <span className="pdp-breadcrumb-sep"><ChevronRight size={12} /></span>
-            <Link to="/products" className="pdp-breadcrumb-link">Thực Phẩm Tươi Sống</Link>
+            <Link to="/products" className="pdp-breadcrumb-link">Sản phẩm</Link>
             <span className="pdp-breadcrumb-sep"><ChevronRight size={12} /></span>
-            <Link to={`/products?category=${encodeURIComponent(categoryName)}`} className="pdp-breadcrumb-link">{categoryName}</Link>
-            <span className="pdp-breadcrumb-sep"><ChevronRight size={12} /></span>
+            {categoryName && (
+              <>
+                {categorySlug ? (
+                  <Link to={`/category/${categorySlug}`} className="pdp-breadcrumb-link">{categoryName}</Link>
+                ) : (
+                  <span className="pdp-breadcrumb-link">{categoryName}</span>
+                )}
+                <span className="pdp-breadcrumb-sep"><ChevronRight size={12} /></span>
+              </>
+            )}
             <span className="pdp-breadcrumb-current">{product.name}</span>
           </nav>
         </section>
@@ -812,14 +868,17 @@ export default function ProductDetailPage() {
             <div className="pdp-gallery">
               <div className="pdp-main-image-wrap">
                 <span className="pdp-mall-badge-lg">MALL</span>
-                <span className="pdp-ai-fresh-badge">
-                  <ShieldCheck size={12} />
-                  AI FRESH {aiScore}%
-                </span>
+                {/* Nhãn AI tổng hợp thật; chưa có nhãn -> không hiện badge */}
+                <AiQualityBadge
+                  label={product.aiOverallLabel}
+                  confidence={product.aiOverallConfidence}
+                  className="pdp-ai-fresh-badge"
+                />
                 <img
                   src={currentImgUrl}
                   alt={product.name}
                   className="pdp-main-img"
+                  onError={handleImageError}
                 />
               </div>
 
@@ -833,7 +892,7 @@ export default function ProductDetailPage() {
                     onClick={() => setSelectedImageIndex(idx)}
                     title={`Xem hình ảnh ${idx + 1}`}
                   >
-                    <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} />
+                    <img src={imgUrl} alt={`Ảnh ${idx + 1}`} onError={handleImageError} />
                   </button>
                 ))}
               </div>
@@ -898,7 +957,7 @@ export default function ProductDetailPage() {
                   </div>
                   <span className="pdp-meta-divider">|</span>
                   <div className="pdp-meta-sold">
-                    <strong>{product.soldCount || 140}</strong> <span>Đã Bán</span>
+                    <strong>{soldCount}</strong> <span>Đã Bán</span>
                   </div>
                   <span className="pdp-meta-divider">|</span>
                   <span style={{ color: "var(--pdp-slate-400)" }}>Mã SP: #{product.id}</span>
@@ -994,6 +1053,7 @@ export default function ProductDetailPage() {
                       type="button"
                       className="pdp-qty-btn"
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      disabled={outOfStock}
                     >
                       <Minus size={14} />
                     </button>
@@ -1006,12 +1066,13 @@ export default function ProductDetailPage() {
                     <button
                       type="button"
                       className="pdp-qty-btn"
-                      onClick={() => setQuantity((q) => Math.min(stock, q + 1))}
+                      onClick={() => setQuantity((q) => Math.max(1, Math.min(stock, q + 1)))}
+                      disabled={outOfStock}
                     >
                       <Plus size={14} />
                     </button>
                   </div>
-                  <span className="pdp-stock-text">{stock} {unit} có sẵn trong kho</span>
+                  <span className="pdp-stock-text">{outOfStock ? "Hết hàng" : `${stock} ${unit} có sẵn trong kho`}</span>
                 </div>
               </div>
 
@@ -1021,6 +1082,7 @@ export default function ProductDetailPage() {
                   type="button"
                   className="pdp-btn-add-cart"
                   onClick={() => triggerAddToCart(product, quantity)}
+                  disabled={outOfStock}
                 >
                   <ShoppingCart size={17} />
                   Thêm Vào Giỏ Hàng
@@ -1029,8 +1091,9 @@ export default function ProductDetailPage() {
                   type="button"
                   className="pdp-btn-buy-now"
                   onClick={handleBuyNow}
+                  disabled={outOfStock}
                 >
-                  Mua Ngay
+                  {outOfStock ? "Hết Hàng" : "Mua Ngay"}
                 </button>
               </div>
 
@@ -1058,7 +1121,7 @@ export default function ProductDetailPage() {
           <div className="pdp-shop-left">
             <div className="pdp-shop-avatar-wrap">
               {product.shop?.logoUrl ? (
-                <img src={product.shop.logoUrl} alt={sellerName} />
+                <img src={resolveAssetUrl(product.shop.logoUrl)} alt={sellerName} onError={handleImageError} />
               ) : (
                 <Store size={28} />
               )}
@@ -1075,9 +1138,11 @@ export default function ProductDetailPage() {
                 >
                   <MessageSquare size={13} /> Chat Ngay
                 </button>
-                <Link to={`/shops/${product.shop?.id || product.shopId || 1}`} className="pdp-shop-view-btn">
-                  <Store size={13} /> Xem Shop
-                </Link>
+                {product.shop?.id != null && (
+                  <Link to={`/shops/${product.shop.id}`} className="pdp-shop-view-btn">
+                    <Store size={13} /> Xem Shop
+                  </Link>
+                )}
                 <button
                   type="button"
                   className={`pdp-shop-follow-btn ${isFollowingShop ? "following" : ""}`}
@@ -1093,7 +1158,7 @@ export default function ProductDetailPage() {
           <div className="pdp-shop-stats-grid">
             <div className="pdp-shop-stat-item">
               <span>Đánh Giá:</span>
-              <strong>{product.shop?.ratingAvg ? `${Number(product.shop.ratingAvg).toFixed(1)} (420+ đánh giá)` : "4.9 (420+ đánh giá)"}</strong>
+              <strong>{shopRatingText}</strong>
             </div>
             <div className="pdp-shop-stat-item">
               <span>Tỉ Lệ Phản Hồi:</span>
@@ -1105,7 +1170,7 @@ export default function ProductDetailPage() {
             </div>
             <div className="pdp-shop-stat-item">
               <span>Sản Phẩm:</span>
-              <strong>38</strong>
+              <strong>{shopProductCount ?? "—"}</strong>
             </div>
             <div className="pdp-shop-stat-item">
               <span>Thời Gian Phản Hồi:</span>
@@ -1126,15 +1191,27 @@ export default function ProductDetailPage() {
             <div className="pdp-card-box">
               <h2 className="pdp-box-header">Chi Tiết Sản Phẩm</h2>
               <div className="pdp-specs-table">
-                <div className="pdp-spec-line">
-                  <span className="pdp-spec-label">Danh Mục</span>
-                  <div className="pdp-spec-val" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Link to="/products" className="pdp-spec-cat-link">Nông Sản Việt</Link>
-                    <ChevronRight size={11} color="var(--pdp-slate-400)" />
-                    <Link to="/products" className="pdp-spec-cat-link">Thực Phẩm Tươi Sống</Link>
-                    <ChevronRight size={11} color="var(--pdp-slate-400)" />
-                    <span style={{ color: "var(--pdp-slate-800)", fontWeight: "600" }}>{categoryName}</span>
+                {categoryName && (
+                  <div className="pdp-spec-line">
+                    <span className="pdp-spec-label">Danh Mục</span>
+                    <div className="pdp-spec-val" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {categorySlug ? (
+                        <Link to={`/category/${categorySlug}`} className="pdp-spec-cat-link">{categoryName}</Link>
+                      ) : (
+                        <span style={{ color: "var(--pdp-slate-800)", fontWeight: "600" }}>{categoryName}</span>
+                      )}
+                    </div>
                   </div>
+                )}
+                <div className="pdp-spec-line">
+                  <span className="pdp-spec-label">Nhãn AI</span>
+                  <span className="pdp-spec-val">
+                    {aiTag ? (
+                      <AiQualityBadge label={product.aiOverallLabel} confidence={product.aiOverallConfidence} />
+                    ) : (
+                      "Chưa có nhãn AI"
+                    )}
+                  </span>
                 </div>
                 <div className="pdp-spec-line">
                   <span className="pdp-spec-label">Thương hiệu / HTX</span>
@@ -1174,8 +1251,12 @@ export default function ProductDetailPage() {
                 <p>
                   <strong>Đặc điểm nổi bật:</strong>
                   <br />
-                  - 100% Thu hái tươi mới mỗi sáng, kiểm định chất lượng AI đạt {aiScore}% độ tươi và độ bóng vỏ.
-                  <br />
+                  {aiSummary && (
+                    <>
+                      - Nhãn AI từ ảnh sản phẩm: {aiSummary}.
+                      <br />
+                    </>
+                  )}
                   - Giàu vitamin và khoáng chất tự nhiên, an toàn cho cả gia đình.
                   <br />
                   - Thích hợp cho các món xào, luộc, canh thanh mát hoặc chế biến salad eat-clean.
@@ -1389,13 +1470,10 @@ export default function ProductDetailPage() {
                     className="pdp-top-seller-item"
                   >
                     <img
-                      src={
-                        item.imageUrl ||
-                        item.primaryImageUrl ||
-                        "https://placehold.co/100x100?text=Top+Seller"
-                      }
+                      src={resolveAssetUrl(item.primaryImageUrl) || PLACEHOLDER_IMAGE}
                       alt={item.name}
                       className="pdp-top-seller-thumb"
+                      onError={handleImageError}
                     />
                     <div className="pdp-top-seller-meta">
                       <h4 className="pdp-top-seller-name">{item.name}</h4>
@@ -1403,7 +1481,7 @@ export default function ProductDetailPage() {
                         ₫{Number(item.price || 0).toLocaleString("vi-VN")}
                       </span>
                       <span className="pdp-top-seller-sold">
-                        Đã bán {item.soldCount || 180} {item.unit || "kg"}
+                        Đã bán {item.soldCount ?? 0} {item.unit || "kg"}
                       </span>
                     </div>
                   </Link>
@@ -1427,21 +1505,19 @@ export default function ProductDetailPage() {
 
             <div className="pdp-related-grid">
               {relatedProducts.map((rel) => {
-                const relImg =
-                  rel.imageUrl ||
-                  rel.primaryImageUrl ||
-                  "https://placehold.co/400x400?text=Produce";
-                const relScore = rel.aiOverallConfidence
-                  ? Math.round(Number(rel.aiOverallConfidence) * 100)
-                  : rel.freshnessScore || 95;
+                const relImg = resolveAssetUrl(rel.primaryImageUrl) || PLACEHOLDER_IMAGE;
 
                 return (
                   <div key={rel.id} className="pdp-related-card">
                     <Link to={`/products/${rel.id}`} className="pdp-related-card-link">
                       <div className="pdp-related-img-wrap">
-                        <img src={relImg} alt={rel.name} />
+                        <img src={relImg} alt={rel.name} onError={handleImageError} />
                         <span className="pdp-related-mall-badge">Mall</span>
-                        <span className="pdp-related-ai-badge">AI {relScore}%</span>
+                        <AiQualityBadge
+                          label={rel.aiOverallLabel}
+                          confidence={rel.aiOverallConfidence}
+                          className="pdp-related-ai-badge"
+                        />
                       </div>
                       <h3 className="pdp-related-name">{rel.name}</h3>
                       <div className="pdp-related-meta-row">
@@ -1449,7 +1525,7 @@ export default function ProductDetailPage() {
                           ₫{Number(rel.price || 0).toLocaleString("vi-VN")}
                         </span>
                         <span className="pdp-related-sold">
-                          Đã bán {rel.soldCount || 120}
+                          Đã bán {rel.soldCount ?? 0}
                         </span>
                       </div>
                     </Link>
@@ -1730,7 +1806,7 @@ export default function ProductDetailPage() {
 
           {/* Xem trước sản phẩm */}
           <div className="pdp-chat-preview-box">
-            <img src={currentImgUrl} alt={product.name} className="pdp-chat-preview-img" />
+            <img src={currentImgUrl} alt={product.name} className="pdp-chat-preview-img" onError={handleImageError} />
             <div className="pdp-chat-preview-meta">
               <div className="pdp-chat-preview-title">{product.name}</div>
               <div className="pdp-chat-preview-price">₫{price.toLocaleString("vi-VN")}</div>

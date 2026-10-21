@@ -1,115 +1,81 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { productApi, categoryApi } from "../../services/api";
+import { flattenCategoryTree } from "../../utils/categories";
+import { apiErrorMessage } from "../../utils/format";
 import ProductCard from "../../components/ProductCard";
-import { Camera, Store, Star, Play } from "lucide-react";
+import { Camera, Store, Play, AlertCircle, RefreshCw } from "lucide-react";
 import "./HomePage.css";
 
-// Helper function to get an icon based on category slug/name
-const getCategoryIcon = (slug) => {
-  const iconMap = {
-    'rau-cu': '🥦',
-    'trai-cay': '🍎',
-    'nam': '🍄',
-    'thuc-pham-kho': '🌾',
-    'dac-san': '🍯',
-  };
-  return iconMap[slug] || '🍇';
-};
+const HOME_PRODUCT_COUNT = 4;
+const HOME_CATEGORY_COUNT = 5;
+const FEATURED_SHOP_COUNT = 3;
 
-const DEFAULT_CATEGORIES = [
-  { slug: 'rau-cu', id: 'rau-cu', name: 'Rau củ', productCount: 68 },
-  { slug: 'trai-cay', id: 'trai-cay', name: 'Trái cây', productCount: 112 },
-  { slug: 'nam', id: 'nam', name: 'Nấm tươi', productCount: 18 },
-  { slug: 'thuc-pham-kho', id: 'thuc-pham-kho', name: 'Thực phẩm khô', productCount: 40 },
-  { slug: 'dac-san', id: 'dac-san', name: 'Đặc sản vùng miền', productCount: 25 },
-];
+// Biểu tượng theo slug danh mục thật (ProductSeeder); danh mục mới chưa có biểu tượng riêng thì dùng mặc định
+const CATEGORY_ICONS = {
+  "rau-cu": "🥦",
+  "cu-qua": "🥕",
+  "rau-la": "🥬",
+  "trai-cay": "🍎"
+};
+const categoryIcon = (slug) => CATEGORY_ICONS[slug] || "🌱";
 
 export default function HomePage() {
-  const [newProducts, setNewProducts] = useState([]);
-  const [bestSellers, setBestSellers] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [reloadToken, setReloadToken] = useState(0);
+  // key = reloadToken của lần tải đã xong; khác reloadToken hiện tại nghĩa là đang tải
+  const [data, setData] = useState({ key: null, newProducts: [], bestSellers: [], categories: [], error: null });
 
   useEffect(() => {
     let ignore = false;
-    async function fetchData() {
-      try {
-        let allProducts = [];
-        try {
-          const res = await productApi.getAll({ size: 50, sort: "newest" });
-          allProducts = res?.content || (Array.isArray(res) ? res : []);
-        } catch (apiErr) {
-          console.warn("Lỗi gọi productApi /products, fallback mock data:", apiErr.message);
-          const { getSharedProducts } = await import("../../data/productStore");
-          allProducts = getSharedProducts().filter(p => p.status === "APPROVED");
-        }
+    Promise.allSettled([
+      productApi.getAll({ sort: "newest", size: HOME_PRODUCT_COUNT }),
+      productApi.getAll({ sort: "bestSelling", size: HOME_PRODUCT_COUNT }),
+      categoryApi.getAll()
+    ]).then(([newestRes, bestRes, categoriesRes]) => {
+      if (ignore) return;
+      const productError = [newestRes, bestRes].find((r) => r.status === "rejected");
+      setData({
+        key: reloadToken,
+        newProducts: newestRes.status === "fulfilled" ? newestRes.value?.content ?? [] : [],
+        bestSellers: bestRes.status === "fulfilled" ? bestRes.value?.content ?? [] : [],
+        categories: categoriesRes.status === "fulfilled" ? flattenCategoryTree(categoriesRes.value) : [],
+        error: productError ? apiErrorMessage(productError.reason, "Không tải được sản phẩm. Kiểm tra kết nối rồi thử lại.") : null
+      });
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [reloadToken]);
 
-        allProducts = allProducts.map(p => ({
-          ...p,
-          price: Number(p.price) || 0,
-          originalPrice: p.originalPrice || Math.floor((Number(p.price) || 0) * 1.2),
-          category: typeof p.category === 'object' ? p.category?.name : (p.category || ""),
-          seller: p.shop?.shopName || p.seller || "Nông sản sạch",
-          origin: p.origin || p.shop?.province || "Việt Nam",
-          imageUrl: p.primaryImageUrl || p.imageUrl,
-          aiGrade: p.aiGrade || (p.aiOverallLabel === "FRESH" ? "Tươi sạch AI" : (p.aiOverallLabel === "ROTTEN" ? "Hỏng" : "Kiểm định AI")),
-        }));
+  const loading = data.key !== reloadToken;
 
-        let categoriesRes = null;
-        try {
-          categoriesRes = await categoryApi.getAll();
-        } catch (e) {
-          // Backend might not be running, use fallback categories
-          categoriesRes = DEFAULT_CATEGORIES;
-        }
+  const displayCategories = useMemo(
+    () => data.categories.slice(0, HOME_CATEGORY_COUNT),
+    [data.categories]
+  );
 
-        if (!categoriesRes || categoriesRes.length === 0) {
-          categoriesRes = DEFAULT_CATEGORIES;
-        }
-        
-        if (!ignore) {
-          // Xử lý products
-          const products = allProducts;
-          setNewProducts(products.slice(0, 4));
-          
-          if (products.length >= 8) {
-            setBestSellers(products.slice(4, 8));
-          } else if (products.length > 4) {
-            setBestSellers(products.slice(products.length - 4, products.length));
-          } else {
-            setBestSellers([...products].reverse());
-          }
+  // Shop nổi bật = các shop đang có sản phẩm bán chạy/mới (lấy từ chính dữ liệu sản phẩm thật, không viết cứng)
+  const featuredShops = useMemo(() => {
+    const shops = new Map();
+    [...data.bestSellers, ...data.newProducts].forEach((p) => {
+      if (p.shop?.id != null && !shops.has(p.shop.id)) shops.set(p.shop.id, p.shop);
+    });
+    return [...shops.values()].slice(0, FEATURED_SHOP_COUNT);
+  }, [data.bestSellers, data.newProducts]);
 
-          // Xử lý categories
-          const cats = categoriesRes || [];
-          const displayCats = cats.slice(0, 5).map(c => ({
-            id: c.slug || c.id,
-            name: c.name,
-            icon: getCategoryIcon(c.slug),
-            count: `${c.productCount || 0} sản phẩm`,
-            isAll: false
-          }));
+  const handleRetry = () => setReloadToken((t) => t + 1);
 
-          // Thêm mục "Tất cả"
-          displayCats.push({
-            id: 'all',
-            name: "Tất cả mục",
-            icon: "🍇",
-            count: "Khám phá",
-            isAll: true
-          });
-          
-          setCategories(displayCats);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!ignore) setLoading(false);
-      }
-    }
-    fetchData();
-    return () => { ignore = true; };
-  }, []);
+  const renderProductGrid = (products, emptyText) => {
+    if (loading) return <div className="hp-loading">Đang tải sản phẩm...</div>;
+    if (products.length === 0) return data.error ? null : <div className="hp-loading">{emptyText}</div>;
+    return (
+      <div className="products-grid">
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="home-page">
@@ -125,41 +91,60 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 2. Categories */}
-      <section className="hp-categories-section section-container">
-        <div className="section-header-new">
-          <div className="sh-left">
-            <h2 className="sh-title">Danh mục sản phẩm</h2>
-            <p className="sh-subtitle">Tuyển chọn các mặt hàng sạch được phân loại theo nông hộ</p>
+      {/* Lỗi tải sản phẩm -> báo lỗi + thử lại, không hiện sản phẩm giả */}
+      {!loading && data.error && (
+        <section className="section-container">
+          <div className="api-error-banner" role="alert">
+            <AlertCircle size={22} className="error-icon" />
+            <div className="error-content">
+              <strong>Không tải được sản phẩm</strong>
+              {data.error}
+            </div>
+            <button type="button" className="retry-btn" onClick={handleRetry}>
+              <RefreshCw size={14} /> Thử lại
+            </button>
           </div>
-          <Link to="/products" className="sh-link">Xem tất cả &rarr;</Link>
-        </div>
-        <div className="categories-grid-new">
-          {categories.map((cat) => (
-            <Link to={cat.isAll ? '/products' : `/category/${cat.id}`} key={cat.id} className="category-card-new">
-              <div className="cat-icon-new">{cat.icon}</div>
-              <h3 className="cat-name-new">{cat.name}</h3>
-              <p className="cat-count-new">{cat.count}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* 2. Categories — dựng từ /api/categories */}
+      {(loading || displayCategories.length > 0) && (
+        <section className="hp-categories-section section-container">
+          <div className="section-header-new">
+            <div className="sh-left">
+              <h2 className="sh-title">Danh mục sản phẩm</h2>
+              <p className="sh-subtitle">Tuyển chọn các mặt hàng sạch được phân loại theo nông hộ</p>
+            </div>
+            <Link to="/products" className="sh-link">Xem tất cả &rarr;</Link>
+          </div>
+          {loading ? (
+            <div className="hp-loading">Đang tải danh mục...</div>
+          ) : (
+            <div className="categories-grid-new">
+              {displayCategories.map((cat) => (
+                <Link to={`/category/${cat.slug}`} key={cat.id} className="category-card-new">
+                  <div className="cat-icon-new">{categoryIcon(cat.slug)}</div>
+                  <h3 className="cat-name-new">{cat.name}</h3>
+                  <p className="cat-count-new">{cat.productCount} sản phẩm</p>
+                </Link>
+              ))}
+              <Link to="/products" className="category-card-new">
+                <div className="cat-icon-new">🧺</div>
+                <h3 className="cat-name-new">Tất cả mục</h3>
+                <p className="cat-count-new">Khám phá</p>
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 3. Sản phẩm mới duyệt */}
       <section className="hp-products-section section-container">
         <div className="section-header">
           <h2 className="section-title">Sản phẩm mới duyệt</h2>
-          <Link to="/products?sort=new" className="view-all-link">Xem thêm</Link>
+          <Link to="/products?sort=newest" className="view-all-link">Xem thêm</Link>
         </div>
-        {loading ? (
-          <div className="hp-loading">Đang tải sản phẩm...</div>
-        ) : (
-          <div className="products-grid">
-            {newProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
+        {renderProductGrid(data.newProducts, "Chưa có sản phẩm nào đang bán.")}
       </section>
 
       {/* 4. AI Check Banner */}
@@ -170,7 +155,7 @@ export default function HomePage() {
           </div>
           <div className="ai-banner-text">
             <h3>Không chắc rau quả còn tươi? Để AI kiểm tra giúp bạn</h3>
-            <p>Chụp hoặc tải ảnh nông sản, hệ thống trả kết quả tươi / hỏng kém % tin cậy trong vài giây.</p>
+            <p>Chụp hoặc tải ảnh nông sản, hệ thống trả kết quả tươi / hỏng kèm % tin cậy trong vài giây.</p>
           </div>
           <div className="ai-banner-action">
             <Link to="/ai-check" className="btn-dark">Kiểm tra ngay</Link>
@@ -178,56 +163,43 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. Bán chạy tuần này */}
+      {/* 5. Bán chạy — sort=bestSelling của backend */}
       <section className="hp-products-section section-container">
         <div className="section-header">
-          <h2 className="section-title">Bán chạy tuần này</h2>
-          <Link to="/products?sort=best_seller" className="view-all-link">Xem thêm</Link>
+          <h2 className="section-title">Bán chạy</h2>
+          <Link to="/products?sort=bestSelling" className="view-all-link">Xem thêm</Link>
         </div>
-        {loading ? (
-          <div className="hp-loading">Đang tải sản phẩm...</div>
-        ) : (
-          <div className="products-grid">
-            {bestSellers.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
+        {renderProductGrid(data.bestSellers, "Chưa có sản phẩm nào đang bán.")}
       </section>
 
-      {/* 6. Shop nổi bật */}
-      <section className="hp-shops-section section-container">
-        <div className="section-header">
-          <h2 className="section-title">Shop nổi bật</h2>
-        </div>
-        <div className="shops-grid">
-          {[
-            { id: 1, name: "Vườn rau Tâm An", address: "Lâm Đồng", rating: 4.6, productsCount: 18 },
-            { id: 2, name: "HTX Xoài Cao Lãnh", address: "Đồng Tháp", rating: 4.8, productsCount: 12 },
-            { id: 3, name: "Đặc sản Tây Bắc", address: "Sơn La", rating: 4.7, productsCount: 15 }
-          ].map(shop => (
-            <div key={shop.id} className="shop-card">
-              <div className="shop-info">
-                <div className="shop-avatar">
-                  <Store size={24} />
-                </div>
-                <div className="shop-details">
-                  <h4>{shop.name}</h4>
-                  <div className="shop-meta">
-                    <span>{shop.address}</span>
-                    <span className="dot">•</span>
-                    <span className="shop-rating"><Star size={12} fill="currentColor" /> {shop.rating}</span>
-                    <span className="dot">•</span>
-                    <span>{shop.productsCount} sản phẩm</span>
+      {/* 6. Shop nổi bật — shop của các sản phẩm ở trên */}
+      {!loading && featuredShops.length > 0 && (
+        <section className="hp-shops-section section-container">
+          <div className="section-header">
+            <h2 className="section-title">Shop nổi bật</h2>
+          </div>
+          <div className="shops-grid">
+            {featuredShops.map((shop) => (
+              <div key={shop.id} className="shop-card">
+                <div className="shop-info">
+                  <div className="shop-avatar">
+                    <Store size={24} />
+                  </div>
+                  <div className="shop-details">
+                    <h4>{shop.shopName}</h4>
+                    {shop.province && (
+                      <div className="shop-meta">
+                        <span>{shop.province}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+                <Link to={`/shops/${shop.id}`} className="btn-outline-small">Xem shop</Link>
               </div>
-              <Link to={`/shops/${shop.id}`} className="btn-outline-small">Xem shop</Link>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
-

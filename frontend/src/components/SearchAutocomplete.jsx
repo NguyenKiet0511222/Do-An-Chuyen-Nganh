@@ -1,325 +1,298 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useId } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { Search, X, Sparkles, ArrowRight, TrendingUp, Tag } from "lucide-react";
+import { Search, X, ArrowRight, TrendingUp, Tag, AlertCircle } from "lucide-react";
 import { productApi, resolveAssetUrl } from "../services/api";
-import { getSharedProducts } from "../data/productStore";
-import { MOCK_PRODUCTS } from "../data/mockProducts";
+import { normalizeVi } from "../utils/text";
+import { formatVnd, handleImageError } from "../utils/format";
+import AiQualityBadge from "./AiQualityBadge";
 import "./SearchAutocomplete.css";
 
-const CATEGORY_MAP = [
-  { slug: "rau-cu", name: "Rau củ", icon: "🥦" },
-  { slug: "trai-cay", name: "Trái cây", icon: "🍎" },
-  { slug: "nam", name: "Nấm tươi", icon: "🍄" },
-  { slug: "thuc-pham-kho", name: "Thực phẩm khô", icon: "🌾" },
-  { slug: "dac-san", name: "Đặc sản", icon: "🍯" }
-];
+const MAX_SUGGESTIONS = 6;
+const MAX_BEST_SELLERS = 5;
+const MAX_CATEGORY_CHIPS = 6;
+// Backend chưa tìm không dấu -> lọc phía trình duyệt trên 100 sản phẩm mới nhất (docs/2110.md mục 5)
+const CACHE_SIZE = 100;
+const REMOTE_MIN_LENGTH = 2;
+const PLACEHOLDER_IMAGE = "https://placehold.co/96x96?text=No+Image";
 
-const POPULAR_SEARCHES = [
-  "Cà chua bi",
-  "Táo Fuji",
-  "Dâu tây Đà Lạt",
-  "Nấm đùi gà",
-  "Cam sành",
-  "Bông cải xanh"
-];
+// Trang có ô tìm kiếm phản ánh lên URL: /products?search=… và /category/:slug?search=…
+const readUrlQuery = (location) =>
+  location.pathname === "/products" || location.pathname.startsWith("/category/")
+    ? new URLSearchParams(location.search).get("search") ?? ""
+    : "";
 
-export function removeVietnameseTones(str) {
-  if (!str) return "";
-  str = String(str)
-    .replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a")
-    .replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e")
-    .replace(/ì|í|ị|ỉ|ĩ/g, "i")
-    .replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o")
-    .replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u")
-    .replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y")
-    .replace(/đ/g, "d")
-    .replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A")
-    .replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E")
-    .replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I")
-    .replace(/Ò|Ó|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O")
-    .replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U")
-    .replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y")
-    .replace(/Đ/g, "D");
-  return str.toLowerCase().trim();
-}
-
-// Helper highlight matching text
-function HighlightMatch({ text = "", query = "" }) {
-  if (!query || !query.trim() || !text) return <span>{text}</span>;
-
-  const normalizedText = removeVietnameseTones(text);
-  const normalizedQuery = removeVietnameseTones(query);
-  const matchIndex = normalizedText.indexOf(normalizedQuery);
-
-  if (matchIndex === -1) {
-    return <span>{text}</span>;
+// Product (list item) của GET /api/products -> dòng gợi ý (kèm chuỗi đã bỏ dấu để so khớp)
+const toSuggestion = (p) => ({
+  id: p.id,
+  name: p.name ?? "",
+  price: p.price,
+  unit: p.unit || "kg",
+  categoryName: p.category?.name ?? "",
+  shopName: p.shop?.shopName ?? "",
+  province: p.shop?.province ?? "",
+  imageUrl: resolveAssetUrl(p.primaryImageUrl) || PLACEHOLDER_IMAGE,
+  aiLabel: p.aiOverallLabel ?? null,
+  aiConfidence: p.aiOverallConfidence ?? null,
+  soldCount: Number(p.soldCount) || 0,
+  search: {
+    name: normalizeVi(p.name),
+    category: normalizeVi(p.category?.name),
+    shop: normalizeVi(p.shop?.shopName),
+    province: normalizeVi(p.shop?.province)
   }
+});
 
-  const before = text.substring(0, matchIndex);
-  const match = text.substring(matchIndex, matchIndex + query.length);
-  const after = text.substring(matchIndex + query.length);
+/** Ghép thêm các dòng mới (theo id) vào cuối danh sách cũ. */
+const mergeById = (base, extra) => {
+  const ids = new Set(base.map((item) => String(item.id)));
+  return [...base, ...extra.filter((item) => !ids.has(String(item.id)))];
+};
 
+const scoreOf = (item, q) => {
+  let score = 0;
+  if (item.search.name === q) score += 100;
+  else if (item.search.name.startsWith(q)) score += 50;
+  else if (item.search.name.includes(q)) score += 30;
+  if (item.search.category.includes(q)) score += 20;
+  if (item.search.shop.includes(q) || item.search.province.includes(q)) score += 10;
+  return score;
+};
+
+// Tô đoạn khớp (so khớp không dấu). Chuẩn hoá NFC trước để mỗi ký tự gốc ứng đúng 1 ký tự sau khi bỏ dấu.
+function HighlightMatch({ text, query }) {
+  const source = String(text ?? "").normalize("NFC");
+  const q = normalizeVi(query).trim();
+  const index = q ? normalizeVi(source).indexOf(q) : -1;
+  if (index < 0) return source;
   return (
-    <span>
-      {before}
-      <mark>{match}</mark>
-      {after}
-    </span>
+    <>
+      {source.slice(0, index)}
+      <mark>{source.slice(index, index + q.length)}</mark>
+      {source.slice(index + q.length)}
+    </>
   );
 }
 
-export default function SearchAutocomplete({ initialValue = "", placeholder = "Tìm rau củ, trái cây sạch, nấm hữu cơ...", onSearchSubmitted }) {
-  const [query, setQuery] = useState(initialValue);
+/**
+ * Ô tìm kiếm có gợi ý (Navbar).
+ * - categories: danh sách phẳng từ GET /api/categories (utils/categories.flattenCategoryTree) — Navbar truyền xuống.
+ * - Gợi ý chỉ tải khi bấm vào ô (không tải lúc mở trang); API lỗi thì báo lỗi, không gợi ý sản phẩm giả.
+ */
+export default function SearchAutocomplete({ categories = [], placeholder = "Tìm rau củ, trái cây tươi sạch..." }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const baseId = useId();
+  const listboxId = `${baseId}-listbox`;
+
+  const [query, setQuery] = useState(() => readUrlQuery(location));
   const [isOpen, setIsOpen] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [productsCache, setProductsCache] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  // status: idle (chưa bấm vào ô) | loading | ready | error
+  const [cache, setCache] = useState({ status: "idle", items: [] });
+  const [remoteLoading, setRemoteLoading] = useState(false);
 
   const containerRef = useRef(null);
   const inputRef = useRef(null);
-  const debounceTimerRef = useRef(null);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const debounceRef = useRef(null);
+  const remoteSeqRef = useRef(0);
+  const cacheRequestRef = useRef(false);
 
-  // Load all products into local memory cache on mount
-  useEffect(() => {
-    let isMounted = true;
-    async function loadProducts() {
-      try {
-        let items = [];
-        try {
-          const res = await productApi.getAll({ size: 100, sort: "newest" });
-          items = res?.content || (Array.isArray(res) ? res : []);
-        } catch {
-          // Fallback to local shared products or mock
-          items = getSharedProducts() || [];
-          if (!items || items.length === 0) {
-            items = MOCK_PRODUCTS;
-          }
-        }
-
-        const normalized = items
-          .filter(p => !p.status || p.status === "APPROVED")
-          .map(p => ({
-            id: p.id,
-            name: p.name || "",
-            price: Number(p.price) || 0,
-            unit: p.unit || "kg",
-            category: typeof p.category === "object" ? p.category?.name : (p.category || ""),
-            seller: p.shop?.shopName || p.seller || "Nông sản sạch",
-            origin: p.origin || p.shop?.province || "Việt Nam",
-            imageUrl: resolveAssetUrl(p.primaryImageUrl || p.imageUrl || p.image || "https://placehold.co/400x400?text=NongSan"),
-            aiLabel: p.aiOverallLabel === "FRESH" || p.aiLabel?.type === "fresh" || !p.aiOverallLabel
-              ? "Tươi sạch AI"
-              : p.aiGrade || "Kiểm định AI",
-          }));
-
-        if (isMounted) {
-          setProductsCache(normalized);
-        }
-      } catch (err) {
-        console.warn("Lỗi nạp sản phẩm cho tìm kiếm:", err);
-      }
-    }
-
-    loadProducts();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Sync initial query from URL search params if present
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const searchParam = params.get("search") || params.get("keyword") || "";
-    if (searchParam && !query) {
-      setQuery(searchParam);
-    }
-    // Close dropdown on navigation
+  // Đồng bộ URL mỗi lần chuyển trang (cả nút Back/Forward): ô hiện ?search= của trang kết quả, đóng gợi ý.
+  // Điều chỉnh state ngay lúc render khi location đổi (mẫu "lưu giá trị của lần render trước" của React), không dùng effect.
+  const [syncedLocationKey, setSyncedLocationKey] = useState(location.key);
+  if (syncedLocationKey !== location.key) {
+    setSyncedLocationKey(location.key);
+    setQuery(readUrlQuery(location));
     setIsOpen(false);
-  }, [location.pathname, location.search]);
+    setActiveIndex(-1);
+  }
 
-  // Click outside listener
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
-        setIsFocused(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  // Huỷ hẹn giờ tìm trên server khi gỡ component
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
 
-  // Filter products based on current query
+  const normalizedQuery = normalizeVi(query).trim();
+  const hasQuery = normalizedQuery.length > 0;
+
   const suggestions = useMemo(() => {
-    const cleanQuery = removeVietnameseTones(query);
-    if (!cleanQuery) return [];
-
-    return productsCache
-      .map(p => {
-        const normName = removeVietnameseTones(p.name);
-        const normCat = removeVietnameseTones(p.category);
-        const normSeller = removeVietnameseTones(p.seller);
-        const normOrigin = removeVietnameseTones(p.origin);
-
-        let score = 0;
-        if (normName === cleanQuery) score += 100;
-        else if (normName.startsWith(cleanQuery)) score += 50;
-        else if (normName.includes(cleanQuery)) score += 30;
-
-        if (normCat.includes(cleanQuery)) score += 20;
-        if (normSeller.includes(cleanQuery) || normOrigin.includes(cleanQuery)) score += 10;
-
-        return { product: p, score };
-      })
-      .filter(item => item.score > 0)
+    if (!normalizedQuery) return [];
+    return cache.items
+      .map((item) => ({ item, score: scoreOf(item, normalizedQuery) }))
+      .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 6)
-      .map(item => item.product);
-  }, [query, productsCache]);
+      .slice(0, MAX_SUGGESTIONS)
+      .map((entry) => entry.item);
+  }, [cache.items, normalizedQuery]);
 
-  // Matched categories for the query
+  // "Bán chạy" khi ô trống: sắp theo số đã bán trong bộ nhớ đệm (bằng sort=bestSelling của server khi ≤ 100 sản phẩm)
+  const bestSellers = useMemo(
+    () => [...cache.items].sort((a, b) => b.soldCount - a.soldCount).slice(0, MAX_BEST_SELLERS),
+    [cache.items]
+  );
+
   const matchedCategories = useMemo(() => {
-    const cleanQuery = removeVietnameseTones(query);
-    if (!cleanQuery) return [];
-    return CATEGORY_MAP.filter(cat => 
-      removeVietnameseTones(cat.name).includes(cleanQuery)
-    );
-  }, [query]);
+    const list = hasQuery
+      ? categories.filter((cat) => normalizeVi(cat.name).includes(normalizedQuery))
+      : categories;
+    return list.slice(0, MAX_CATEGORY_CHIPS);
+  }, [categories, hasQuery, normalizedQuery]);
 
-  // Debounced API call if user wants remote search update
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    setQuery(val);
-    setSelectedIndex(-1);
-    setIsOpen(true);
+  const options = hasQuery ? suggestions : bestSellers;
+  const activeOptionIndex = isOpen && activeIndex >= 0 && activeIndex < options.length ? activeIndex : -1;
+  const isLoading = cache.status === "loading" || remoteLoading;
 
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+  // Cuộn tới mục đang chọn bằng phím mũi tên
+  useEffect(() => {
+    if (activeOptionIndex < 0) return;
+    document.getElementById(`${baseId}-option-${activeOptionIndex}`)?.scrollIntoView({ block: "nearest" });
+  }, [activeOptionIndex, baseId]);
 
-    if (val.trim().length >= 2) {
-      setLoading(true);
-      debounceTimerRef.current = setTimeout(async () => {
-        try {
-          const res = await productApi.getAll({ keyword: val.trim(), size: 8 });
-          const items = res?.content || (Array.isArray(res) ? res : []);
-          if (items.length > 0) {
-            setProductsCache(prev => {
-              const existingIds = new Set(prev.map(p => String(p.id)));
-              const newItems = items
-                .filter(p => !existingIds.has(String(p.id)))
-                .map(p => ({
-                  id: p.id,
-                  name: p.name || "",
-                  price: Number(p.price) || 0,
-                  unit: p.unit || "kg",
-                  category: typeof p.category === "object" ? p.category?.name : (p.category || ""),
-                  seller: p.shop?.shopName || p.seller || "Nông sản sạch",
-                  origin: p.origin || p.shop?.province || "Việt Nam",
-                  imageUrl: resolveAssetUrl(p.primaryImageUrl || p.imageUrl || p.image || "https://placehold.co/400x400?text=NongSan"),
-                  aiLabel: p.aiOverallLabel === "FRESH" ? "Tươi sạch AI" : "Kiểm định AI"
-                }));
-              return [...prev, ...newItems];
-            });
-          }
-        } catch {
-          // Keep local cache silently
-        } finally {
-          setLoading(false);
-        }
-      }, 300);
-    } else {
-      setLoading(false);
+  // Tải 100 sản phẩm mới nhất làm bộ nhớ đệm — lần đầu bấm vào ô, hoặc thử lại nếu lần trước lỗi.
+  // Ref chặn gọi trùng khi focus + click đến liền nhau trước lần render kế tiếp.
+  const loadCache = () => {
+    if (cacheRequestRef.current || cache.status === "ready") return;
+    cacheRequestRef.current = true;
+    setCache((prev) => ({ ...prev, status: "loading" }));
+    productApi
+      .getAll({ size: CACHE_SIZE, sort: "newest" })
+      .then((res) => {
+        const fresh = (res?.content ?? []).map(toSuggestion);
+        setCache((prev) => ({ status: "ready", items: mergeById(fresh, prev.items) }));
+      })
+      .catch(() => setCache((prev) => ({ ...prev, status: "error" })))
+      .finally(() => {
+        cacheRequestRef.current = false;
+      });
+  };
+
+  // Gõ ≥ 2 ký tự: hỏi thêm server (300ms sau lần gõ cuối) để có cả sản phẩm ngoài bộ nhớ đệm
+  const scheduleRemoteSearch = (value) => {
+    clearTimeout(debounceRef.current);
+    const keyword = value.trim();
+    const seq = ++remoteSeqRef.current;
+    if (keyword.length < REMOTE_MIN_LENGTH) {
+      setRemoteLoading(false);
+      return;
     }
+    setRemoteLoading(true);
+    debounceRef.current = setTimeout(() => {
+      productApi
+        .getAll({ keyword, size: 8 })
+        .then((res) => {
+          const found = (res?.content ?? []).map(toSuggestion);
+          setCache((prev) => ({ ...prev, items: mergeById(prev.items, found) }));
+        })
+        .catch(() => {
+          // Bỏ qua: vẫn còn gợi ý từ bộ nhớ đệm; lỗi tải bộ nhớ đệm đã có thông báo riêng
+        })
+        .finally(() => {
+          if (seq === remoteSeqRef.current) setRemoteLoading(false);
+        });
+    }, 300);
+  };
+
+  const openDropdown = () => {
+    setIsOpen(true);
+    loadCache();
+  };
+
+  const closeDropdown = () => {
+    setIsOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setQuery(value);
+    setActiveIndex(-1);
+    openDropdown();
+    scheduleRemoteSearch(value);
   };
 
   const handleClear = () => {
     setQuery("");
-    setSelectedIndex(-1);
+    setActiveIndex(-1);
+    scheduleRemoteSearch("");
     inputRef.current?.focus();
   };
 
-  const handleFocus = () => {
-    setIsFocused(true);
-    setIsOpen(true);
+  // Focus rời khỏi cả khối tìm kiếm (Tab, bấm ra ngoài) -> đóng gợi ý
+  const handleBlur = (e) => {
+    if (!containerRef.current?.contains(e.relatedTarget)) closeDropdown();
   };
 
-  const submitSearch = (searchKeyword) => {
-    const term = (searchKeyword !== undefined ? searchKeyword : query).trim();
-    setIsOpen(false);
-    setIsFocused(false);
-    if (onSearchSubmitted) {
-      onSearchSubmitted(term);
-    }
-    if (term) {
-      navigate(`/products?search=${encodeURIComponent(term)}`);
-    } else {
-      navigate("/products");
-    }
+  const submitSearch = (term = query) => {
+    const keyword = term.trim();
+    closeDropdown();
+    navigate(keyword ? `/products?search=${encodeURIComponent(keyword)}` : "/products");
+  };
+
+  const selectProduct = (productId) => {
+    closeDropdown();
+    navigate(`/products/${productId}`);
   };
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-      handleSelectProduct(suggestions[selectedIndex].id);
+    if (activeOptionIndex >= 0) {
+      selectProduct(options[activeOptionIndex].id);
     } else {
       submitSearch();
     }
   };
 
-  const handleSelectProduct = (productId) => {
-    setIsOpen(false);
-    navigate(`/products/${productId}`);
-  };
-
   const handleKeyDown = (e) => {
-    if (!isOpen) return;
-
-    if (e.key === "ArrowDown") {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : 0));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex(prev => (prev > 0 ? prev - 1 : suggestions.length - 1));
+      if (!isOpen) {
+        openDropdown();
+        return;
+      }
+      if (options.length === 0) return;
+      const down = e.key === "ArrowDown";
+      setActiveIndex((prev) => {
+        const current = prev >= 0 && prev < options.length ? prev : -1;
+        if (down) return current + 1 >= options.length ? 0 : current + 1;
+        return current <= 0 ? options.length - 1 : current - 1;
+      });
     } else if (e.key === "Escape") {
-      setIsOpen(false);
+      if (isOpen) {
+        e.preventDefault();
+        closeDropdown();
+      } else if (query) {
+        handleClear();
+      }
     }
   };
 
-  const formatPrice = (amount) => {
-    return (Number(amount) || 0).toLocaleString("vi-VN") + " đ";
-  };
-
-  const hasQuery = query.trim().length > 0;
-  const showDropdown = isOpen && (hasQuery || isFocused);
+  const showStatus = options.length === 0;
 
   return (
-    <div className="search-autocomplete-wrapper" ref={containerRef}>
-      {/* Form Input */}
-      <form onSubmit={handleFormSubmit} className={`search-autocomplete-form ${isFocused ? "is-focused" : ""}`}>
-        <Search size={18} className="search-autocomplete-icon" />
+    <div className="search-autocomplete-wrapper" ref={containerRef} onBlur={handleBlur}>
+      <form role="search" onSubmit={handleFormSubmit} className="search-autocomplete-form">
+        <Search size={18} className="search-autocomplete-icon" aria-hidden="true" />
         <input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-label="Tìm kiếm nông sản"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-controls={listboxId}
+          aria-activedescendant={activeOptionIndex >= 0 ? `${baseId}-option-${activeOptionIndex}` : undefined}
           placeholder={placeholder}
           className="search-autocomplete-input"
           value={query}
           onChange={handleInputChange}
-          onFocus={handleFocus}
+          onFocus={openDropdown}
+          onClick={() => !isOpen && openDropdown()}
           onKeyDown={handleKeyDown}
           autoComplete="off"
         />
 
-        {loading && <div className="search-loading-spinner" title="Đang tìm kiếm..." />}
+        {isLoading && <div className="search-loading-spinner" role="status" aria-label="Đang tải gợi ý" />}
 
-        {hasQuery && !loading && (
-          <button
-            type="button"
-            className="search-clear-btn"
-            onClick={handleClear}
-            title="Xóa tìm kiếm"
-          >
+        {query && !isLoading && (
+          <button type="button" className="search-clear-btn" onClick={handleClear} aria-label="Xoá nội dung tìm kiếm">
             <X size={14} />
           </button>
         )}
@@ -329,149 +302,126 @@ export default function SearchAutocomplete({ initialValue = "", placeholder = "T
         </button>
       </form>
 
-      {/* Dropdown Suggestions */}
-      {showDropdown && (
-        <div className="search-dropdown-menu">
-          {/* Case 1: Typing text with product matches */}
-          {hasQuery && suggestions.length > 0 && (
-            <>
-              <div className="search-dropdown-header">
-                <span>Gợi ý sản phẩm</span>
-                <span className="search-dropdown-header-count">{suggestions.length} sản phẩm</span>
-              </div>
-
-              {/* Matched Category Chips */}
-              {matchedCategories.length > 0 && (
-                <div className="search-category-bar">
-                  <span className="search-category-label">
-                    <Tag size={12} /> Danh mục:
-                  </span>
-                  {matchedCategories.map(cat => (
-                    <Link
-                      key={cat.slug}
-                      to={`/category/${cat.slug}`}
-                      className="search-category-chip"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <span>{cat.icon}</span>
-                      <span>{cat.name}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              {/* Suggestions List */}
-              <ul className="search-suggestions-list">
-                {suggestions.map((product, idx) => (
-                  <li key={product.id}>
-                    <div
-                      className={`search-suggestion-item ${selectedIndex === idx ? "is-selected" : ""}`}
-                      onClick={() => handleSelectProduct(product.id)}
-                    >
-                      <div className="search-item-thumb-wrapper">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="search-item-thumb"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=150&q=80";
-                          }}
-                        />
-                      </div>
-
-                      <div className="search-item-info">
-                        <div className="search-item-name-row">
-                          <div className="search-item-name">
-                            <HighlightMatch text={product.name} query={query} />
-                          </div>
-                        </div>
-
-                        <div className="search-item-meta">
-                          {product.category && (
-                            <span className="search-item-category">{product.category}</span>
-                          )}
-                          <span className="search-item-origin">{product.origin}</span>
-                        </div>
-
-                        <div className="search-item-ai-tag">
-                          <Sparkles size={10} />
-                          <span>{product.aiLabel}</span>
-                        </div>
-                      </div>
-
-                      <div className="search-item-price-col">
-                        <div className="search-item-price">{formatPrice(product.price)}</div>
-                        <div className="search-item-unit">/{product.unit}</div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              {/* Footer View All Results */}
-              <div className="search-dropdown-footer">
-                <button
-                  type="button"
-                  className="search-view-all-btn"
-                  onClick={() => submitSearch()}
-                >
-                  Xem tất cả kết quả cho &ldquo;<strong>{query}</strong>&rdquo;
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            </>
+      {isOpen && (
+        // Chặn mousedown để ô nhập không mất focus khi bấm vào gợi ý (click vẫn chạy bình thường)
+        <div className="search-dropdown-menu" onMouseDown={(e) => e.preventDefault()}>
+          {/* Danh mục thật từ /api/categories: ô trống -> tất cả, đang gõ -> danh mục khớp tên */}
+          {matchedCategories.length > 0 && (
+            <div className="search-category-bar">
+              <span className="search-category-label">
+                <Tag size={12} aria-hidden="true" /> Danh mục:
+              </span>
+              {matchedCategories.map((cat) => (
+                <Link key={cat.id} to={`/category/${cat.slug}`} className="search-category-chip">
+                  {hasQuery ? <HighlightMatch text={cat.name} query={query} /> : cat.name}
+                </Link>
+              ))}
+            </div>
           )}
 
-          {/* Case 2: Typing text with NO matches */}
-          {hasQuery && suggestions.length === 0 && !loading && (
+          {options.length > 0 && (
+            <div className="search-dropdown-header">
+              {hasQuery ? (
+                <>
+                  <span>Gợi ý sản phẩm</span>
+                  <span className="search-dropdown-header-count">{options.length} sản phẩm</span>
+                </>
+              ) : (
+                <span className="search-dropdown-header-title">
+                  <TrendingUp size={14} aria-hidden="true" /> Sản phẩm bán chạy
+                </span>
+              )}
+            </div>
+          )}
+
+          {options.length > 0 && (
+            <ul className="search-suggestions-list" role="listbox" id={listboxId} aria-label="Gợi ý sản phẩm">
+              {options.map((product, idx) => (
+                <li
+                  key={product.id}
+                  id={`${baseId}-option-${idx}`}
+                  role="option"
+                  aria-selected={activeOptionIndex === idx}
+                  className={`search-suggestion-item ${activeOptionIndex === idx ? "is-selected" : ""}`}
+                  onClick={() => selectProduct(product.id)}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                >
+                  <div className="search-item-thumb-wrapper">
+                    <img
+                      src={product.imageUrl}
+                      alt=""
+                      className="search-item-thumb"
+                      loading="lazy"
+                      onError={handleImageError}
+                    />
+                  </div>
+
+                  <div className="search-item-info">
+                    <div className="search-item-name">
+                      <HighlightMatch text={product.name} query={query} />
+                    </div>
+
+                    <div className="search-item-meta">
+                      {product.categoryName && <span className="search-item-category">{product.categoryName}</span>}
+                      {product.shopName && (
+                        <span className="search-item-origin">
+                          {product.shopName}
+                          {product.province && ` · ${product.province}`}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Nhãn AI giống hệt thẻ sản phẩm; chưa có nhãn -> không hiện */}
+                    <AiQualityBadge
+                      label={product.aiLabel}
+                      confidence={product.aiConfidence}
+                      className="search-item-ai"
+                    />
+                  </div>
+
+                  <div className="search-item-price-col">
+                    <div className="search-item-price">{formatVnd(product.price)}</div>
+                    <div className="search-item-unit">
+                      {hasQuery ? `/${product.unit}` : `Đã bán ${product.soldCount}`}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {showStatus && (cache.status === "loading" || (hasQuery && remoteLoading)) && (
+            <div className="search-dropdown-status">Đang tải gợi ý...</div>
+          )}
+
+          {showStatus && cache.status === "error" && !remoteLoading && (
+            <div className="search-dropdown-status is-error" role="alert">
+              <AlertCircle size={14} aria-hidden="true" />
+              <span>Không tải được gợi ý — nhấn Tìm để tìm kiếm</span>
+            </div>
+          )}
+
+          {showStatus && hasQuery && cache.status === "ready" && !remoteLoading && (
             <div className="search-empty-state">
-              <div className="search-empty-title">
-                Không tìm thấy sản phẩm cho &ldquo;{query}&rdquo;
-              </div>
+              <div className="search-empty-title">Không tìm thấy sản phẩm cho &ldquo;{query.trim()}&rdquo;</div>
               <div className="search-empty-desc">
-                Thử tìm với các từ khóa gợi ý bên dưới:
-              </div>
-              <div className="search-trending-chips">
-                {POPULAR_SEARCHES.map(term => (
-                  <button
-                    key={term}
-                    type="button"
-                    className="search-trending-chip"
-                    onClick={() => {
-                      setQuery(term);
-                      submitSearch(term);
-                    }}
-                  >
-                    {term}
-                  </button>
-                ))}
+                {matchedCategories.length > 0
+                  ? "Thử xem theo danh mục phía trên, hoặc nhấn Tìm để tìm trong toàn bộ sản phẩm."
+                  : "Thử từ khoá khác, hoặc nhấn Tìm để tìm trong toàn bộ sản phẩm."}
               </div>
             </div>
           )}
 
-          {/* Case 3: Empty query & Input focused -> Show Popular / Trending searches */}
-          {!hasQuery && (
-            <div className="search-popular-wrapper">
-              <div className="search-popular-title">
-                <TrendingUp size={14} color="#00A651" />
-                <span>Tìm kiếm phổ biến</span>
-              </div>
-              <div className="search-trending-chips" style={{ justifyContent: "flex-start" }}>
-                {POPULAR_SEARCHES.map(term => (
-                  <button
-                    key={term}
-                    type="button"
-                    className="search-trending-chip"
-                    onClick={() => {
-                      setQuery(term);
-                      submitSearch(term);
-                    }}
-                  >
-                    {term}
-                  </button>
-                ))}
-              </div>
+          {showStatus && !hasQuery && cache.status === "ready" && (
+            <div className="search-dropdown-status">Chưa có sản phẩm nào đang bán.</div>
+          )}
+
+          {hasQuery && (
+            <div className="search-dropdown-footer">
+              <button type="button" className="search-view-all-btn" onClick={() => submitSearch()}>
+                Xem tất cả kết quả cho &ldquo;<strong>{query.trim()}</strong>&rdquo;
+                <ArrowRight size={14} aria-hidden="true" />
+              </button>
             </div>
           )}
         </div>

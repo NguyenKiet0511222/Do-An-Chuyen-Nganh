@@ -1,18 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useCart } from "../context/useCart";
 import { useAuth } from "../context/useAuth";
 import { ShoppingBag, ChevronDown, Menu, X, Wand2, User } from "lucide-react";
+import { categoryApi, resolveAssetUrl } from "../services/api";
+import { flattenCategoryTree, findCategoryBySlug } from "../utils/categories";
 import SearchAutocomplete from "./SearchAutocomplete";
 import "./Navbar.css";
 
+const CATEGORY_PATH = "/category/";
+
 export default function Navbar() {
   const { totalCount } = useCart();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [categories, setCategories] = useState([]); // danh sách phẳng, cha trước con
+
+  // Danh mục thật từ /api/categories (công khai). Lỗi thì menu chỉ thiếu mục danh mục, không hiện danh mục giả.
+  useEffect(() => {
+    let ignore = false;
+    categoryApi
+      .getAll()
+      .then((tree) => {
+        if (!ignore) setCategories(flattenCategoryTree(tree));
+      })
+      .catch(() => {
+        // Đã log trong categoryApi
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const rootCategories = useMemo(() => categories.filter((c) => c.depth === 0), [categories]);
+
+  // Đang ở /category/:slug -> danh mục gốc tương ứng (trang danh mục con cũng sáng mục cha)
+  const activeRootId = useMemo(() => {
+    if (!location.pathname.startsWith(CATEGORY_PATH)) return null;
+    const slug = location.pathname.slice(CATEGORY_PATH.length);
+    const current = findCategoryBySlug(categories, slug);
+    if (!current) return null;
+    return current.parentId ?? current.id;
+  }, [categories, location.pathname]);
 
   const isActive = (path) => location.pathname === path;
+  const accountPath = hasRole("ADMIN") ? "/admin" : hasRole("SELLER") ? "/seller" : "/account";
+  const avatarUrl = resolveAssetUrl(user?.avatarUrl);
 
   return (
     <header className="site-header">
@@ -20,25 +54,23 @@ export default function Navbar() {
       <div className="header-top">
         <div className="header-top-container">
           {/* Logo */}
-          <Link to="/" className="brand-logo" onClick={() => setMobileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <img src="/logo.png" alt="Logo" style={{ height: "56px" }} onError={(e) => e.target.style.display='none'} />
-            <span style={{ fontSize: '20px', fontWeight: '800', color: '#00A651', whiteSpace: 'nowrap' }}>Nông sản Việt</span>
+          <Link to="/" className="brand-logo" onClick={() => setMobileMenuOpen(false)}>
+            <img src="/logo.png" alt="Logo" className="brand-logo-img" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <span className="brand-logo-text">Nông sản Việt</span>
           </Link>
 
-          {/* Search Bar with live autocomplete suggestions */}
+          {/* Ô tìm kiếm có gợi ý — chip danh mục dùng chung danh sách thật ở trên */}
           <div className="search-container">
-            <SearchAutocomplete />
+            <SearchAutocomplete categories={categories} />
           </div>
 
           {/* Action Buttons */}
           <div className="header-actions">
-            {/* Kiểm tra AI Button */}
             <Link to="/ai-check" className="btn-ai-check">
               <Wand2 size={16} />
               <span>Kiểm tra AI</span>
             </Link>
 
-            {/* Giỏ hàng */}
             <Link to="/cart" className="cart-button">
               <div className="cart-icon-wrapper">
                 <ShoppingBag size={24} color="#4b5563" />
@@ -49,18 +81,17 @@ export default function Navbar() {
 
             <div className="divider"></div>
 
-            {/* User Profile */}
             {user ? (
-              <Link to={user.role === 'ADMIN' || user?.roles?.includes('ADMIN') ? '/admin' : user.role === 'SELLER' || user?.roles?.includes('SELLER') ? '/seller' : '/account'} className="user-profile-nav">
-                {user.avatar ? (
-                  <img src={user.avatar} alt="Avatar" className="user-avatar" />
+              <Link to={accountPath} className="user-profile-nav">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Ảnh đại diện" className="user-avatar" />
                 ) : (
                   <div className="default-avatar">
                     <User size={20} />
                   </div>
                 )}
                 <div className="user-info-nav">
-                  <span className="user-name">{user.fullName || "Nguyễn Anh Kiệt"}</span>
+                  <span className="user-name">{user.fullName || user.email}</span>
                 </div>
                 <ChevronDown size={16} color="#666" />
               </Link>
@@ -74,6 +105,7 @@ export default function Navbar() {
             <button
               type="button"
               className="mobile-menu-btn"
+              aria-label={mobileMenuOpen ? "Đóng menu" : "Mở menu"}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -89,26 +121,20 @@ export default function Navbar() {
             <Link to="/" className={`nav-link ${isActive("/") ? "active" : ""}`}>
               Trang chủ
             </Link>
-            <Link to="/category/rau-cu" className={`nav-link ${isActive("/category/rau-cu") ? "active" : ""}`}>
-              Rau củ
-            </Link>
-            <Link to="/category/trai-cay" className={`nav-link ${isActive("/category/trai-cay") ? "active" : ""}`}>
-              Trái cây
-            </Link>
-            <Link to="/category/nam" className={`nav-link ${isActive("/category/nam") ? "active" : ""}`}>
-              Nấm
-            </Link>
-            <Link to="/category/thuc-pham-kho" className={`nav-link ${isActive("/category/thuc-pham-kho") ? "active" : ""}`}>
-              Thực phẩm khô
-            </Link>
-            <Link to="/category/dac-san" className={`nav-link ${isActive("/category/dac-san") ? "active" : ""}`}>
-              Đặc sản
-            </Link>
+            {rootCategories.map((cat) => (
+              <Link
+                key={cat.id}
+                to={`${CATEGORY_PATH}${cat.slug}`}
+                className={`nav-link ${activeRootId === cat.id ? "active" : ""}`}
+              >
+                {cat.name}
+              </Link>
+            ))}
             <Link to="/my-orders" className={`nav-link ${isActive("/my-orders") ? "active" : ""}`}>
               Đơn hàng của tôi
             </Link>
           </nav>
-          
+
           <Link to="/ai-check" className="ai-scan-btn">
             Chụp ảnh – AI kiểm tra độ tươi
           </Link>

@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../../context/useCart";
 import { Trash2, Plus, Minus, ArrowRight, ShoppingBag, Store, AlertTriangle } from "lucide-react";
+import { resolveAssetUrl } from "../../services/api";
+import { handleImageError } from "../../utils/format";
 
 export default function CartPage() {
   const { cart, groups, removeFromCart, updateQuantity, totalAmount, totalCount, grandTotal } = useCart();
@@ -70,9 +72,10 @@ export default function CartPage() {
                       <div key={item.id || item.product?.id} className="cart-item-row-large" style={{ padding: "16px 0", borderBottom: "1px solid #f3f4f6" }}>
                         <div className="col-product cart-item-details">
                           <img
-                            src={item.product?.primaryImageUrl || item.product?.image || item.product?.imageUrl || "https://placehold.co/100x100?text=No+Image"}
+                            src={resolveAssetUrl(item.product?.primaryImageUrl) || "https://placehold.co/100x100?text=No+Image"}
                             alt={item.product?.name}
                             className="cart-item-img"
+                            onError={handleImageError}
                           />
                           <div className="cart-item-info-text">
                             <h3 className="cart-item-title">{item.product?.name}</h3>

@@ -19,7 +19,24 @@
   padding: 12px 24px;
 }
 
-/* Search Bar */
+/* Logo */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.brand-logo-img {
+  height: 56px;
+}
+.brand-logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+/* Search Bar (giao diện ô tìm kiếm nằm ở SearchAutocomplete.css) */
 .search-container {
   flex: 1;
   margin: 0 32px;
@@ -27,45 +44,6 @@
   display: flex;
   justify-content: center;
 }
-.search-form {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border: 1px solid #dcdfe6;
-  border-radius: 9999px;
-  padding: 4px 4px 4px 16px;
-  max-width: 600px;
-  position: relative;
-}
-.search-icon {
-  color: #8c939d;
-  margin-right: 8px;
-}
-.search-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  color: #333;
-}
-.search-input::placeholder {
-  color: #999;
-}
-.search-submit-btn {
-  background: #00A651;
-  color: #fff;
-  border: none;
-  border-radius: 9999px;
-  padding: 8px 24px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.search-submit-btn:hover {
-  background: #008a43;
-}
-
 /* Actions */
 .header-actions {
   display: flex;
@@ -77,8 +55,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #e6f6ec;
-  color: #00A651;
+  background: var(--primary-subtle);
+  color: var(--primary);
   padding: 8px 16px;
   border-radius: 9999px;
   font-size: 14px;
@@ -184,7 +162,7 @@
 }
 .user-dropdown-item:hover {
   background: #f8fafc;
-  color: #00A651;
+  color: var(--primary);
 }
 .user-dropdown-divider {
   height: 1px;
@@ -193,7 +171,7 @@
 }
 .user-rank {
   font-size: 12px;
-  color: #00A651;
+  color: var(--primary);
 }
 .auth-login-link {
   color: #333;
@@ -225,10 +203,10 @@
   transition: all 0.2s;
 }
 .nav-link:hover, .nav-link.active {
-  color: #00A651;
+  color: var(--primary);
 }
 .nav-link.active {
-  border-bottom-color: #00A651;
+  border-bottom-color: var(--primary);
 }
 
 /* AI Cam Button */

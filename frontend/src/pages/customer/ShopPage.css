@@ -304,38 +304,16 @@
   display: none; /* Hide the ugly X placeholder */
 }
 
+/* Vị trí badge nhãn AI trên ảnh — màu theo .ai-quality-badge (index.css, api.md mục 8) */
 .shop-product-ai-badge {
   position: absolute;
   top: 12px;
   left: 12px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(4px);
   padding: 4px 10px;
   font-size: 12px;
-  font-weight: 700;
-  color: #059669;
   border-radius: 20px;
   z-index: 3;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.shop-product-ai-badge::before {
-  content: '';
-  display: block;
-  width: 6px;
-  height: 6px;
-  background-color: #10b981;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
 .shop-product-info {

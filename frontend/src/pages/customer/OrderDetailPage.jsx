@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { CheckCircle, Package, Truck, FileText, Check, AlertCircle, XCircle } from "lucide-react";
-import { orderApi } from "../../services/api";
+import { orderApi, resolveAssetUrl } from "../../services/api";
+import { handleImageError } from "../../utils/format";
+import AiQualityBadge from "../../components/AiQualityBadge";
 import "./OrderDetailPage.css";
 
 const STATUS_TEXT = {
@@ -196,17 +198,15 @@ export default function OrderDetailPage() {
                     <td className="td-product">
                       <div className="od-product-info">
                         <img
-                          src={item.imageUrl || "https://placehold.co/100x100?text=No+Image"}
+                          src={resolveAssetUrl(item.imageUrl) || "https://placehold.co/100x100?text=No+Image"}
+                          onError={handleImageError}
                           alt={item.productName}
                           style={{ width: "48px", height: "48px", objectFit: "cover", borderRadius: "6px", flexShrink: 0 }}
                         />
                         <div className="od-product-details">
                           <p className="od-product-name">{item.productName}</p>
-                          {item.aiLabelSnapshot && (
-                            <span className="od-ai-label" style={{ fontSize: "11px", background: "#f0fdf4", color: "#16a34a", padding: "2px 6px", borderRadius: "4px" }}>
-                              Nhãn AI: {item.aiLabelSnapshot === "FRESH" ? "Tươi" : item.aiLabelSnapshot}
-                            </span>
-                          )}
+                          {/* Nhãn AI lúc đặt hàng (aiLabelSnapshot) — cùng kiểu badge với thẻ sản phẩm */}
+                          <AiQualityBadge label={item.aiLabelSnapshot} className="od-ai-label" />
                         </div>
                       </div>
                     </td>

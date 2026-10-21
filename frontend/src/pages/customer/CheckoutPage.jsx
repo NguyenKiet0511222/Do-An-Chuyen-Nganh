@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../../context/useCart";
 import { useAuth } from "../../context/useAuth";
-import { addressApi, orderApi } from "../../services/api";
+import { addressApi, orderApi, resolveAssetUrl } from "../../services/api";
+import { handleImageError } from "../../utils/format";
 import { ALL_PROVINCES, getDistrictsByProvince, getWardsByDistrict } from "../../data/vietnamAddressData";
-import { MapPin, CreditCard, CheckCircle, Plus, Store, AlertCircle, X, Check } from "lucide-react";
+import { MapPin, CreditCard, CheckCircle, Plus, Store, AlertCircle, X } from "lucide-react";
 
 export default function CheckoutPage() {
   const { cart, groups, totalAmount, refreshCart } = useCart();
@@ -384,9 +385,10 @@ export default function CheckoutPage() {
                   {(group.items || []).map((item) => (
                     <div key={item.id || item.product?.id} className="checkout-item-row" style={{ marginBottom: "8px" }}>
                       <img 
-                        src={item.product?.primaryImageUrl || item.product?.image || "/placeholder.jpg"} 
+                        src={resolveAssetUrl(item.product?.primaryImageUrl) || "https://placehold.co/100x100?text=No+Image"} 
                         alt={item.product?.name} 
                         className="checkout-item-img"
+                        onError={handleImageError}
                       />
                       <div className="checkout-item-info">
                         <h4>{item.product?.name}</h4>
