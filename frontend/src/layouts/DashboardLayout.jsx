@@ -17,7 +17,6 @@ import {
   TextField,
   Toolbar,
   Typography,
-  Badge,
   Menu as MuiMenu,
   MenuItem
 } from "@mui/material";
@@ -37,8 +36,9 @@ import {
   ChevronDown
 } from "lucide-react";
 import { useAuth } from "../context/useAuth";
-import { adminApi } from "../services/api";
+import { adminApi, sellerApi } from "../services/api";
 import { AI_PENDING_CHANGED_EVENT } from "../pages/admin/components/aiReview";
+import { SELLER_DATA_CHANGED_EVENT } from "../utils/sellerEvents";
 
 const DRAWER_WIDTH = 240;
 
@@ -49,8 +49,9 @@ const NAV_BY_ROLE = {
     logoTitle: "EcoFresh Partner",
     items: [
       { label: "Tổng quan", to: "/seller", icon: LayoutDashboard, end: true },
-      { label: "Sản phẩm", to: "/seller/products", icon: Package, badge: "2 cần sửa", badgeColor: "warning" },
-      { label: "Đơn hàng", to: "/seller/orders", icon: ClipboardList, badge: "4 mới", badgeColor: "default" },
+      // Badge thật từ /seller/dashboard/summary: cần sửa = REJECTED + NEED_INFO, đơn mới = pendingOrders (0 thì ẩn)
+      { label: "Sản phẩm", to: "/seller/products", icon: Package, dynamicBadge: "sellerNeedFix", badgeColor: "warning" },
+      { label: "Đơn hàng", to: "/seller/orders", icon: ClipboardList, dynamicBadge: "sellerNewOrders", badgeColor: "default" },
       { label: "Thông tin shop & AI", to: "/seller/info", icon: ScanSearch }
     ]
   },
@@ -59,8 +60,10 @@ const NAV_BY_ROLE = {
     logoTitle: "EcoFresh Admin",
     items: [
       { label: "Tổng quan", to: "/admin", icon: LayoutDashboard, end: true },
-      { label: "Sản phẩm", to: "/admin/products", icon: Package, badge: "14 chờ", badgeColor: "warning" },
-      { label: "Đơn hàng", to: "/admin/orders", icon: ClipboardList, badge: "23 mới", badgeColor: "info" },
+      // Badge = số sản phẩm PENDING thật (totalElements của adminApi.product.getAll)
+      { label: "Sản phẩm", to: "/admin/products", icon: Package, dynamicBadge: "adminPendingProducts", badgeColor: "warning" },
+      // Chưa có /api/admin/orders -> chưa có badge
+      { label: "Đơn hàng", to: "/admin/orders", icon: ClipboardList },
       // Badge = số ảnh đang chờ kiểm định thật (pendingReview), xem DashboardLayout bên dưới
       { label: "Kiểm định AI", to: "/admin/ai-review", icon: ScanSearch, dynamicBadge: "aiPending", badgeColor: "error" },
       { label: "Người dùng", to: "/admin/users", icon: Users },
@@ -77,11 +80,16 @@ export default function DashboardLayout({ role }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [aiPending, setAiPending] = useState(0);
+  const [adminPendingProducts, setAdminPendingProducts] = useState(0);
+  const [sellerCounts, setSellerCounts] = useState({ needFix: 0, newOrders: 0 });
   const location = useLocation();
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.admin;
+  // Chỉ gọi API của đúng khu: ADMIN vào khu người bán không gọi summary người bán (backend trả 404 "chưa có shop")
   const isAdminArea = role === "admin" && hasRole("ADMIN");
+  const isSellerArea = role === "seller" && hasRole("SELLER");
 
-  // Số ảnh chờ kiểm định AI cho badge menu — chỉ gọi khi là ADMIN; tải lại khi có ảnh vừa được kiểm định
+  // Badge admin: số ảnh chờ kiểm định AI + số sản phẩm chờ duyệt. Tải lại khi có ảnh / sản phẩm vừa được kiểm định
+  // (AdminProductsPage, AdminProductDetailPage, AiReview* đều gọi notifyAiPendingChanged()).
   useEffect(() => {
     if (!isAdminArea) return undefined;
     let ignore = false;
@@ -94,6 +102,14 @@ export default function DashboardLayout({ role }) {
         .catch(() => {
           if (!ignore) setAiPending(0); // lỗi -> ẩn badge
         });
+      adminApi.product
+        .getAll({ status: "PENDING", page: 0, size: 1 })
+        .then((page) => {
+          if (!ignore) setAdminPendingProducts(Number(page?.totalElements) || 0);
+        })
+        .catch(() => {
+          if (!ignore) setAdminPendingProducts(0);
+        });
     };
     loadPending();
     window.addEventListener(AI_PENDING_CHANGED_EVENT, loadPending);
@@ -103,7 +119,41 @@ export default function DashboardLayout({ role }) {
     };
   }, [isAdminArea]);
 
-  const dynamicBadges = { aiPending: isAdminArea && aiPending > 0 ? String(aiPending) : null };
+  // Badge người bán: tải lại khi có notifySellerDataChanged() (gửi duyệt, xoá, ẩn sản phẩm, đổi trạng thái đơn)
+  useEffect(() => {
+    if (!isSellerArea) return undefined;
+    let ignore = false;
+    const loadSummary = () => {
+      sellerApi.dashboard
+        .getSummary()
+        .then((summary) => {
+          if (ignore) return;
+          const byStatus = summary?.productsByStatus || {};
+          setSellerCounts({
+            needFix: (Number(byStatus.REJECTED) || 0) + (Number(byStatus.NEED_INFO) || 0),
+            newOrders: Number(summary?.pendingOrders) || 0
+          });
+        })
+        .catch(() => {
+          if (!ignore) setSellerCounts({ needFix: 0, newOrders: 0 }); // lỗi -> ẩn badge
+        });
+    };
+    loadSummary();
+    window.addEventListener(SELLER_DATA_CHANGED_EVENT, loadSummary);
+    return () => {
+      ignore = true;
+      window.removeEventListener(SELLER_DATA_CHANGED_EVENT, loadSummary);
+    };
+  }, [isSellerArea]);
+
+  // Số = 0 (hoặc sai khu) thì ẩn badge
+  const countBadge = (enabled, count, suffix) => (enabled && count > 0 ? `${count}${suffix}` : null);
+  const dynamicBadges = {
+    aiPending: countBadge(isAdminArea, aiPending, ""),
+    adminPendingProducts: countBadge(isAdminArea, adminPendingProducts, " chờ"),
+    sellerNeedFix: countBadge(isSellerArea, sellerCounts.needFix, " cần sửa"),
+    sellerNewOrders: countBadge(isSellerArea, sellerCounts.newOrders, " mới")
+  };
 
   const handleProfileClick = (event) => setAnchorEl(event.currentTarget);
   const handleProfileClose = () => setAnchorEl(null);
@@ -296,11 +346,9 @@ export default function DashboardLayout({ role }) {
           </Box>
           <Box sx={{ flex: 1, display: { sm: "none" } }} />
 
-          {/* Notification */}
-          <IconButton sx={{ color: "#64748b", bgcolor: "#f8fafc", width: 40, height: 40, borderRadius: 2 }}>
-            <Badge badgeContent={5} color="error" sx={{ "& .MuiBadge-badge": { fontWeight: 700 } }}>
-              <Bell size={20} />
-            </Badge>
+          {/* Thông báo: chưa có API thông báo -> không hiện số giả */}
+          <IconButton aria-label="Thông báo" sx={{ color: "#64748b", bgcolor: "#f8fafc", width: 40, height: 40, borderRadius: "10px" }}>
+            <Bell size={20} />
           </IconButton>
 
           {/* User Profile */}
@@ -317,14 +365,14 @@ export default function DashboardLayout({ role }) {
                 boxShadow: "0 2px 8px rgba(16, 185, 129, 0.2)"
               }}
             >
-              {user?.fullName ? user.fullName.split(" ").slice(-1)[0].substring(0, 2).toUpperCase() : "HÀ"}
+              {(user?.fullName || user?.email || "?").trim().split(" ").slice(-1)[0].substring(0, 2).toUpperCase()}
             </Avatar>
             <Box sx={{ display: { xs: "none", md: "block" } }}>
-              <Typography variant="body2" fontWeight={700} color="#1e293b" lineHeight={1.2}>
-                {user?.fullName || "Nguyễn Thu Hà"}
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "#1e293b", lineHeight: 1.2 }}>
+                {user?.fullName || user?.email}
               </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                {role === "seller" ? "Chủ cửa hàng" : "Quản trị viên"}
+              <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
+                {hasRole("ADMIN") ? "Quản trị viên" : "Chủ cửa hàng"}
               </Typography>
             </Box>
             <ChevronDown size={16} color="#94a3b8" style={{ marginLeft: 4 }} />
@@ -337,26 +385,28 @@ export default function DashboardLayout({ role }) {
             onClose={handleProfileClose}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            PaperProps={{
-              sx: {
-                mt: 1.5,
-                minWidth: 220,
-                borderRadius: 2,
-                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                border: "1px solid #f1f5f9"
+            slotProps={{
+              paper: {
+                sx: {
+                  mt: 1.5,
+                  minWidth: 220,
+                  borderRadius: "12px",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                  border: "1px solid #f1f5f9"
+                }
               }
             }}
           >
             <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="body2" fontWeight={700} color="#1e293b">
-                {user?.fullName || "Nguyễn Thu Hà"}
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "#1e293b" }}>
+                {user?.fullName}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {user?.email || "thuha@example.com"}
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                {user?.email}
               </Typography>
             </Box>
             <Divider sx={{ my: 0.5 }} />
-            <MenuItem component={Link} to={role === "seller" ? "/seller/shop-info" : "/admin/settings"} onClick={handleProfileClose} sx={{ fontSize: 14, py: 1 }}>
+            <MenuItem component={Link} to={role === "seller" ? "/seller/info" : "/admin/settings"} onClick={handleProfileClose} sx={{ fontSize: 14, py: 1 }}>
               {role === "seller" ? "Hồ sơ cửa hàng" : "Cài đặt hệ thống"}
             </MenuItem>
             <Divider sx={{ my: 0.5 }} />

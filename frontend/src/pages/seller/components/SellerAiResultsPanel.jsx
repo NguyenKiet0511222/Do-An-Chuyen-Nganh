@@ -41,9 +41,10 @@ const bodyCellSx = { borderBottom: "1px solid #f1f5f9" };
  * Tab "Kết quả AI của shop" (GET /seller/ai/results, mới nhất trước): nhãn AI + trạng thái kiểm định từng ảnh.
  * Ảnh admin yêu cầu chụp lại (RETAKE_REQUESTED) được tô nổi kèm ghi chú của admin — người bán phải xoá đúng ảnh đó
  * và tải ảnh mới thì sản phẩm mới gửi duyệt lại được (docs/1910.md mục 3).
+ * initialReviewStatus = "RETAKE_REQUESTED" (từ ?reviewStatus= trên URL, link ở trang tổng quan) -> bật sẵn "Chỉ ảnh cần chụp lại".
  */
-export default function SellerAiResultsPanel() {
-  const [retakeOnly, setRetakeOnly] = useState(false);
+export default function SellerAiResultsPanel({ initialReviewStatus } = {}) {
+  const [retakeOnly, setRetakeOnly] = useState(initialReviewStatus === RETAKE);
   const [page, setPage] = useState(0);
   const [loaded, setLoaded] = useState({ request: null, data: null, retakeCount: 0, error: null });
 
@@ -168,9 +169,10 @@ export default function SellerAiResultsPanel() {
                   </TableCell>
                   <TableCell sx={{ ...bodyCellSx, pr: 4 }} align="right">
                     {needRetake && row.product?.id ? (
+                      // ?image= để form sửa sản phẩm cuộn tới và làm nổi đúng ảnh cần thay
                       <Link
                         component={RouterLink}
-                        to={`/seller/products/${row.product.id}/edit`}
+                        to={`/seller/products/${row.product.id}/edit${row.imageId ? `?image=${row.imageId}` : ""}`}
                         underline="hover"
                         sx={{ fontSize: 13, fontWeight: 600, color: "#059669", whiteSpace: "nowrap" }}
                       >
