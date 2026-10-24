@@ -20,11 +20,13 @@ export default function ProductCard({ product }) {
   const imageUrl = resolveAssetUrl(product.primaryImageUrl) || PLACEHOLDER_IMAGE;
   const unit = product.unit || "kg";
   const hasRating = Number(product.ratingCount) > 0 && product.ratingAvg != null;
+  const isOutOfStock = product.stockQuantity != null && product.stockQuantity <= 0;
 
   const handleAdd = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
+    if (isOutOfStock) return;
     // addToCart trả false khi chưa đăng nhập (đã chuyển tới /login) hoặc API lỗi (đã báo lỗi)
     if (!(await addToCart(product, 1))) return;
     setIsAdded(true);
@@ -75,11 +77,14 @@ export default function ProductCard({ product }) {
 
         <button
           type="button"
-          className={`card-add-to-cart-btn ${isAdded ? "added" : ""}`}
+          className={`card-add-to-cart-btn ${isAdded ? "added" : ""} ${isOutOfStock ? "disabled" : ""}`}
           onClick={handleAdd}
-          aria-label={`Thêm ${product.name} vào giỏ`}
+          disabled={isOutOfStock}
+          aria-label={isOutOfStock ? `${product.name} đã hết hàng` : `Thêm ${product.name} vào giỏ`}
         >
-          {isAdded ? (
+          {isOutOfStock ? (
+            "Hết hàng"
+          ) : isAdded ? (
             <>
               <Check size={16} /> Đã thêm vào giỏ
             </>

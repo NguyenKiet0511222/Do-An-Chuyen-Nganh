@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { CheckCircle, Package, Truck, FileText, Check, AlertCircle, XCircle } from "lucide-react";
 import { orderApi, resolveAssetUrl } from "../../services/api";
@@ -29,7 +29,7 @@ export default function OrderDetailPage() {
     }).format(amount || 0).replace("₫", "đ");
   };
 
-  const loadOrderDetail = async () => {
+  const loadOrderDetail = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -41,13 +41,13 @@ export default function OrderDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (id) {
       loadOrderDetail();
     }
-  }, [id]);
+  }, [id, loadOrderDetail]);
 
   const handleCancelOrder = async () => {
     const reason = window.prompt("Vui lòng nhập lý do huỷ đơn hàng:");

@@ -2912,6 +2912,14 @@ img {
   color: #ffffff;
 }
 
+.card-add-to-cart-btn:disabled,
+.card-add-to-cart-btn.disabled {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 /* =========================================
    IMAGE 1: PRODUCT DETAIL PAGE (PDP)
 ========================================= */

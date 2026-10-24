@@ -23,7 +23,9 @@ import {
   Typography
 } from "@mui/material";
 import { Search } from "lucide-react";
-import { adminApi } from "../../services/api";
+import { adminApi, resolveAssetUrl } from "../../services/api";
+import AiLabelChip from "../../components/ai/AiLabelChip";
+import { handleImageError } from "../../utils/format";
 import { notifyAiPendingChanged } from "./components/aiReview";
 
 const TAB_STATUS_MAP = [
@@ -148,39 +150,18 @@ export default function AdminProductsPage() {
     }
   };
 
-  const getAiBadge = (label, confidence) => {
-    if (!label) {
+  const getStatusChip = (status, hiddenBy) => {
+    if (status === "HIDDEN" && hiddenBy === "ADMIN") {
       return (
-        <Box sx={{ bgcolor: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1", px: 1.2, py: 0.4, borderRadius: 1, fontSize: 11.5, fontWeight: 500, display: "inline-block" }}>
-          Chưa có nhãn
-        </Box>
+        <Chip
+          size="small"
+          label="Đang ẩn (Admin)"
+          color="error"
+          variant="outlined"
+          sx={{ fontSize: 11.5, fontWeight: 600 }}
+        />
       );
     }
-    const confText = confidence ? ` (${Math.round(confidence * 100)}%)` : "";
-    switch (label) {
-      case "ROTTEN":
-        return (
-          <Box sx={{ bgcolor: "#0f172a", color: "#f87171", border: "1px solid #ef4444", px: 1.2, py: 0.4, borderRadius: 1, fontSize: 11.5, fontWeight: 700, display: "inline-block" }}>
-            Cảnh báo Hỏng{confText}
-          </Box>
-        );
-      case "FRESH":
-        return (
-          <Box sx={{ bgcolor: "#f0fdf4", color: "#16a34a", border: "1px solid #86efac", px: 1.2, py: 0.4, borderRadius: 1, fontSize: 11.5, fontWeight: 600, display: "inline-block" }}>
-            Tươi{confText}
-          </Box>
-        );
-      case "UNCERTAIN":
-      default:
-        return (
-          <Box sx={{ bgcolor: "#fffbeb", color: "#d97706", border: "1px dashed #f59e0b", px: 1.2, py: 0.4, borderRadius: 1, fontSize: 11.5, fontWeight: 600, display: "inline-block" }}>
-            Không chắc{confText}
-          </Box>
-        );
-    }
-  };
-
-  const getStatusChip = (status) => {
     const map = {
       PENDING: { label: "Chờ duyệt", color: "warning" },
       APPROVED: { label: "Đã duyệt", color: "success" },
@@ -390,8 +371,9 @@ export default function AdminProductsPage() {
                           }}
                         >
                           <img
-                            src={prod.primaryImageUrl || "https://placehold.co/100x100?text=No+Image"}
+                            src={resolveAssetUrl(prod.primaryImageUrl) || "https://placehold.co/100x100?text=No+Image"}
                             alt={prod.name}
+                            onError={handleImageError}
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                           />
                         </Box>
@@ -429,11 +411,11 @@ export default function AdminProductsPage() {
                     </TableCell>
 
                     <TableCell>
-                      {getAiBadge(prod.aiOverallLabel, prod.aiOverallConfidence)}
+                      <AiLabelChip label={prod.aiOverallLabel} confidence={prod.aiOverallConfidence} size="small" />
                     </TableCell>
 
                     <TableCell>
-                      {getStatusChip(prod.status)}
+                      {getStatusChip(prod.status, prod.hiddenBy)}
                     </TableCell>
 
                     <TableCell align="right" sx={{ fontSize: 12, color: "text.secondary" }}>
@@ -459,6 +441,14 @@ export default function AdminProductsPage() {
                               sx={{ fontSize: 12, p: 0, minWidth: "auto", textTransform: "none", color: "#16a34a", fontWeight: 600 }}
                             >
                               Duyệt
+                            </Button>
+                            <Typography variant="caption" color="text.disabled">·</Typography>
+                            <Button
+                              size="small"
+                              onClick={() => handleSingleReview(prod.id, "NEED_INFO")}
+                              sx={{ fontSize: 12, p: 0, minWidth: "auto", textTransform: "none", color: "#0284c7", fontWeight: 600 }}
+                            >
+                              Bổ sung
                             </Button>
                             <Typography variant="caption" color="text.disabled">·</Typography>
                             <Button

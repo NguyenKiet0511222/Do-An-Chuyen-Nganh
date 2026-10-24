@@ -21,7 +21,6 @@ import {
   Typography
 } from "@mui/material";
 import { ArrowLeft, Printer, Ban } from "lucide-react";
-import WireframeNoteBox from "./components/WireframeNoteBox";
 import { DETAILED_ORDER_DH_01187 } from "../../data/adminMockData";
 
 export default function AdminOrderDetailPage() {
@@ -37,14 +36,6 @@ export default function AdminOrderDetailPage() {
   const handleUpdateStatus = () => {
     setToastMsg(`Đã cập nhật trạng thái đơn sang "${currentStatus}" thành công.`);
   };
-
-  const wireframeNotes = [
-    "1. Thanh tiến trình: trạng thái hiện tại của đơn; các bước đã qua tô đậm.",
-    "2. Sản phẩm trong đơn: hiển thị người bán từng dòng vì một đơn có thể gồm sản phẩm từ nhiều người bán; nhãn AI tại thời điểm duyệt được lưu kèm để đối chiếu khi khiếu nại.",
-    "3. Thanh toán & vận chuyển: thông tin tra cứu nhanh; mã vận đơn có thể bấm để mở trang theo dõi.",
-    "4. Cập nhật trạng thái: admin đổi trạng thái thủ công khi cần (ví dụ xác nhận giao thành công, xử lý hoàn tiền).",
-    "5. Lịch sử: mọi thay đổi trạng thái đều được ghi lại kèm người thực hiện."
-  ];
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto" }}>

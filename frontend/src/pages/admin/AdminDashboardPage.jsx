@@ -1,7 +1,7 @@
+import { useState, useEffect } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import {
   Box,
-  Button,
   Chip,
   Grid,
   Link,
@@ -15,29 +15,47 @@ import {
 } from "@mui/material";
 import { ChevronRight } from "lucide-react";
 import AdminRevenueChart from "./components/AdminRevenueChart";
-import WireframeNoteBox from "./components/WireframeNoteBox";
+import { adminApi, resolveAssetUrl } from "../../services/api";
+import AiLabelChip from "../../components/ai/AiLabelChip";
+import { handleImageError } from "../../utils/format";
 import {
   ADMIN_STATS,
-  ADMIN_PRODUCTS,
   ADMIN_ORDERS,
   NEW_REGISTERED_SELLERS
 } from "../../data/adminMockData";
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+  const [pendingProducts, setPendingProducts] = useState([]);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  const [aiStats, setAiStats] = useState(null);
+  const [recentSellers, setRecentSellers] = useState([]);
+  const [loadingReal, setLoadingReal] = useState(true);
 
-  const getAiBadgeColor = (type) => {
-    switch (type) {
-      case "rotten":
-        return { bgcolor: "#0f172a", color: "#f87171", border: "1px solid #ef4444" };
-      case "fresh":
-        return { bgcolor: "#f8fafc", color: "#16a34a", border: "1px solid #86efac" };
-      case "uncertain":
-        return { bgcolor: "#f8fafc", color: "#d97706", border: "1px dashed #f59e0b" };
-      default:
-        return { bgcolor: "#f1f5f9", color: "#64748b", border: "1px solid #cbd5e1" };
-    }
-  };
+  useEffect(() => {
+    let ignore = false;
+    Promise.allSettled([
+      adminApi.product.getAll({ status: "PENDING", size: 5 }),
+      adminApi.ai.getStatistics(),
+      adminApi.user.getAll({ role: "SELLER", size: 5 })
+    ]).then(([prodRes, aiRes, userRes]) => {
+      if (ignore) return;
+      if (prodRes.status === "fulfilled" && prodRes.value) {
+        setPendingProducts(prodRes.value.content || []);
+        setPendingTotal(prodRes.value.totalElements || 0);
+      }
+      if (aiRes.status === "fulfilled" && aiRes.value) {
+        setAiStats(aiRes.value);
+      }
+      if (userRes.status === "fulfilled" && userRes.value) {
+        setRecentSellers(userRes.value.content || []);
+      }
+      setLoadingReal(false);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const getOrderStatusChip = (status) => {
     switch (status) {
@@ -55,14 +73,6 @@ export default function AdminDashboardPage() {
         return <Chip size="small" label={status} variant="outlined" sx={{ fontSize: 11 }} />;
     }
   };
-
-  const wireframeNotes = [
-    "1. Thẻ số liệu: 4 chỉ số quan trọng nhất trong ngày, lấy từ API thống kê (đơn hàng, doanh thu, sản phẩm, AI).",
-    "2. Sản phẩm chờ duyệt: mô hình nhiều người bán – mọi sản phẩm người bán đăng phải được admin duyệt mới hiển thị lên web.",
-    "3. Ảnh AI cảnh báo hỏng: số ảnh sản phẩm mà module AI gắn nhãn \"hỏng\"; admin cần kiểm tra thủ công trước khi từ chối.",
-    "4. Biểu đồ doanh thu: có bộ lọc 7 ngày / 30 ngày; ở bản code tương tác trực tiếp với tooltip chi tiết.",
-    "5. Danh sách chờ duyệt rút gọn: mỗi dòng hiển thị sẵn nhãn AI để admin ưu tiên xử lý sản phẩm có rủi ro."
-  ];
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto" }}>
@@ -131,36 +141,22 @@ export default function AdminDashboardPage() {
               <Typography variant="body2" color="text.secondary" fontWeight={500}>
                 Sản phẩm chờ duyệt
               </Typography>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "1px solid #94a3b8",
-                  fontSize: 11,
-                  color: "text.secondary"
-                }}
-              >
-                2
-              </Box>
+              <Chip size="small" label="API" color="success" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />
             </Box>
             <Typography variant="h5" fontWeight={800} sx={{ color: "#0f172a", mb: 0.5 }}>
-              {ADMIN_STATS.pendingProducts}
+              {pendingTotal}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              từ {ADMIN_STATS.pendingSellersCount} người bán
+              cần quản trị viên kiểm duyệt
             </Typography>
           </Paper>
         </Grid>
 
-        {/* Card 4: Ảnh AI cảnh báo hỏng */}
+        {/* Card 4: Kiểm định AI hàng chờ */}
         <Grid item xs={12} sm={6} md={3}>
           <Paper
             variant="outlined"
-            onClick={() => navigate("/admin/products?ai=rotten")}
+            onClick={() => navigate("/admin/ai-review")}
             sx={{
               p: 2.2,
               borderRadius: 2,
@@ -171,29 +167,15 @@ export default function AdminDashboardPage() {
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1 }}>
               <Typography variant="body2" color="error.main" fontWeight={600}>
-                Ảnh AI cảnh báo hỏng
+                Kiểm định AI hàng chờ
               </Typography>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: "1px solid #ef4444",
-                  fontSize: 11,
-                  color: "error.main"
-                }}
-              >
-                3
-              </Box>
+              <Chip size="small" label="API" color="success" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />
             </Box>
             <Typography variant="h5" fontWeight={800} sx={{ color: "#ef4444", mb: 0.5 }}>
-              {ADMIN_STATS.aiWarningRottenImages}
+              {aiStats?.pendingReview ?? ADMIN_STATS.aiWarningRottenImages}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {ADMIN_STATS.requiresManualCheck}
+              {aiStats ? `${aiStats.autoAccepted || 0} ảnh đã tự chấp nhận` : ADMIN_STATS.requiresManualCheck}
             </Typography>
           </Paper>
         </Grid>
@@ -265,25 +247,11 @@ export default function AdminDashboardPage() {
           {/* Pending Products Widget */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, mb: 3 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="subtitle1" fontWeight={700}>
                   Sản phẩm chờ duyệt
                 </Typography>
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    border: "1px solid #94a3b8",
-                    fontSize: 11,
-                    color: "text.secondary"
-                  }}
-                >
-                  5
-                </Box>
+                <Chip size="small" label="Dữ liệu thật" color="primary" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
               </Box>
               <Link
                 component={RouterLink}
@@ -291,14 +259,17 @@ export default function AdminDashboardPage() {
                 underline="hover"
                 sx={{ fontSize: 12.5, fontWeight: 600, color: "#0f172a" }}
               >
-                Xem tất cả (14)
+                Xem tất cả ({pendingTotal})
               </Link>
             </Box>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {ADMIN_PRODUCTS.slice(0, 5).map((prod) => {
-                const badgeStyle = getAiBadgeColor(prod.aiLabel.type);
-                return (
+              {pendingProducts.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: "center" }}>
+                  {loadingReal ? "Đang tải danh sách..." : "Không có sản phẩm nào đang chờ duyệt."}
+                </Typography>
+              ) : (
+                pendingProducts.map((prod) => (
                   <Box
                     key={prod.id}
                     onClick={() => navigate(`/admin/products/${prod.id}`)}
@@ -328,8 +299,9 @@ export default function AdminDashboardPage() {
                         }}
                       >
                         <img
-                          src={prod.imageUrl}
+                          src={resolveAssetUrl(prod.primaryImageUrl) || "https://placehold.co/100x100?text=No+Image"}
                           alt={prod.name}
+                          onError={handleImageError}
                           style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         />
                       </Box>
@@ -338,39 +310,30 @@ export default function AdminDashboardPage() {
                           {prod.name}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {prod.seller}
+                          {prod.shop?.shopName || "N/A"}
                         </Typography>
                       </Box>
                     </Box>
 
                     {/* AI Tag */}
-                    <Box
-                      sx={{
-                        ...badgeStyle,
-                        px: 1,
-                        py: 0.3,
-                        borderRadius: 1,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        whiteSpace: "nowrap"
-                      }}
-                    >
-                      {prod.aiLabel.text}
-                    </Box>
+                    <AiLabelChip label={prod.aiOverallLabel} confidence={prod.aiOverallConfidence} size="small" />
                   </Box>
-                );
-              })}
+                ))
+              )}
             </Box>
           </Paper>
 
           {/* New Registered Sellers Widget */}
           <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
-              Người bán mới đăng ký
-            </Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="subtitle1" fontWeight={700}>
+                Người bán mới đăng ký
+              </Typography>
+              <Chip size="small" label={recentSellers.length > 0 ? "Dữ liệu thật" : "Minh hoạ"} color="default" sx={{ height: 20, fontSize: 10 }} />
+            </Box>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {NEW_REGISTERED_SELLERS.map((seller) => (
+              {(recentSellers.length > 0 ? recentSellers : NEW_REGISTERED_SELLERS).map((seller) => (
                 <Box
                   key={seller.id}
                   sx={{
@@ -384,29 +347,20 @@ export default function AdminDashboardPage() {
                 >
                   <Box>
                     <Typography variant="body2" fontWeight={700} sx={{ color: "#0f172a" }}>
-                      {seller.name}
+                      {seller.shopName || seller.fullName || seller.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {seller.location}
+                      {seller.email || seller.location || "Người bán hệ thống"}
                     </Typography>
                   </Box>
 
-                  <Button
+                  <Chip
                     size="small"
-                    variant={seller.verified ? "outlined" : "contained"}
-                    color={seller.verified ? "inherit" : "primary"}
-                    sx={{
-                      fontSize: 11.5,
-                      textTransform: "none",
-                      px: 1.2,
-                      py: 0.4,
-                      borderRadius: 1.5,
-                      borderColor: seller.verified ? "#cbd5e1" : undefined,
-                      bgcolor: seller.verified ? "transparent" : "#0f172a"
-                    }}
-                  >
-                    {seller.status}
-                  </Button>
+                    label={seller.status === "ACTIVE" ? "Đã kích hoạt" : seller.status || "Chờ duyệt"}
+                    color={seller.status === "ACTIVE" || seller.verified ? "success" : "default"}
+                    variant="outlined"
+                    sx={{ fontSize: 11, fontWeight: 600 }}
+                  />
                 </Box>
               ))}
             </Box>

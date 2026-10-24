@@ -172,6 +172,12 @@ export default function MyOrdersPage() {
                   <div className="order-buttons" style={{ display: "flex", gap: "8px" }}>
                     <button
                       className="btn-action-outline"
+                      onClick={() => toggleExpand(order.id)}
+                    >
+                      {expandedOrderId === order.id ? "Thu gọn" : "Xem nhanh"}
+                    </button>
+                    <button
+                      className="btn-action-outline"
                       onClick={() => navigate(`/my-orders/${order.id}`)}
                     >
                       Chi tiết

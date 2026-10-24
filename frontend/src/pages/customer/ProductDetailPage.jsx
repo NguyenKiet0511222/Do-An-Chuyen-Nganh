@@ -28,7 +28,6 @@ import {
   Send,
   ThumbsUp,
   UserCheck,
-  Tag,
   ChevronDown,
   AlertCircle
 } from "lucide-react";
@@ -145,7 +144,6 @@ export default function ProductDetailPage() {
   const [loadState, setLoadState] = useState({ key: null, notFound: false, error: null });
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariation, setSelectedVariation] = useState("Mix 3 màu (Bán chạy)");
 
   // --- Chức năng Yêu thích & Chia sẻ ---
   const [isLiked, setIsLiked] = useState(false);
@@ -161,18 +159,6 @@ export default function ProductDetailPage() {
   const [chatMessages, setChatMessages] = useState([]);
   const chatMessagesEndRef = useRef(null);
 
-  // --- Chức năng Vận chuyển ---
-  const [shippingAddress, setShippingAddress] = useState("Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh");
-  const [shippingFee, setShippingFee] = useState("₫15.000 - ₫22.000");
-  const [shippingSpeed, setShippingSpeed] = useState("Giao Hỏa Tốc 2H");
-  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [tempCity, setTempCity] = useState("TP. Hồ Chí Minh");
-  const [tempDistrict, setTempDistrict] = useState("Quận 1");
-
-  // --- Chức năng Voucher ---
-  const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
-  const [savedVouchers, setSavedVouchers] = useState([]);
-
   // --- Chức năng Đánh giá ---
   const [reviews, setReviews] = useState([]);
   const [activeReviewFilter, setActiveReviewFilter] = useState("all");
@@ -180,7 +166,6 @@ export default function ProductDetailPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState("");
-  const [newReviewVariation, setNewReviewVariation] = useState("");
   const [helpfulReviews, setHelpfulReviews] = useState({});
 
   // --- Toast thông báo ---
@@ -232,25 +217,19 @@ export default function ProductDetailPage() {
           setIsFollowingShop(isFollow);
           setFollowerCount(isFollow ? "12.5k" : "12.4k");
 
-          // Nạp mã voucher đã lưu
-          try {
-            const vData = JSON.parse(localStorage.getItem("pdp_saved_vouchers") || "[]");
-            setSavedVouchers(vData);
-          } catch {
-            setSavedVouchers([]);
-          }
 
-          // Nạp đánh giá từ LocalStorage hoặc bộ 24 đánh giá chuẩn của sản phẩm
+
+          // Nạp đánh giá từ LocalStorage nếu có
           const reviewStorageKey = `pdp_reviews_${pData.id}`;
           const savedReviews = localStorage.getItem(reviewStorageKey);
           if (savedReviews) {
             try {
               setReviews(JSON.parse(savedReviews));
             } catch {
-              initDefaultReviews(pData);
+              setReviews([]);
             }
           } else {
-            initDefaultReviews(pData);
+            setReviews([]);
           }
 
           // Khởi tạo tin nhắn chat ban đầu
@@ -283,279 +262,6 @@ export default function ProductDetailPage() {
       } catch (err) {
         if (!ignore) console.error("Lỗi tải chi tiết sản phẩm:", err);
       }
-    }
-
-    // Khởi tạo đúng 24 đánh giá khớp hoàn hảo với 4.8★ (21 năm sao, 2 bốn sao, 1 ba sao, 18 có ảnh)
-    function initDefaultReviews(pData) {
-      const pImg = resolveAssetUrl(pData.primaryImageUrl) || PLACEHOLDER_IMAGE;
-      
-      const defaultList = [
-        {
-          id: 1,
-          user: "vothanhtruc_92",
-          rating: 5,
-          date: "2024-03-12 14:28",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Nông sản siêu tươi luôn ạ! Giao hỏa tốc 2 tiếng tới nơi cuống vẫn còn xanh mơn mởn. Vỏ dày, ngọt giòn, làm salad cực ngon. Shop đóng gói bọc xốp chống sốc rất cẩn thận, 10 điểm chất lượng!",
-          images: [pImg],
-          reply: "Cảm ơn bạn rất nhiều vì đã tin dùng rau củ sạch của HTX Đà Lạt. Chúc bạn và gia đình có những bữa ăn thật ngon miệng và dồi dào sức khỏe!",
-          helpful: 12
-        },
-        {
-          id: 2,
-          user: "hoangminh_eatclean",
-          rating: 5,
-          date: "2024-03-10 09:15",
-          variation: "Ớt vàng Đà Lạt",
-          comment: "Đúng chuẩn hàng kiểm định AI tươi rói. Cân đủ ký, màu sắc sáng bóng không tì vết. Sẽ tiếp tục ủng hộ shop nông sản Việt!",
-          images: [pImg],
-          reply: null,
-          helpful: 8
-        },
-        {
-          id: 3,
-          user: "nguyenan_farm",
-          rating: 4,
-          date: "2024-03-05 16:40",
-          variation: "Loại tiêu chuẩn",
-          comment: "Sản phẩm tươi ngon, giá cả hợp lý so với siêu thị. Vận chuyển hỏa tốc đúng giờ, rau còn nguyên vị giòn ngọt.",
-          images: [pImg],
-          reply: "Dạ shop cảm ơn bạn An nhiều ạ! Shop sẽ duy trì chất lượng tốt nhất phục vụ bạn nhé.",
-          helpful: 5
-        },
-        {
-          id: 4,
-          user: "thuy_tien_dalat",
-          rating: 5,
-          date: "2024-03-04 11:20",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Mua lần thứ 3 ở shop rồi, lần nào cũng ưng ý hết nấc. Rau củ sạch ăn yên tâm cho cả nhà.",
-          images: [pImg],
-          reply: null,
-          helpful: 6
-        },
-        {
-          id: 5,
-          user: "quang_huy_chef",
-          rating: 5,
-          date: "2024-03-02 20:15",
-          variation: "Loại 1 (Tuyển chọn)",
-          comment: "Độ tươi 95% chuẩn AI, làm món nướng hay xào thịt bò giòn ngọt mọng nước.",
-          images: [pImg],
-          reply: null,
-          helpful: 4
-        },
-        {
-          id: 6,
-          user: "lanhuong_organic",
-          rating: 5,
-          date: "2024-02-28 08:45",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Hàng VietGAP chuẩn chỉ, shop đóng gói bọc màng khí cẩn thận, shipper lịch sự.",
-          images: [pImg],
-          reply: null,
-          helpful: 7
-        },
-        {
-          id: 7,
-          user: "tuan_anh_hcm",
-          rating: 5,
-          date: "2024-02-26 15:30",
-          variation: "Ớt đỏ Đà Lạt",
-          comment: "Giao hàng nhanh như chớp, mới đặt 1 tiếng rưỡi đã có shipper bấm chuông. Rau củ tươi rói.",
-          images: [pImg],
-          reply: null,
-          helpful: 3
-        },
-        {
-          id: 8,
-          user: "bich_ngoc_94",
-          rating: 4,
-          date: "2024-02-22 17:10",
-          variation: "Ớt xanh Đà Lạt",
-          comment: "Rau tươi ngon, nhưng lần này quả hơi nhỏ hơn đợt trước một chút. Vẫn đánh giá 4 sao vì chất lượng tốt.",
-          images: [pImg],
-          reply: "Dạ shop ghi nhận góp ý của bạn Ngọc để lựa chọn size quả đồng đều hơn trong các đợt thu hoạch tới ạ!",
-          helpful: 2
-        },
-        {
-          id: 9,
-          user: "duc_thanh_gym",
-          rating: 5,
-          date: "2024-02-20 19:00",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Rất thích cách shop kiểm định AI độ tươi. Mua về làm nước ép thanh lọc cơ thể cực kỳ sảng khoái.",
-          images: [pImg],
-          reply: null,
-          helpful: 5
-        },
-        {
-          id: 10,
-          user: "kim_oanh_cook",
-          rating: 5,
-          date: "2024-02-18 10:25",
-          variation: "Loại 1 (Tuyển chọn)",
-          comment: "Rau sạch tươi như vừa hái tại vườn Đà Lạt sáng nay. Nấu canh ngọt nước tự nhiên.",
-          images: [pImg],
-          reply: null,
-          helpful: 4
-        },
-        {
-          id: 11,
-          user: "viet_dung_fresh",
-          rating: 5,
-          date: "2024-02-15 14:40",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Shop uy tín, cân đủ thậm chí dư một chút. Sẽ giới thiệu bạn bè cùng mua.",
-          images: [pImg],
-          reply: null,
-          helpful: 2
-        },
-        {
-          id: 12,
-          user: "mai_phuong_eat",
-          rating: 5,
-          date: "2024-02-12 09:50",
-          variation: "Ớt vàng Đà Lạt",
-          comment: "Màu sắc bóng đẹp, giòn ngọt không bị dập nát quả nào. Cảm ơn HTX nông nghiệp sạch!",
-          images: [pImg],
-          reply: null,
-          helpful: 6
-        },
-        {
-          id: 13,
-          user: "hoang_long_88",
-          rating: 5,
-          date: "2024-02-10 16:15",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Được miễn phí vận chuyển Freeship Xtra, giá lại rẻ hơn siêu thị gần nhà. Quá hời.",
-          images: [pImg],
-          reply: null,
-          helpful: 3
-        },
-        {
-          id: 14,
-          user: "thanh_thao_green",
-          rating: 5,
-          date: "2024-02-08 11:35",
-          variation: "Loại 1 (Tuyển chọn)",
-          comment: "Rau củ chuẩn hữu cơ, xào lên giữ được màu xanh mướt và độ giòn.",
-          images: [pImg],
-          reply: null,
-          helpful: 5
-        },
-        {
-          id: 15,
-          user: "minh_tri_chef",
-          rating: 5,
-          date: "2024-02-05 18:20",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Chất lượng ổn định suốt mấy tháng nay. Đặt làm tiệc gia đình ai cũng khen rau củ ngọt mát.",
-          images: [pImg],
-          reply: null,
-          helpful: 4
-        },
-        {
-          id: 16,
-          user: "phuong_vy_95",
-          rating: 5,
-          date: "2024-02-02 13:45",
-          variation: "Ớt đỏ Đà Lạt",
-          comment: "Đóng gói sạch sẽ, có nhãn kiểm định QR truy xuất nguồn gốc rõ ràng.",
-          images: [pImg],
-          reply: null,
-          helpful: 3
-        },
-        {
-          id: 17,
-          user: "ngoc_tram_family",
-          rating: 5,
-          date: "2024-01-29 10:10",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Cả nhà mình ai cũng khen. Bé nhà mình bình thường lười ăn rau mà hôm nay ăn hết cả đĩa.",
-          images: [pImg],
-          reply: null,
-          helpful: 2
-        },
-        {
-          id: 18,
-          user: "anh_tuan_q1",
-          rating: 3,
-          date: "2024-01-25 15:55",
-          variation: "Loại tiêu chuẩn",
-          comment: "Sản phẩm tươi ngon nhưng shipper giao trễ hơn hẹn 20 phút do trời mưa. Hy vọng shop khắc phục khâu vận chuyển.",
-          images: [pImg],
-          reply: "Dạ shop thành thật xin lỗi bạn Tuấn về sự chậm trễ hôm trời mưa gió! Shop đã làm việc lại với đội ngũ vận chuyển để đảm bảo đúng hẹn tuyệt đối ạ.",
-          helpful: 9
-        },
-        {
-          id: 19,
-          user: "khanh_linh_clean",
-          rating: 5,
-          date: "2024-01-20 09:30",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Đạt điểm 10 chất lượng. Mình sẽ ủng hộ shop dài dài.",
-          images: [],
-          reply: null,
-          helpful: 3
-        },
-        {
-          id: 20,
-          user: "hong_nhung_cook",
-          rating: 5,
-          date: "2024-01-18 16:40",
-          variation: "Ớt vàng Đà Lạt",
-          comment: "Rau củ tươi ngon mọng nước, mùi thơm tự nhiên rất dễ chịu.",
-          images: [],
-          reply: null,
-          helpful: 2
-        },
-        {
-          id: 21,
-          user: "quoc_bao_92",
-          rating: 5,
-          date: "2024-01-15 11:15",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Giao nhanh, đóng gói cẩn thận, rau tươi rói.",
-          images: [],
-          reply: null,
-          helpful: 1
-        },
-        {
-          id: 22,
-          user: "thu_trang_dalat",
-          rating: 5,
-          date: "2024-01-12 14:05",
-          variation: "Loại 1 (Tuyển chọn)",
-          comment: "Hài lòng về chất lượng sản phẩm và thái độ phục vụ của shop.",
-          images: [],
-          reply: null,
-          helpful: 2
-        },
-        {
-          id: 23,
-          user: "hai_dang_vnu",
-          rating: 5,
-          date: "2024-01-10 17:50",
-          variation: "Mix 3 màu (Bán chạy)",
-          comment: "Hàng chuẩn như hình mô tả. 5 sao uy tín.",
-          images: [],
-          reply: null,
-          helpful: 1
-        },
-        {
-          id: 24,
-          user: "cam_tu_96",
-          rating: 5,
-          date: "2024-01-08 08:20",
-          variation: "Ớt đỏ Đà Lạt",
-          comment: "Nông sản sạch, an toàn vệ sinh thực phẩm.",
-          images: [],
-          reply: null,
-          helpful: 0
-        }
-      ];
-      setReviews(defaultList);
     }
 
     loadData();
@@ -610,9 +316,13 @@ export default function ProductDetailPage() {
   }
 
   // --- Dữ liệu chuẩn hóa & TÍNH TOÁN ĐIỂM SỐ SAO CHÍNH XÁC ---
+  const totalReviewsCount = reviews.length > 0 ? reviews.length : (Number(product.ratingCount) || 0);
   const totalRatingSum = reviews.reduce((sum, r) => sum + Number(r.rating || 5), 0);
-  const calculatedAvgRating = reviews.length > 0 ? totalRatingSum / reviews.length : (product.ratingAvg ? Number(product.ratingAvg) : 4.8);
-  const formattedRating = calculatedAvgRating.toFixed(1);
+  const calculatedAvgRating = reviews.length > 0
+    ? totalRatingSum / reviews.length
+    : (product.ratingAvg ? Number(product.ratingAvg) : null);
+  const formattedRating = calculatedAvgRating != null ? calculatedAvgRating.toFixed(1) : null;
+  const hasRating = calculatedAvgRating != null && totalReviewsCount > 0;
 
   // Thống kê chính xác số lượng từng loại sao
   const count5Star = reviews.filter((r) => r.rating === 5).length;
@@ -639,8 +349,6 @@ export default function ProductDetailPage() {
   const outOfStock = stock <= 0;
   const soldCount = product.soldCount ?? 0;
   const price = Number(product.price || 0);
-  const originalPrice = Math.round(price * 1.15);
-  const discountPercent = Math.round(((originalPrice - price) / originalPrice) * 100) || 12;
 
   const originName = product.origin || product.shop?.province || "—";
   const sellerName = product.shop?.shopName || "";
@@ -656,13 +364,6 @@ export default function ProductDetailPage() {
     Number(product.shop?.ratingCount) > 0 && product.shop?.ratingAvg != null
       ? `${Number(product.shop.ratingAvg).toFixed(1)} (${product.shop.ratingCount} đánh giá)`
       : "Chưa có đánh giá";
-
-  let variationOptions = ["Loại 1 (Tuyển chọn)", "Loại 2 (Tiêu chuẩn)", "Mix tươi ngon (Bán chạy)"];
-  if (product.name && product.name.toLowerCase().includes("ớt")) {
-    variationOptions = ["Ớt đỏ Đà Lạt", "Ớt vàng Đà Lạt", "Ớt xanh Đà Lạt", "Mix 3 màu (Bán chạy)"];
-  } else if (product.name && product.name.toLowerCase().includes("khoai")) {
-    variationOptions = ["Củ to tuyển chọn", "Củ vừa ăn", "Combo 3kg tiết kiệm"];
-  }
 
   // --- Xử lý Thêm giỏ hàng & Mua ngay ---
   // addToCart (CartContext) là async: false khi chưa đăng nhập (đã chuyển /login) hoặc API lỗi (đã báo lỗi)
@@ -746,31 +447,6 @@ export default function ProductDetailPage() {
     }, 700);
   };
 
-  // --- Xử lý Lưu Voucher ---
-  const handleSaveVoucher = (code) => {
-    if (savedVouchers.includes(code)) return;
-    const updated = [...savedVouchers, code];
-    setSavedVouchers(updated);
-    localStorage.setItem("pdp_saved_vouchers", JSON.stringify(updated));
-    triggerToast(`Đã lưu mã giảm giá "${code}" vào ví của bạn!`);
-  };
-
-  // --- Xử lý Cập nhật địa chỉ nhận hàng ---
-  const handleSaveAddress = (e) => {
-    e.preventDefault();
-    const newAddr = `${tempDistrict}, ${tempCity}`;
-    setShippingAddress(newAddr);
-    if (tempCity.includes("Hồ Chí Minh")) {
-      setShippingFee("₫15.000 - ₫22.000");
-      setShippingSpeed("Giao Hỏa Tốc 2H");
-    } else {
-      setShippingFee("₫28.000 - ₫35.000");
-      setShippingSpeed("Giao Tiết Kiệm (1-2 ngày)");
-    }
-    setIsAddressModalOpen(false);
-    triggerToast(`Đã cập nhật địa chỉ giao hàng tới ${newAddr}!`);
-  };
-
   // --- Xử lý Gửi Đánh Giá Mới (Tính lại số sao & cập nhật LocalStorage) ---
   const handleSubmitReview = (e) => {
     e.preventDefault();
@@ -786,7 +462,7 @@ export default function ProductDetailPage() {
       user: reviewerName,
       rating: newReviewRating,
       date: createdAt.text,
-      variation: newReviewVariation || selectedVariation,
+      variation: unit ? `1 ${unit}` : "Tiêu chuẩn",
       comment: newReviewComment.trim(),
       images: [currentImgUrl],
       reply: null,
@@ -945,15 +621,21 @@ export default function ProductDetailPage() {
 
                 {/* SỐ SAO VÀ ĐÁNH GIÁ ĐỒNG BỘ 100% VỚI DỮ LIỆU THỰC TẾ */}
                 <div className="pdp-rating-meta">
-                  <div className="pdp-meta-stars" title={`Điểm đánh giá trung bình: ${formattedRating} / 5`}>
-                    <span className="pdp-meta-score">{formattedRating}</span>
-                    <div className="pdp-stars-icons">
-                      {renderStarRating(calculatedAvgRating, 13)}
+                  {hasRating ? (
+                    <div className="pdp-meta-stars" title={`Điểm đánh giá trung bình: ${formattedRating} / 5`}>
+                      <span className="pdp-meta-score">{formattedRating}</span>
+                      <div className="pdp-stars-icons">
+                        {renderStarRating(calculatedAvgRating, 13)}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <span style={{ fontSize: "13px", color: "var(--pdp-slate-500)", fontWeight: 500 }}>
+                      Chưa có đánh giá
+                    </span>
+                  )}
                   <span className="pdp-meta-divider">|</span>
                   <div className="pdp-meta-reviews">
-                    <strong>{reviews.length}</strong> <span>Đánh Giá</span>
+                    <strong>{totalReviewsCount}</strong> <span>Đánh Giá</span>
                   </div>
                   <span className="pdp-meta-divider">|</span>
                   <div className="pdp-meta-sold">
@@ -964,42 +646,13 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Bảng giá Shopee nền xám */}
+              {/* Bảng giá chuẩn dữ liệu backend */}
               <div className="pdp-price-box">
-                <span className="pdp-original-price">₫{originalPrice.toLocaleString("vi-VN")}</span>
                 <span className="pdp-current-price">₫{price.toLocaleString("vi-VN")}</span>
-                <span className="pdp-discount-badge">{discountPercent}% GIẢM</span>
+                <span style={{ fontSize: "15px", color: "var(--pdp-slate-500)", fontWeight: 600 }}>/{unit}</span>
                 <span className="pdp-price-tag">
-                  <Sparkles size={13} /> Giá Tốt Trong Ngày
+                  <Sparkles size={13} /> Nông sản tươi trong ngày
                 </span>
-              </div>
-
-              {/* Mã giảm giá Shop */}
-              <div className="pdp-row">
-                <span className="pdp-row-label">Mã Giảm Giá Của Shop</span>
-                <div className="pdp-voucher-chips">
-                  <button
-                    type="button"
-                    className="pdp-voucher-chip"
-                    onClick={() => setIsVoucherModalOpen(true)}
-                  >
-                    Giảm ₫10k
-                  </button>
-                  <button
-                    type="button"
-                    className="pdp-voucher-chip"
-                    onClick={() => setIsVoucherModalOpen(true)}
-                  >
-                    Giảm ₫15k đơn từ 150k
-                  </button>
-                  <button
-                    type="button"
-                    className="pdp-voucher-chip freeship"
-                    onClick={() => setIsVoucherModalOpen(true)}
-                  >
-                    Freeship Xtra
-                  </button>
-                </div>
               </div>
 
               {/* Vận chuyển */}
@@ -1008,39 +661,19 @@ export default function ProductDetailPage() {
                 <div className="pdp-shipping-info">
                   <div className="pdp-shipping-dest">
                     <Truck size={16} color="var(--pdp-brand-600)" />
-                    <span>
-                      Vận chuyển tới <strong>{shippingAddress}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      className="pdp-shipping-change-btn"
-                      onClick={() => setIsAddressModalOpen(true)}
-                    >
-                      Thay đổi
-                    </button>
+                    <span>Vận chuyển toàn quốc từ vườn</span>
                   </div>
                   <div className="pdp-shipping-fee">
-                    <span>Phí vận chuyển: <strong>{shippingFee}</strong></span>
-                    <span className="pdp-express-badge">{shippingSpeed}</span>
+                    <span>Phí vận chuyển: <strong>20.000 đ</strong> (Đồng giá mỗi đơn theo shop)</span>
                   </div>
                 </div>
               </div>
 
-              {/* Phân loại hàng (Variations) */}
+              {/* Đơn vị tính */}
               <div className="pdp-row">
-                <span className="pdp-row-label">Phân Loại</span>
-                <div className="pdp-variations-list">
-                  {variationOptions.map((opt, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      className={`pdp-variation-btn ${selectedVariation === opt ? "active" : ""}`}
-                      onClick={() => setSelectedVariation(opt)}
-                    >
-                      {selectedVariation === opt && <Check size={12} />}
-                      {opt}
-                    </button>
-                  ))}
+                <span className="pdp-row-label">Đơn Vị Tính</span>
+                <div style={{ fontWeight: 700, color: "var(--pdp-slate-800)", fontSize: "14px" }}>
+                  1 {unit}
                 </div>
               </div>
 
@@ -1271,10 +904,10 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Box 3: ĐÁNH GIÁ SẢN PHẨM KHỚP 100% VỚI TOÀN BỘ SỐ LIỆU */}
+            {/* Box 3: ĐÁNH GIÁ SẢN PHẨM */}
             <div className="pdp-card-box">
               <div className="pdp-box-header" style={{ marginBottom: "20px" }}>
-                <span>Đánh Giá Sản Phẩm ({reviews.length})</span>
+                <span>Đánh Giá Sản Phẩm ({totalReviewsCount})</span>
                 <button
                   type="button"
                   className="pdp-write-review-btn"
@@ -1284,16 +917,23 @@ export default function ProductDetailPage() {
                 </button>
               </div>
 
-              {/* Thang điểm tổng quan */}
-              <div className="pdp-reviews-overview">
-                <div className="pdp-rating-big">
-                  <div className="pdp-score-num">
-                    {formattedRating} <span>trên 5</span>
-                  </div>
-                  <div className="pdp-stars-icons" style={{ justifyContent: "center", marginTop: "4px" }}>
-                    {renderStarRating(calculatedAvgRating, 16)}
-                  </div>
+              {!hasRating ? (
+                <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--pdp-slate-500)" }}>
+                  <p style={{ fontSize: "15px", marginBottom: "6px", fontWeight: 600 }}>Chưa có đánh giá nào cho sản phẩm này</p>
+                  <p style={{ fontSize: "13px", color: "var(--pdp-slate-400)" }}>Các đánh giá và nhận xét từ khách hàng sẽ được hiển thị tại đây.</p>
                 </div>
+              ) : (
+                <>
+                  {/* Thang điểm tổng quan */}
+                  <div className="pdp-reviews-overview">
+                    <div className="pdp-rating-big">
+                      <div className="pdp-score-num">
+                        {formattedRating} <span>trên 5</span>
+                      </div>
+                      <div className="pdp-stars-icons" style={{ justifyContent: "center", marginTop: "4px" }}>
+                        {renderStarRating(calculatedAvgRating, 16)}
+                      </div>
+                    </div>
 
                 {/* Các nút lọc số sao khớp chuẩn xác số lượng thực tế */}
                 <div className="pdp-filter-tabs">
@@ -1453,6 +1093,8 @@ export default function ProductDetailPage() {
                   </button>
                 </div>
               )}
+                </>
+              )}
             </div>
           </div>
 
@@ -1588,16 +1230,13 @@ export default function ProductDetailPage() {
                 </div>
 
                 <div className="pdp-form-group">
-                  <label className="pdp-form-label">Phân loại hàng đã mua</label>
-                  <select
-                    className="pdp-form-select"
-                    value={newReviewVariation || selectedVariation}
-                    onChange={(e) => setNewReviewVariation(e.target.value)}
-                  >
-                    {variationOptions.map((v, i) => (
-                      <option key={i} value={v}>{v}</option>
-                    ))}
-                  </select>
+                  <label className="pdp-form-label">Quy cách nông sản</label>
+                  <input
+                    className="pdp-form-input"
+                    type="text"
+                    disabled
+                    value={unit ? `1 ${unit}` : "Tiêu chuẩn"}
+                  />
                 </div>
 
                 <div className="pdp-form-group">
@@ -1621,159 +1260,6 @@ export default function ProductDetailPage() {
                 </button>
                 <button type="submit" className="pdp-btn-buy-now" style={{ height: "38px", padding: "0 20px" }}>
                   Gửi Đánh Giá
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 2. Modal Mã Giảm Giá Của Shop */}
-      {isVoucherModalOpen && (
-        <div className="pdp-modal-overlay" onClick={() => setIsVoucherModalOpen(false)}>
-          <div className="pdp-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="pdp-modal-header">
-              <h3 className="pdp-modal-title">Mã Giảm Giá Của Shop</h3>
-              <button
-                type="button"
-                className="pdp-modal-close-btn"
-                onClick={() => setIsVoucherModalOpen(false)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="pdp-modal-body">
-              <div className="pdp-voucher-modal-list">
-                <div className="pdp-voucher-ticket">
-                  <div className="pdp-voucher-ticket-left">
-                    <Tag size={16} />
-                    <span>GIẢM 10K</span>
-                  </div>
-                  <div className="pdp-voucher-ticket-right">
-                    <div className="pdp-voucher-ticket-info">
-                      <h4>Giảm ₫10.000</h4>
-                      <p>Đơn tối thiểu ₫100.000 • HSD: 30/11/2026</p>
-                    </div>
-                    <button
-                      type="button"
-                      className={`pdp-voucher-save-btn ${savedVouchers.includes("GIAM10K") ? "saved" : ""}`}
-                      onClick={() => handleSaveVoucher("GIAM10K")}
-                    >
-                      {savedVouchers.includes("GIAM10K") ? "Đã Lưu" : "Lưu Mã"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pdp-voucher-ticket">
-                  <div className="pdp-voucher-ticket-left" style={{ backgroundColor: "#047857" }}>
-                    <Tag size={16} />
-                    <span>GIẢM 15K</span>
-                  </div>
-                  <div className="pdp-voucher-ticket-right">
-                    <div className="pdp-voucher-ticket-info">
-                      <h4>Giảm ₫15.000</h4>
-                      <p>Đơn tối thiểu ₫150.000 • HSD: 30/11/2026</p>
-                    </div>
-                    <button
-                      type="button"
-                      className={`pdp-voucher-save-btn ${savedVouchers.includes("GIAM15K") ? "saved" : ""}`}
-                      onClick={() => handleSaveVoucher("GIAM15K")}
-                    >
-                      {savedVouchers.includes("GIAM15K") ? "Đã Lưu" : "Lưu Mã"}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pdp-voucher-ticket">
-                  <div className="pdp-voucher-ticket-left" style={{ backgroundColor: "#2563EB" }}>
-                    <Truck size={16} />
-                    <span>FREESHIP</span>
-                  </div>
-                  <div className="pdp-voucher-ticket-right">
-                    <div className="pdp-voucher-ticket-info">
-                      <h4>Miễn Phí Vận Chuyển</h4>
-                      <p>Giảm tối đa ₫25.000 phí ship • HSD: 30/11/2026</p>
-                    </div>
-                    <button
-                      type="button"
-                      className={`pdp-voucher-save-btn ${savedVouchers.includes("FREESHIP") ? "saved" : ""}`}
-                      onClick={() => handleSaveVoucher("FREESHIP")}
-                    >
-                      {savedVouchers.includes("FREESHIP") ? "Đã Lưu" : "Lưu Mã"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="pdp-modal-footer">
-              <button
-                type="button"
-                className="pdp-btn-buy-now"
-                style={{ height: "38px", padding: "0 20px" }}
-                onClick={() => setIsVoucherModalOpen(false)}
-              >
-                Đồng Ý
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Modal Thay Đổi Địa Chỉ Vận Chuyển */}
-      {isAddressModalOpen && (
-        <div className="pdp-modal-overlay" onClick={() => setIsAddressModalOpen(false)}>
-          <div className="pdp-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="pdp-modal-header">
-              <h3 className="pdp-modal-title">Địa Chỉ Nhận Hàng</h3>
-              <button
-                type="button"
-                className="pdp-modal-close-btn"
-                onClick={() => setIsAddressModalOpen(false)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveAddress}>
-              <div className="pdp-modal-body">
-                <div className="pdp-form-group">
-                  <label className="pdp-form-label">Tỉnh / Thành phố</label>
-                  <select
-                    className="pdp-form-select"
-                    value={tempCity}
-                    onChange={(e) => setTempCity(e.target.value)}
-                  >
-                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                    <option value="Hà Nội">Hà Nội</option>
-                    <option value="Đà Nẵng">Đà Nẵng</option>
-                    <option value="Lâm Đồng (Đà Lạt)">Lâm Đồng (Đà Lạt)</option>
-                    <option value="Cần Thơ">Cần Thơ</option>
-                    <option value="Bình Dương">Bình Dương</option>
-                    <option value="Đồng Nai">Đồng Nai</option>
-                  </select>
-                </div>
-
-                <div className="pdp-form-group">
-                  <label className="pdp-form-label">Quận / Huyện / Phường</label>
-                  <input
-                    type="text"
-                    className="pdp-form-input"
-                    value={tempDistrict}
-                    onChange={(e) => setTempDistrict(e.target.value)}
-                    placeholder="Ví dụ: Phường Bến Nghé, Quận 1"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="pdp-modal-footer">
-                <button
-                  type="button"
-                  className="pdp-shop-view-btn"
-                  onClick={() => setIsAddressModalOpen(false)}
-                >
-                  Hủy
-                </button>
-                <button type="submit" className="pdp-btn-buy-now" style={{ height: "38px", padding: "0 20px" }}>
-                  Xác Nhận
                 </button>
               </div>
             </form>
