@@ -43,7 +43,7 @@ const DIALOG_STATUSES = new Set(["SHIPPING", "DELIVERED", "CANCELLED"]);
 const CANCEL_QUICK_REASONS = ["Hết hàng", "Không liên hệ được khách", "Khách yêu cầu huỷ", "Hàng không đạt chất lượng"];
 
 /**
- * Nút chuyển trạng thái 1 đơn của shop, dựng từ SELLER_NEXT_STATUS (chép đúng SellerOrderService.SELLER_TRANSITIONS):
+ * Nút chuyển trạng thái 1 đơn của shop, dựng từ SELLER_NEXT_STATUS (chép đúng OrderSupport.STAFF_TRANSITIONS):
  * 1 nút bước tiếp theo + (allowCancel) nút "Huỷ đơn". Chờ API xong mới báo onChanged(updatedOrderDetail, message) —
  * không cập nhật lạc quan; khoá nút trong lúc gửi; lỗi -> onError(message, err) (409 = đơn đã đổi trạng thái ở nơi khác).
  * Thành công thì phát notifySellerDataChanged() để badge menu + trang tổng quan tải lại số liệu.

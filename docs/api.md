@@ -1,6 +1,6 @@
 # api.md — Đặc tả API & nghiệp vụ: Website bán nông sản tích hợp AI phân loại chất lượng
 
-> Phiên bản: v1.6 (19/10/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium + chốt chi tiết API người bán (v1.3) + luồng khách hàng (địa chỉ, giỏ, checkout, đơn) & admin duyệt sản phẩm (v1.4) + AI service PyTorch & hợp đồng AI thống nhất (v1.5) + nối AI vào backend & admin kiểm định AI (changelog v1.6, lý do từng quyết định: [`1910.md`](1910.md)).
+> Phiên bản: v1.7 (31/10/2026) · Nguồn: "Phân tích nghiệp vụ và api sơ bộ" của nhóm + đồng bộ Auth, Route Protection & Phân cấp Tài khoản Premium + chốt chi tiết API người bán (v1.3) + luồng khách hàng (địa chỉ, giỏ, checkout, đơn) & admin duyệt sản phẩm (v1.4) + AI service PyTorch & hợp đồng AI thống nhất (v1.5) + nối AI vào backend & admin kiểm định AI (changelog v1.6, lý do từng quyết định: [`1910.md`](1910.md)) + làm nốt API admin / tài khoản / đánh giá / AI khách Premium (v1.7).
 > Tài liệu này là **nguồn sự thật duy nhất** để sinh code. Khi có mâu thuẫn giữa tài liệu này và tài liệu khác, ưu tiên tài liệu này.
 
 ---
@@ -293,7 +293,7 @@ Validation: `fullName` 2–100 ký tự; `email` đúng định dạng; `phone` 
 | PATCH | `/users/me/addresses/{id}/default` | 🔑 | Đặt làm mặc định |
 
 Address JSON: `{ "id", "receiverName", "phone", "province", "district", "ward", "street", "isDefault" }`. Body POST/PUT: các field trên trừ `id` (`ward` tuỳ chọn, `isDefault` tuỳ chọn, `phone` 9–11 chữ số).
-Quy tắc mặc định (v1.4): địa chỉ **đầu tiên tự thành mặc định**; `isDefault: true` (khi thêm/sửa) hoặc `PATCH .../default` → bỏ cờ các địa chỉ khác; `isDefault: false` trên địa chỉ đang mặc định bị bỏ qua (muốn đổi thì đặt cho địa chỉ khác); xoá địa chỉ mặc định → địa chỉ cũ nhất còn lại được đôn lên. Địa chỉ người khác → 404 ở mọi API. Đã làm đủ 6 API (v1.4); `/users/me`, `/users/me/avatar` chưa làm.
+Quy tắc mặc định (v1.4): địa chỉ **đầu tiên tự thành mặc định**; `isDefault: true` (khi thêm/sửa) hoặc `PATCH .../default` → bỏ cờ các địa chỉ khác; `isDefault: false` trên địa chỉ đang mặc định bị bỏ qua (muốn đổi thì đặt cho địa chỉ khác); xoá địa chỉ mặc định → địa chỉ cũ nhất còn lại được đôn lên. Địa chỉ người khác → 404 ở mọi API. Đã làm đủ 6 API (v1.4); `/users/me`, `/users/me/avatar` làm ở v1.7 (`GET/PUT /users/me` trả cùng khuôn `user` của `/auth/me`; `phone` rỗng = xoá SĐT).
 
 ### 4.3 Danh mục (`/api/categories`)
 
@@ -699,6 +699,19 @@ Refresh token · quên mật khẩu qua OTP/email · thanh toán online VNPay/Mo
 ---
 
 ## 11. Nhật ký cập nhật & Đồng bộ Codebase (Changelog)
+
+### Phiên bản v1.7 (31/10/2026) — Làm nốt API backend còn thiếu (nhánh `feat/be-admin-management`)
+- **Admin đơn hàng** (mục 4.9): `GET /admin/orders` (lọc `status` csv, `keyword` = mã đơn / tên khách / tên hoặc SĐT người nhận, `shopId`, `paymentMethod`, `from`, `to`), `GET /admin/orders/{id}` (khuôn Order detail mục 4.6), `PATCH /admin/orders/{id}/status` — admin chuyển được đúng các bước như người bán (bảng 3.5, dùng chung `OrderSupport.STAFF_TRANSITIONS`).
+- **Admin người dùng**: `PATCH /admin/users/{id}/status` (LOCK / UNLOCK, không tự khoá mình, sai trạng thái → 409), `PATCH /admin/users/{id}/tier`, `POST /admin/users` (tạo ADMIN, email trùng → 409). **Tài khoản LOCKED bị chặn 403 ngay ở request kế tiếp kể cả khi JWT còn hạn** (`security/ActiveUserFilter`, mục 3.1); user không còn tồn tại → 401.
+- **Admin shop**: `GET /admin/shops` (lọc `status`, `keyword` = tên shop / email chủ shop, `province`) và `GET /admin/shops/{id}` → `AdminShop { ...thông tin shop, owner { id, fullName, email, phone, status }, productCounts { approved, pending, rejected }, orderCount }`. `PATCH .../status` giữ nguyên.
+- **Admin danh mục** (mục 4.3): `GET /admin/categories` (cả danh mục ẩn; `productCount` đếm mọi trạng thái sản phẩm), `POST`, `PUT /{id}`, `DELETE /{id}`. Cây 2 cấp: cha phải là danh mục gốc, danh mục đang có con không thành con được → 400. Slug sinh từ tên (trùng thêm `-2`, `-3`), **giữ nguyên khi đổi tên**. `aiProduceKeys` chuẩn hoá chữ thường, bỏ khoảng trắng / trùng. Xoá khi còn con hoặc có sản phẩm → 409.
+- **Admin dashboard**: `summary` — `revenueChangePct` = % so với hôm qua làm tròn 1 chữ số, hôm qua 0 → `null`; `aiPendingReview` cùng điều kiện badge "Kiểm định AI"; `aiRottenFlags` = ảnh **trong hàng chờ** bị AI gắn ROTTEN; `totalShops` = shop ACTIVE; `totalCustomers` = role CUSTOMER. `revenue?days=` 1–90 (mặc định 7), đủ mọi ngày kể cả ngày 0 đồng, theo `delivered_at`. `recent-orders` / `pending-products` `limit` 1–20 (khuôn như `GET /admin/orders` / `GET /admin/products`).
+- **Tài khoản**: `GET / PUT /users/me`, `PUT /users/me/avatar` (multipart `file`, lưu `/uploads/avatars/`), `PUT /auth/change-password` (tài khoản chỉ Google → 400, sai mật khẩu hiện tại / xác nhận không khớp / trùng mật khẩu cũ → 400; mật khẩu 6–72 ký tự như đăng ký).
+- **Đánh giá** (mục 3.6): `GET /products/{id}/reviews` (công khai, mới nhất trước → `{ id, rating, comment, user { id, fullName, avatarUrl }, createdAt }`), `POST` (đơn của mình, DELIVERED, có sản phẩm; chưa mua / chưa giao / đã đánh giá → 409). Lưu xong tính lại `rating_avg` / `rating_count` của sản phẩm và shop.
+- **AI khách Premium** (mục 4.7): `POST /ai/classify` (201; field `file` hoặc `image`), `GET /ai/history`, `GET /ai/history/{id}`. Cấp tài khoản đọc từ DB nên admin đổi tier là có hiệu lực ngay. Nhãn: confidence < `review_threshold` → UNCERTAIN, còn lại theo `condition`. Giới hạn **20 lượt / ngày** → 429. AI lỗi → 503, không lưu gì. Lưu `ai_results` với `source = QUICK_CHECK`, không lẫn vào màn kiểm định của admin.
+- **Công khai**: `GET /categories`, `GET /categories/{id}`, `GET /shops/{id}` nay bọc `ApiResponse` (trước trả thẳng DTO); shop thêm `description`. **Gỡ** `GET /shops` và `GET /shops/user/{userId}` (trả thẳng entity, frontend không dùng — admin dùng `/admin/shops`).
+- **DB**: **bảng `reviews`** (`08_reviews.sql`, đã có trong ERD mục 2 nhưng chưa tạo). `02_users.sql` bổ sung cột `phone`, `status`, `account_tier` (entity đã có từ trước, script thiếu) + khối `ALTER` cho DB cũ.
+- Test MockMvc (H2): 117 pass + 5 bỏ qua (test AI thật).
 
 ### Phiên bản v1.6 (19/10/2026) — Nối AI vào backend + admin kiểm định AI (nhánh `feat/ai-integration-admin-review`)
 - Quyết định + ví dụ minh hoạ: [`1910.md`](1910.md) — 5 câu hỏi **chốt tạm theo phương án ★** để kịp mốc, nhóm xem lại (đổi được, phần lớn chỉ vài dòng logic).
