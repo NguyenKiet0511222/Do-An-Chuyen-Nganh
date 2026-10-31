@@ -14,11 +14,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.nhom5.backend.repository.UserRepository;
+import com.nhom5.backend.security.ActiveUserFilter;
 import com.nhom5.backend.security.RestAuthenticationHandler;
 
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,7 @@ public class SecurityConfig {
 
 	private final AppProperties appProperties;
 	private final RestAuthenticationHandler restAuthenticationHandler;
+	private final UserRepository userRepository;
 
 	/** Đường dẫn mở công khai, không cần token. /api/auth/me KHÔNG nằm trong này. */
 	private static final String[] PUBLIC_ENDPOINTS = {
@@ -73,7 +77,10 @@ public class SecurityConfig {
 				.oauth2ResourceServer(oauth2 -> oauth2
 						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
 						.authenticationEntryPoint(restAuthenticationHandler)
-						.accessDeniedHandler(restAuthenticationHandler));
+						.accessDeniedHandler(restAuthenticationHandler))
+				// Tài khoản bị khoá -> 403 ngay cả khi JWT còn hạn (api.md mục 3.1)
+				.addFilterAfter(new ActiveUserFilter(userRepository, restAuthenticationHandler),
+						BearerTokenAuthenticationFilter.class);
 		return http.build();
 	}
 

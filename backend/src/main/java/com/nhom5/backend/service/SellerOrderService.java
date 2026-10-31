@@ -5,15 +5,10 @@ import com.nhom5.backend.dto.order.OrderStatusUpdateRequest;
 import com.nhom5.backend.dto.order.OrderSummaryResponse;
 import com.nhom5.backend.dto.response.PageResponse;
 import com.nhom5.backend.entity.Order;
-import com.nhom5.backend.entity.OrderItem;
-import com.nhom5.backend.entity.OrderStatusHistory;
-import com.nhom5.backend.entity.Product;
 import com.nhom5.backend.entity.Shop;
 import com.nhom5.backend.entity.enums.OrderStatus;
-import com.nhom5.backend.entity.enums.PaymentStatus;
 import com.nhom5.backend.exception.AppException;
 import com.nhom5.backend.repository.OrderRepository;
-import com.nhom5.backend.repository.UserRepository;
 import com.nhom5.backend.util.QueryParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,10 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /** Đơn hàng của shop (api.md mục 3.5, 4.8): xem danh sách, chi tiết và chuyển trạng thái từng bước. */
@@ -35,16 +28,8 @@ import java.util.Set;
 @Transactional
 public class SellerOrderService {
 
-    /** Bảng 3.5 — các bước người bán được phép chuyển. SHIPPING không được huỷ. */
-    private static final Map<OrderStatus, Set<OrderStatus>> SELLER_TRANSITIONS = Map.of(
-            OrderStatus.PENDING, EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),
-            OrderStatus.CONFIRMED, EnumSet.of(OrderStatus.PROCESSING, OrderStatus.CANCELLED),
-            OrderStatus.PROCESSING, EnumSet.of(OrderStatus.SHIPPING, OrderStatus.CANCELLED),
-            OrderStatus.SHIPPING, EnumSet.of(OrderStatus.DELIVERED));
-
     private final SellerShopService sellerShopService;
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
     private final OrderSupport orderSupport;
 
     /** from / to lọc theo ngày đặt (bao gồm cả 2 đầu). status nhận 1 hoặc nhiều giá trị cách nhau dấu phẩy. */
@@ -73,46 +58,10 @@ public class SellerOrderService {
         return orderSupport.toDetail(requireOwnOrder(userId, orderId));
     }
 
-    /**
-     * Chuyển trạng thái theo bảng 3.5 và ghi order_status_history.
-     * CANCELLED: bắt buộc cancelReason, hoàn tồn kho (OrderSupport). DELIVERED: thanh toán PAID, cộng số đã bán.
-     */
+    /** Chuyển trạng thái theo bảng 3.5 (OrderSupport.STAFF_TRANSITIONS), ghi order_status_history. */
     public OrderDetailResponse changeStatus(Long userId, Long orderId, OrderStatusUpdateRequest request) {
         Order order = requireOwnOrder(userId, orderId);
-        OrderStatus from = order.getStatus();
-        OrderStatus to = request.status();
-        if (!SELLER_TRANSITIONS.getOrDefault(from, Set.of()).contains(to)) {
-            throw AppException.conflict("Chuyển trạng thái không hợp lệ (" + from + " -> " + to + ")");
-        }
-
-        if (to == OrderStatus.CANCELLED) {
-            orderSupport.cancel(order, userId, request.cancelReason(), request.note());
-            orderRepository.flush();
-            return orderSupport.toDetail(order);
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        switch (to) {
-            case CONFIRMED -> order.setConfirmedAt(now);
-            case DELIVERED -> {
-                order.setDeliveredAt(now);
-                order.setPaymentStatus(PaymentStatus.PAID);
-                for (OrderItem item : order.getItems()) {
-                    Product p = item.getProduct();
-                    p.setSoldCount(p.getSoldCount() + item.getQuantity());
-                }
-            }
-            default -> {
-                // PROCESSING, SHIPPING: chỉ đổi trạng thái
-            }
-        }
-        order.setStatus(to);
-        order.addHistory(OrderStatusHistory.builder()
-                .fromStatus(from)
-                .toStatus(to)
-                .changedBy(userRepository.getReferenceById(userId))
-                .note(OrderSupport.trimToNull(request.note()))
-                .build());
+        orderSupport.applyStaffTransition(order, userId, request);
         orderRepository.flush();
         return orderSupport.toDetail(order);
     }

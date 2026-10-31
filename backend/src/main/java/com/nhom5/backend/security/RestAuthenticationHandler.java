@@ -8,6 +8,8 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
+import com.nhom5.backend.exception.AppException;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -34,5 +36,10 @@ public class RestAuthenticationHandler implements AuthenticationEntryPoint, Acce
 	public void handle(HttpServletRequest request, HttpServletResponse response,
 			AccessDeniedException accessDeniedException) {
 		resolver.resolveException(request, response, null, accessDeniedException);
+	}
+
+	/** Trả lỗi nghiệp vụ từ tầng filter (vd tài khoản bị khoá) theo khuôn ApiResponse của GlobalExceptionHandler. */
+	public void reject(HttpServletRequest request, HttpServletResponse response, AppException exception) {
+		resolver.resolveException(request, response, null, exception);
 	}
 }

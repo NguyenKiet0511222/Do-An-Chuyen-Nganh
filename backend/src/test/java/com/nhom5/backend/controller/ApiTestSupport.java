@@ -1,10 +1,16 @@
 package com.nhom5.backend.controller;
 
 import com.jayway.jsonpath.JsonPath;
+import com.nhom5.backend.entity.Order;
+import com.nhom5.backend.entity.OrderItem;
+import com.nhom5.backend.entity.OrderStatusHistory;
 import com.nhom5.backend.entity.Product;
 import com.nhom5.backend.entity.Shop;
+import com.nhom5.backend.entity.User;
+import com.nhom5.backend.entity.enums.OrderStatus;
 import com.nhom5.backend.entity.enums.ProductStatus;
 import com.nhom5.backend.repository.CategoryRepository;
+import com.nhom5.backend.repository.OrderRepository;
 import com.nhom5.backend.repository.ProductRepository;
 import com.nhom5.backend.repository.ShopRepository;
 import com.nhom5.backend.repository.UserRepository;
@@ -56,6 +62,8 @@ abstract class ApiTestSupport {
     protected ShopRepository shopRepository;
     @Autowired
     protected UserRepository userRepository;
+    @Autowired
+    protected OrderRepository orderRepository;
 
     protected String login(String email, String password) throws Exception {
         String body = mockMvc.perform(post("/api/auth/login")
@@ -136,6 +144,37 @@ abstract class ApiTestSupport {
 
     protected Product approvedProduct(String sellerEmail, int stock) {
         return productInShop(sellerEmail, ProductStatus.APPROVED, stock);
+    }
+
+    /**
+     * Tạo thẳng 1 đơn PENDING (không qua checkout) của 1 khách mới cho sản phẩm, phí ship 20.000.
+     * Không trừ tồn kho — huỷ đơn sẽ cộng thêm quantity vào tồn kho hiện tại.
+     */
+    protected Order orderFor(Product product, int quantity) throws Exception {
+        User customer = userRepository.findByEmail(registerCustomer()).orElseThrow();
+        long subtotal = product.getPrice() * quantity;
+        Order order = Order.builder()
+                .orderCode("DH-T-" + UUID.randomUUID().toString().substring(0, 8))
+                .checkoutGroupId(UUID.randomUUID().toString())
+                .user(customer)
+                .shop(product.getShop())
+                .receiverName("Người nhận Test")
+                .phone("0900000000")
+                .shippingAddress("1 Lê Lợi, Quận 1, TP.HCM")
+                .subtotal(subtotal)
+                .shippingFee(20_000L)
+                .total(subtotal + 20_000L)
+                .build();
+        order.addItem(OrderItem.builder()
+                .product(product)
+                .productName(product.getName())
+                .unit(product.getUnit())
+                .price(product.getPrice())
+                .quantity(quantity)
+                .subtotal(subtotal)
+                .build());
+        order.addHistory(OrderStatusHistory.builder().toStatus(OrderStatus.PENDING).changedBy(customer).build());
+        return orderRepository.save(order);
     }
 
     /** Tạo sản phẩm DRAFT qua API người bán, trả về id. */
