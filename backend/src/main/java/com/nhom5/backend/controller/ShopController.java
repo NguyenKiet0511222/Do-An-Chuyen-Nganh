@@ -1,49 +1,35 @@
 package com.nhom5.backend.controller;
 
-import com.nhom5.backend.entity.Shop;
-import com.nhom5.backend.entity.enums.ShopStatus;
-import com.nhom5.backend.repository.ShopRepository;
+import com.nhom5.backend.dto.product.ShopPublicPageDto;
+import com.nhom5.backend.dto.response.ApiResponse;
+import com.nhom5.backend.service.ShopService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Trang shop công khai (api.md mục 4.4). Danh sách / tra cứu shop của admin ở AdminShopController
+ * (đã gỡ GET /api/shops và /api/shops/user/{userId} cũ vì trả thẳng entity).
+ */
 @RestController
 @RequestMapping("/api/shops")
 @RequiredArgsConstructor
-@Tag(name = "Shop API", description = "Quản lý và tra cứu thông tin cửa hàng / gian hàng")
+@Tag(name = "Shop API", description = "Trang gian hàng công khai")
 public class ShopController {
-    private final ShopRepository shopRepository;
-    private final com.nhom5.backend.service.ShopService shopService;
-    @GetMapping
-    @Operation(summary = "Tìm kiếm danh sách cửa hàng", description = "Lọc cửa hàng theo trạng thái, tỉnh thành, từ khóa tên shop hoặc email")
-    public ResponseEntity<Page<Shop>> getShops(
-            @RequestParam(required = false) ShopStatus status,
-            @RequestParam(required = false) String province,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Page<Shop> shops = shopRepository.search(status, province, keyword, PageRequest.of(page, size));
-        return ResponseEntity.ok(shops);
-    }
+
+    private final ShopService shopService;
 
     @GetMapping("/{id}")
-    @Operation(summary = "Trang shop công khai", description = "Lấy thông tin chi tiết cửa hàng + sản phẩm của shop (phân trang)")
-    public ResponseEntity<com.nhom5.backend.dto.product.ShopPublicPageDto> getShopPublicPage(
+    @Operation(summary = "Trang shop công khai", description = "Thông tin shop ACTIVE + sản phẩm đã duyệt của shop (phân trang)")
+    public ApiResponse<ShopPublicPageDto> getShopPublicPage(
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
-        return ResponseEntity.ok(shopService.getShopPublicPage(id, page, size));
-    }
-
-    @GetMapping("/user/{userId}")
-    @Operation(summary = "Lấy cửa hàng theo User ID", description = "Tìm thông tin shop gắn với tài khoản người dùng")
-    public ResponseEntity<Shop> getShopByUserId(@PathVariable Long userId) {
-        return shopRepository.findByUserId(userId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return ApiResponse.ok(shopService.getShopPublicPage(id, page, size));
     }
 }

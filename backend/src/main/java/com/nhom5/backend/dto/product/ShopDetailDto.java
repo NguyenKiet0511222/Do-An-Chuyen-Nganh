@@ -1,5 +1,6 @@
 package com.nhom5.backend.dto.product;
 
+import com.nhom5.backend.entity.Shop;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 
@@ -21,5 +22,14 @@ public record ShopDetailDto(
         Integer ratingCount,
 
         @Schema(description = "Đường dẫn ảnh đại diện logo", example = "/uploads/shops/3/logo.jpg")
-        String logoUrl
-) {}
+        String logoUrl,
+
+        @Schema(description = "Giới thiệu cửa hàng", example = "Rau sạch VietGAP trồng tại Đà Lạt")
+        String description
+) {
+
+    public static ShopDetailDto from(Shop shop) {
+        return new ShopDetailDto(shop.getId(), shop.getShopName(), shop.getProvince(), shop.getRatingAvg(),
+                shop.getRatingCount(), shop.getLogoUrl(), shop.getDescription());
+    }
+}
