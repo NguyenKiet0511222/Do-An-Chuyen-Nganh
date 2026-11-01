@@ -2,6 +2,7 @@ package com.nhom5.backend.repository;
 
 import com.nhom5.backend.entity.Order;
 import com.nhom5.backend.entity.enums.OrderStatus;
+import com.nhom5.backend.entity.enums.PaymentMethod;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -78,4 +80,78 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                                         @Param("status") OrderStatus status,
                                         @Param("start") LocalDateTime start,
                                         @Param("end") LocalDateTime end);
+
+    // ---------- Admin (mục 4.9): mọi đơn của sàn ----------
+
+    /**
+     * GET /admin/orders. keyword khớp mã đơn, tên khách, tên người nhận hoặc SĐT người nhận.
+     * allStatuses = true -> bỏ qua lọc trạng thái; các tham số null = không lọc.
+     */
+    @Query(value = """
+            SELECT o FROM Order o
+            JOIN FETCH o.shop s
+            JOIN FETCH o.user u
+            WHERE (:allStatuses = true OR o.status IN :statuses)
+              AND (:shopId IS NULL OR s.id = :shopId)
+              AND (:paymentMethod IS NULL OR o.paymentMethod = :paymentMethod)
+              AND (:from IS NULL OR o.createdAt >= :from)
+              AND (:to IS NULL OR o.createdAt < :to)
+              AND (:keyword IS NULL
+                   OR LOWER(o.orderCode)    LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(u.fullName)     LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(o.receiverName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR o.phone               LIKE CONCAT('%', :keyword, '%'))
+            """,
+            countQuery = """
+            SELECT COUNT(o) FROM Order o
+            JOIN o.user u
+            WHERE (:allStatuses = true OR o.status IN :statuses)
+              AND (:shopId IS NULL OR o.shop.id = :shopId)
+              AND (:paymentMethod IS NULL OR o.paymentMethod = :paymentMethod)
+              AND (:from IS NULL OR o.createdAt >= :from)
+              AND (:to IS NULL OR o.createdAt < :to)
+              AND (:keyword IS NULL
+                   OR LOWER(o.orderCode)    LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(u.fullName)     LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(o.receiverName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR o.phone               LIKE CONCAT('%', :keyword, '%'))
+            """)
+    Page<Order> searchAdmin(@Param("allStatuses") boolean allStatuses,
+                            @Param("statuses") Collection<OrderStatus> statuses,
+                            @Param("keyword") String keyword,
+                            @Param("shopId") Long shopId,
+                            @Param("paymentMethod") PaymentMethod paymentMethod,
+                            @Param("from") LocalDateTime from,
+                            @Param("to") LocalDateTime to,
+                            Pageable pageable);
+
+    /** Số đơn của từng shop: mỗi dòng [shopId, count] — tránh N+1 ở GET /admin/shops. */
+    @Query("SELECT o.shop.id, COUNT(o) FROM Order o WHERE o.shop.id IN :shopIds GROUP BY o.shop.id")
+    List<Object[]> countByShopIds(@Param("shopIds") Collection<Long> shopIds);
+
+    long countByShopId(Long shopId);
+
+    long countByStatus(OrderStatus status);
+
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(LocalDateTime start, LocalDateTime end);
+
+    /** Doanh thu toàn sàn = tổng tiền các đơn đã giao trong khoảng [start, end) theo delivered_at. */
+    @Query("""
+            SELECT COALESCE(SUM(o.total), 0) FROM Order o
+            WHERE o.status = :status
+              AND o.deliveredAt >= :start AND o.deliveredAt < :end
+            """)
+    long sumTotalByStatusBetween(@Param("status") OrderStatus status,
+                                 @Param("start") LocalDateTime start,
+                                 @Param("end") LocalDateTime end);
+
+    /** Biểu đồ doanh thu: mỗi dòng [deliveredAt, total] của đơn đã giao trong khoảng — gom theo ngày ở Java. */
+    @Query("""
+            SELECT o.deliveredAt, o.total FROM Order o
+            WHERE o.status = :status
+              AND o.deliveredAt >= :start AND o.deliveredAt < :end
+            """)
+    List<Object[]> findDeliveredAmountsBetween(@Param("status") OrderStatus status,
+                                               @Param("start") LocalDateTime start,
+                                               @Param("end") LocalDateTime end);
 }

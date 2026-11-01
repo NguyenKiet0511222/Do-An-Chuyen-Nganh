@@ -14,7 +14,7 @@ export const ORDER_STATUS_ORDER = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPI
 // Các bước hiển thị trên stepper (đơn huỷ hiện cảnh báo riêng, không nằm trên stepper)
 export const ORDER_STEPS = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPING", "DELIVERED"];
 
-// Chép đúng SellerOrderService.SELLER_TRANSITIONS — sửa ở backend thì sửa cả ở đây. SHIPPING không huỷ được.
+// Chép đúng OrderSupport.STAFF_TRANSITIONS (người bán và admin dùng chung) — sửa ở backend thì sửa cả ở đây. SHIPPING không huỷ được.
 export const SELLER_NEXT_STATUS = {
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["PROCESSING", "CANCELLED"],

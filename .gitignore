@@ -38,3 +38,7 @@ build/
 
 ### Ảnh người dùng upload khi chạy backend (app.upload.dir) ###
 backend/uploads/
+
+### Dataset AI (nặng, không commit — xem CLAUDE.md mục 4) ###
+dataset.rar
+ai/dataset/

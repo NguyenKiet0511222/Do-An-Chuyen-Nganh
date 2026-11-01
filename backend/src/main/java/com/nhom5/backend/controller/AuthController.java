@@ -5,11 +5,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.nhom5.backend.dto.request.ChangePasswordRequest;
 import com.nhom5.backend.dto.request.GoogleLoginRequest;
 import com.nhom5.backend.dto.request.LoginRequest;
 import com.nhom5.backend.dto.request.RegisterRequest;
@@ -56,5 +58,13 @@ public class AuthController {
 	@Operation(summary = "Thông tin tài khoản đang đăng nhập (cần Bearer token)")
 	public ApiResponse<UserResponse> me(@AuthenticationPrincipal Jwt jwt) {
 		return ApiResponse.ok(authService.me(Long.parseLong(jwt.getSubject())));
+	}
+
+	@PutMapping("/change-password")
+	@Operation(summary = "Đổi mật khẩu (cần Bearer token, chỉ tài khoản có mật khẩu)")
+	public ApiResponse<Void> changePassword(@AuthenticationPrincipal Jwt jwt,
+			@Valid @RequestBody ChangePasswordRequest request) {
+		authService.changePassword(Long.parseLong(jwt.getSubject()), request);
+		return ApiResponse.ok("Đã đổi mật khẩu", null);
 	}
 }

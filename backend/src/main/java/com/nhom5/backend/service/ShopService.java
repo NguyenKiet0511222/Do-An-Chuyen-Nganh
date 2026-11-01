@@ -28,14 +28,7 @@ public class ShopService {
             throw AppException.forbidden("Cửa hàng không hoạt động");
         }
 
-        ShopDetailDto shopDetail = new ShopDetailDto(
-                shop.getId(),
-                shop.getShopName(),
-                shop.getProvince(),
-                shop.getRatingAvg(),
-                shop.getRatingCount(),
-                shop.getLogoUrl()
-        );
+        ShopDetailDto shopDetail = ShopDetailDto.from(shop);
 
         PageResponse<ProductListItemDto> products = productService.searchPublicProducts(
                 null, null, shopId, null, null, null, null, "newest", page, size);

@@ -19,6 +19,16 @@ import java.util.Optional;
 
 public interface AiResultRepository extends JpaRepository<AiResult, Long> {
 
+    // ---------- Kiểm tra nhanh của khách Premium (source = QUICK_CHECK, api.md mục 4.7) ----------
+
+    /** Số lượt khách đã kiểm tra từ :since (giới hạn lượt / ngày). */
+    long countBySourceAndUserIdAndCreatedAtGreaterThanEqual(AiSource source, Long userId, LocalDateTime since);
+
+    Page<AiResult> findBySourceAndUserId(AiSource source, Long userId, Pageable pageable);
+
+    /** Chỉ lượt kiểm tra của chính mình — của người khác coi như không tồn tại. */
+    Optional<AiResult> findByIdAndSourceAndUserId(Long id, AiSource source, Long userId);
+
     /** GET /seller/ai/results — kết quả AI của ảnh sản phẩm thuộc shop, lọc tuỳ chọn theo reviewStatus. */
     @Query(value = """
             SELECT a FROM AiResult a
@@ -145,6 +155,19 @@ public interface AiResultRepository extends JpaRepository<AiResult, Long> {
     long countQueue(@Param("source") AiSource source,
                     @Param("queueStatus") AiReviewStatus queueStatus,
                     @Param("queueProductStatuses") Collection<ProductStatus> queueProductStatuses);
+
+    /** Như countQueue nhưng chỉ ảnh có nhãn :label (dashboard admin: aiRottenFlags = ảnh chờ bị AI gắn ROTTEN). */
+    @Query("""
+            SELECT COUNT(a) FROM AiResult a
+            WHERE a.source = :source
+              AND a.reviewStatus = :queueStatus
+              AND a.productImage.product.status IN :queueProductStatuses
+              AND a.label = :label
+            """)
+    long countQueueByLabel(@Param("source") AiSource source,
+                           @Param("queueStatus") AiReviewStatus queueStatus,
+                           @Param("queueProductStatuses") Collection<ProductStatus> queueProductStatuses,
+                           @Param("label") AiLabel label);
 
     /** Thống kê: mỗi dòng [finalLabel (có thể null), label, Long] — nhãn hiển thị = finalLabel ?? label, gộp ở service. */
     @Query("""

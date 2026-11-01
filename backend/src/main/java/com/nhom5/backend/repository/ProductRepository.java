@@ -195,6 +195,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p.status, COUNT(p) FROM Product p WHERE p.shop.id = :shopId GROUP BY p.status")
     List<Object[]> countByStatusForShop(@Param("shopId") Long shopId);
 
+    /** Như trên cho nhiều shop một lần (GET /admin/shops): mỗi dòng [shopId, ProductStatus, Long]. */
+    @Query("SELECT p.shop.id, p.status, COUNT(p) FROM Product p WHERE p.shop.id IN :shopIds GROUP BY p.shop.id, p.status")
+    List<Object[]> countByStatusForShops(@Param("shopIds") Collection<Long> shopIds);
+
     @Query("SELECT COUNT(p) FROM Product p WHERE (p.category.id = :categoryId OR p.category.parent.id = :categoryId) AND p.status = 'APPROVED' AND p.shop.status = 'ACTIVE'")
     int countActiveProductsByCategoryId(@Param("categoryId") Long categoryId);
+
+    /** Màn quản trị danh mục: mọi sản phẩm (mọi trạng thái) của danh mục, danh mục cha tính cả danh mục con. */
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.category.id = :categoryId OR p.category.parent.id = :categoryId")
+    int countAllProductsByCategoryId(@Param("categoryId") Long categoryId);
+
+    boolean existsByCategoryId(Long categoryId);
+
+    long countByStatus(ProductStatus status);
 }

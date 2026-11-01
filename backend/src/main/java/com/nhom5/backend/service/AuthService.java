@@ -7,6 +7,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nhom5.backend.dto.request.ChangePasswordRequest;
 import com.nhom5.backend.dto.request.GoogleLoginRequest;
 import com.nhom5.backend.dto.request.LoginRequest;
 import com.nhom5.backend.dto.request.RegisterRequest;
@@ -87,6 +88,25 @@ public class AuthService {
 		}
 		ensureActive(user);
 		return buildAuthResponse(user);
+	}
+
+	/** Tài khoản chỉ đăng nhập Google (không có mật khẩu) -> 400; sai mật khẩu hiện tại -> 400. Token cũ vẫn dùng được. */
+	public void changePassword(Long userId, ChangePasswordRequest request) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> AppException.unauthorized("Tài khoản không còn tồn tại"));
+		if (user.getPasswordHash() == null) {
+			throw AppException.badRequest("Tài khoản đăng nhập bằng Google, không có mật khẩu để đổi");
+		}
+		if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+			throw AppException.badRequest("Mật khẩu hiện tại không đúng");
+		}
+		if (!request.newPassword().equals(request.confirmPassword())) {
+			throw AppException.badRequest("Mật khẩu xác nhận không khớp");
+		}
+		if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+			throw AppException.badRequest("Mật khẩu mới phải khác mật khẩu hiện tại");
+		}
+		user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
 	}
 
 	@Transactional(readOnly = true)

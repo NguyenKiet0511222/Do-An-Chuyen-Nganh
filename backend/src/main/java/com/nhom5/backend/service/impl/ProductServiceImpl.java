@@ -148,15 +148,7 @@ public class ProductServiceImpl implements ProductService {
                 .findFirst()
                 .orElse(images.isEmpty() ? null : images.get(0).url());
 
-        var shop = p.getShop();
-        ShopDetailDto shopDto = new ShopDetailDto(
-                shop.getId(),
-                shop.getShopName(),
-                shop.getProvince(),
-                shop.getRatingAvg(),
-                shop.getRatingCount(),
-                shop.getLogoUrl()
-        );
+        ShopDetailDto shopDto = ShopDetailDto.from(p.getShop());
 
         return new ProductDetailDto(
                 p.getId(),

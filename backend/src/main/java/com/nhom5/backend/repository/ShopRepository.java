@@ -28,14 +28,24 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     /** Trang shop công khai: chỉ shop ACTIVE. */
     Optional<Shop> findByIdAndStatus(Long id, ShopStatus status);
 
-    /** GET /admin/shops — tìm kiếm với mọi tham số tuỳ chọn. */
-    @Query("""
+    /** GET /admin/shops — tìm kiếm với mọi tham số tuỳ chọn, kèm luôn chủ shop (tránh N+1). */
+    @Query(value = """
             SELECT s FROM Shop s
+            JOIN FETCH s.user u
             WHERE (:status IS NULL OR s.status = :status)
               AND (:province IS NULL OR s.province = :province)
               AND (:keyword IS NULL
                    OR LOWER(s.shopName) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                   OR LOWER(s.user.email) LIKE LOWER(CONCAT('%', :keyword, '%')))
+                   OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            """,
+            countQuery = """
+            SELECT COUNT(s) FROM Shop s
+            JOIN s.user u
+            WHERE (:status IS NULL OR s.status = :status)
+              AND (:province IS NULL OR s.province = :province)
+              AND (:keyword IS NULL
+                   OR LOWER(s.shopName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')))
             """)
     Page<Shop> search(@Param("status") ShopStatus status,
                       @Param("province") String province,
