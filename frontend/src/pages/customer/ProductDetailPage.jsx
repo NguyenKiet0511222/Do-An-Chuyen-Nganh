@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { productApi, resolveAssetUrl } from "../../services/api";
+import { productApi, reviewApi, resolveAssetUrl } from "../../services/api";
 import { useCart } from "../../context/useCart";
 import { useAuth } from "../../context/useAuth";
 import { CUSTOMER_AI_TAG, formatPercent } from "../../utils/aiLabel";
-import { apiErrorMessage, handleImageError } from "../../utils/format";
+import { apiErrorMessage, handleImageError, formatDateTime } from "../../utils/format";
 import AiQualityBadge from "../../components/AiQualityBadge";
 import {
   Star,
@@ -36,11 +36,7 @@ import "./ProductDetailPage.css";
 const PLACEHOLDER_IMAGE = "https://placehold.co/600x600?text=No+Image";
 const RELATED_COUNT = 4;
 
-// Mốc thời gian cho đánh giá lưu tạm ở trình duyệt (gọi trong handler, tách ra ngoài component cho React Compiler)
-const nowStamp = () => {
-  const d = new Date();
-  return { id: d.getTime(), text: d.toISOString().slice(0, 16).replace("T", " ") };
-};
+
 
 // Helper render số sao thập phân (ví dụ 4.8★ -> 4 sao vàng + 1 sao 80% vàng + 0 sao xám)
 function renderStarRating(score, size = 13) {
@@ -166,6 +162,8 @@ export default function ProductDetailPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState("");
+  const [newReviewOrderId, setNewReviewOrderId] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [helpfulReviews, setHelpfulReviews] = useState({});
 
   // --- Toast thông báo ---
@@ -219,18 +217,16 @@ export default function ProductDetailPage() {
 
 
 
-          // Nạp đánh giá từ LocalStorage nếu có
-          const reviewStorageKey = `pdp_reviews_${pData.id}`;
-          const savedReviews = localStorage.getItem(reviewStorageKey);
-          if (savedReviews) {
-            try {
-              setReviews(JSON.parse(savedReviews));
-            } catch {
-              setReviews([]);
-            }
-          } else {
-            setReviews([]);
-          }
+          // Nạp đánh giá từ API backend (/api/products/:id/reviews)
+          reviewApi.getByProduct(pData.id)
+            .then((res) => {
+              if (!ignore && res) {
+                setReviews(res.content || []);
+              }
+            })
+            .catch(() => {
+              if (!ignore) setReviews([]);
+            });
 
           // Khởi tạo tin nhắn chat ban đầu
           setChatMessages([
@@ -447,35 +443,42 @@ export default function ProductDetailPage() {
     }, 700);
   };
 
-  // --- Xử lý Gửi Đánh Giá Mới (Tính lại số sao & cập nhật LocalStorage) ---
-  const handleSubmitReview = (e) => {
+  // --- Xử lý Gửi Đánh Giá Mới (Gọi API /api/products/:id/reviews) ---
+  const handleSubmitReview = async (e) => {
     e.preventDefault();
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    if (!newReviewOrderId) {
+      alert("Vui lòng nhập ID đơn hàng bạn đã mua sản phẩm này.");
+      return;
+    }
     if (!newReviewComment.trim()) {
       alert("Vui lòng nhập nội dung đánh giá nông sản.");
       return;
     }
 
-    const reviewerName = user?.fullName || "Khách hàng thân thiết";
-    const createdAt = nowStamp();
-    const newRev = {
-      id: createdAt.id,
-      user: reviewerName,
-      rating: newReviewRating,
-      date: createdAt.text,
-      variation: unit ? `1 ${unit}` : "Tiêu chuẩn",
-      comment: newReviewComment.trim(),
-      images: [currentImgUrl],
-      reply: null,
-      helpful: 0
-    };
+    setReviewSubmitting(true);
+    try {
+      await reviewApi.create(product.id, {
+        orderId: Number(newReviewOrderId),
+        rating: newReviewRating,
+        comment: newReviewComment.trim()
+      });
+      setNewReviewComment("");
+      setNewReviewOrderId("");
+      setIsReviewModalOpen(false);
+      triggerToast(`Cảm ơn bạn! Đánh giá ${newReviewRating} sao đã được ghi nhận thành công.`);
 
-    const updated = [newRev, ...reviews];
-    setReviews(updated);
-    localStorage.setItem(`pdp_reviews_${product.id}`, JSON.stringify(updated));
-
-    setNewReviewComment("");
-    setIsReviewModalOpen(false);
-    triggerToast(`Cảm ơn bạn! Đánh giá ${newReviewRating} sao đã được ghi nhận thành công.`);
+      // Tải lại đánh giá mới nhất từ backend
+      const res = await reviewApi.getByProduct(product.id);
+      if (res) setReviews(res.content || []);
+    } catch (err) {
+      alert(apiErrorMessage(err, "Không thể gửi đánh giá. Vui lòng kiểm tra lại ID đơn hàng (đơn phải DELIVERED và có sản phẩm này)."));
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   // --- Xử lý Thích đánh giá hữu ích ---
@@ -1033,19 +1036,27 @@ export default function ProductDetailPage() {
                     Chưa có đánh giá nào phù hợp với bộ lọc đã chọn.
                   </div>
                 ) : (
-                  displayedReviews.map((rev) => (
+                  displayedReviews.map((rev) => {
+                    const reviewerName = rev.user?.fullName || rev.user || "Khách hàng";
+                    const reviewerAvatar = resolveAssetUrl(rev.user?.avatarUrl);
+                    const reviewDate = rev.createdAt ? formatDateTime(rev.createdAt) : (rev.date || "Vừa xong");
+                    return (
                     <div key={rev.id} className="pdp-review-item">
                       <div className={`pdp-reviewer-avatar ${rev.id % 2 === 0 ? "alt" : ""}`}>
-                        {rev.user.slice(0, 2).toUpperCase()}
+                        {reviewerAvatar ? (
+                          <img src={reviewerAvatar} alt={reviewerName} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={handleImageError} />
+                        ) : (
+                          reviewerName.slice(0, 2).toUpperCase()
+                        )}
                       </div>
                       <div className="pdp-review-body">
-                        <div className="pdp-reviewer-name">{rev.user}</div>
+                        <div className="pdp-reviewer-name">{reviewerName}</div>
                         {/* Render chuẩn 5 sao với số sao đạt được màu vàng, còn lại rỗng */}
                         <div className="pdp-stars-icons">
                           {renderReviewStars(rev.rating, 13)}
                         </div>
                         <div className="pdp-review-meta">
-                          {rev.date} | Phân loại hàng: {rev.variation}
+                          {reviewDate} | {rev.orderId ? `Đơn hàng #${rev.orderId}` : `Phân loại: ${rev.variation || "Tiêu chuẩn"}`}
                         </div>
                         <p className="pdp-review-comment">{rev.comment}</p>
 
@@ -1076,7 +1087,8 @@ export default function ProductDetailPage() {
                         </div>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
@@ -1230,6 +1242,21 @@ export default function ProductDetailPage() {
                 </div>
 
                 <div className="pdp-form-group">
+                  <label className="pdp-form-label">ID đơn hàng đã nhận *</label>
+                  <input
+                    className="pdp-form-input"
+                    type="number"
+                    required
+                    placeholder="Nhập ID đơn hàng (ví dụ: 1)"
+                    value={newReviewOrderId}
+                    onChange={(e) => setNewReviewOrderId(e.target.value)}
+                  />
+                  <small style={{ color: "#64748b", fontSize: "11px", display: "block", marginTop: "4px" }}>
+                    * Chỉ có thể đánh giá sau khi đơn hàng đã hoàn thành (DELIVERED).
+                  </small>
+                </div>
+
+                <div className="pdp-form-group">
                   <label className="pdp-form-label">Quy cách nông sản</label>
                   <input
                     className="pdp-form-input"
@@ -1258,8 +1285,8 @@ export default function ProductDetailPage() {
                 >
                   Hủy bỏ
                 </button>
-                <button type="submit" className="pdp-btn-buy-now" style={{ height: "38px", padding: "0 20px" }}>
-                  Gửi Đánh Giá
+                <button type="submit" disabled={reviewSubmitting} className="pdp-btn-buy-now" style={{ height: "38px", padding: "0 20px" }}>
+                  {reviewSubmitting ? "Đang gửi..." : "Gửi Đánh Giá"}
                 </button>
               </div>
             </form>

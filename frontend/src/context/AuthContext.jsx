@@ -19,7 +19,7 @@ function readStoredAuth() {
 
 /**
  * Trạng thái đăng nhập toàn cục.
- * user có dạng { id, fullName, email, roles: ["CUSTOMER" | "SELLER" | "ADMIN"] } — do backend trả về khi login.
+ * user có dạng { id, fullName, email, phone, role, accountTier, provider, avatarUrl, active, ... } — do backend trả về khi login.
  */
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(readStoredAuth);
@@ -42,6 +42,14 @@ export function AuthProvider({ children }) {
     setAuth({ token: null, user: null });
   };
 
+  const updateUser = (updatedUser) => {
+    if (updatedUser) {
+      const merged = { ...auth.user, ...updatedUser };
+      localStorage.setItem(USER_KEY, JSON.stringify(merged));
+      setAuth((prev) => ({ ...prev, user: merged }));
+    }
+  };
+
   const hasRole = (role) => {
     if (!auth.user) return false;
     if (auth.user.role === role) return true;
@@ -57,6 +65,7 @@ export function AuthProvider({ children }) {
         isAuthenticated: Boolean(auth.token),
         login,
         logout,
+        updateUser,
         hasRole
       }}
     >

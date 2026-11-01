@@ -42,3 +42,8 @@ backend/uploads/
 ### Dataset AI (nặng, không commit — xem CLAUDE.md mục 4) ###
 dataset.rar
 ai/dataset/
+
+### Postman workspace metadata ###
+.postman/
+postman/
+*.code-workspace

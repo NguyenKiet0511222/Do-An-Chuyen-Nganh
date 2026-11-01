@@ -25,13 +25,17 @@ import SellerOrdersPage from "./pages/seller/SellerOrdersPage";
 import SellerOrderDetailPage from "./pages/seller/SellerOrderDetailPage";
 import SellerInfoAIPage from "./pages/seller/SellerInfoAIPage";
 import ProfilePage from "./pages/shared/ProfilePage";
-// Admin Management Pages (Theo Wireframe Nhóm 5)
+
+// Admin Management Pages (Theo Wireframe & api.md v1.7)
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminProductDetailPage from "./pages/admin/AdminProductDetailPage";
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage";
 import AdminAiReviewPage from "./pages/admin/AdminAiReviewPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminShopsPage from "./pages/admin/AdminShopsPage";
+import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
 
 import "./App.css";
 
@@ -96,7 +100,7 @@ export default function App() {
               <Route path="*" element={<ComingSoon />} />
             </Route>
 
-            {/* Khu quản trị (MUI dashboard, yêu cầu vai trò ADMIN) - 5 màn hình theo Wireframe */}
+            {/* Khu quản trị (MUI dashboard, yêu cầu vai trò ADMIN) */}
             <Route
               path="/admin"
               element={
@@ -105,19 +109,24 @@ export default function App() {
                 </RequireAuth>
               }
             >
-              {/* Màn 1: Tổng quan */}
+              {/* Tổng quan */}
               <Route index element={<AdminDashboardPage />} />
 
-              {/* Màn 5: Quản lý sản phẩm & Màn 4: Chi tiết duyệt sản phẩm */}
+              {/* Quản lý sản phẩm & Chi tiết duyệt sản phẩm */}
               <Route path="products" element={<AdminProductsPage />} />
               <Route path="products/:id" element={<AdminProductDetailPage />} />
 
-              {/* Màn 3: Quản lý đơn hàng & Màn 2: Chi tiết đơn hàng */}
+              {/* Quản lý đơn hàng & Chi tiết đơn hàng */}
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="orders/:id" element={<AdminOrderDetailPage />} />
 
-              {/* Kiểm định AI: hàng chờ, thử mô hình, ngưỡng & thống kê (docs/1910.md mục 7.3) */}
+              {/* Kiểm định AI: hàng chờ, thử mô hình, ngưỡng & thống kê */}
               <Route path="ai-review" element={<AdminAiReviewPage />} />
+
+              {/* Quản lý Cửa hàng, Người dùng, Danh mục */}
+              <Route path="shops" element={<AdminShopsPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="categories" element={<AdminCategoriesPage />} />
               
               <Route path="profile" element={<ProfilePage />} />
 

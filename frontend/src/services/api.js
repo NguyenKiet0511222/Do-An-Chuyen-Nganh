@@ -11,7 +11,7 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json"
   },
-  timeout: 10000
+  timeout: 15000
 });
 
 // Gắn JWT vào mọi request nếu đã đăng nhập
@@ -47,7 +47,7 @@ export const resolveAssetUrl = (url) =>
   typeof url === "string" && url.startsWith("/uploads/") ? `${BACKEND_ORIGIN}${url}` : url;
 
 // ==========================================
-// 1. API Xác thực (Auth) — backend làm ở tuần 3
+// 1. API Xác thực (Auth)
 // ==========================================
 export const authApi = {
   // -> { accessToken, tokenType: "Bearer", expiresIn, user: { id, fullName, email, role, ... } }
@@ -57,7 +57,23 @@ export const authApi = {
   },
   register: (payload) => apiClient.post("/auth/register", payload).then(unwrap),
   loginWithGoogle: (idToken) => apiClient.post("/auth/google", { idToken }).then(unwrap),
-  me: () => apiClient.get("/auth/me").then(unwrap)
+  me: () => apiClient.get("/auth/me").then(unwrap),
+  changePassword: (payload) => apiClient.put("/auth/change-password", payload).then(unwrap)
+};
+
+// ==========================================
+// 1.2. API Hồ sơ cá nhân (User Profile) — api.md v1.7 mục 4.2
+// ==========================================
+export const userProfileApi = {
+  get: () => apiClient.get("/users/me").then(unwrap),
+  update: (payload) => apiClient.put("/users/me", payload).then(unwrap),
+  updateAvatar: (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiClient.put("/users/me/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    }).then(unwrap);
+  }
 };
 
 // ==========================================
@@ -116,15 +132,19 @@ export const productApi = {
 };
 
 // ==========================================
+// 2.2. API Đánh giá sản phẩm (Reviews) — api.md v1.7 mục 3.6 & 4.4
+// ==========================================
+export const reviewApi = {
+  getByProduct: (productId, params = {}) =>
+    apiClient.get(`/products/${productId}/reviews`, { params }).then(unwrap),
+  create: (productId, payload) =>
+    apiClient.post(`/products/${productId}/reviews`, payload).then(unwrap)
+};
+
+// ==========================================
 // 2.5. API Cửa hàng (Shops)
 // ==========================================
 export const shopApi = {
-  /**
-   * Lấy thông tin shop công khai kèm sản phẩm (phân trang)
-   * @param {number|string} id 
-   * @param {number} page 
-   * @param {number} size 
-   */
   getShopPublicPage: async (id, page = 0, size = 12) => {
     try {
       const response = await apiClient.get(`/shops/${id}`, {
@@ -139,32 +159,31 @@ export const shopApi = {
 };
 
 // ==========================================
-// 3. API AI Phân loại chất lượng qua ảnh (đi qua Spring Boot -> AI service)
+// 3. API AI Phân loại chất lượng qua ảnh (Khách hàng Premium & demo)
 // ==========================================
 export const aiApi = {
   /**
-   * Gửi ảnh tới backend để nhận nhãn AI (loại nông sản, tươi/hỏng, độ tin cậy)
+   * Gửi ảnh tới backend để nhận nhãn AI (/api/ai/classify)
    * @param {File|string} imageInput File từ input hoặc URL ảnh mẫu
    * @param {string|null} sampleId ID ảnh mẫu demo (nếu chọn từ danh sách)
    */
   classify: async (imageInput, sampleId = null) => {
     if (imageInput instanceof File) {
       const formData = new FormData();
-      formData.append("image", imageInput);
+      formData.append("file", imageInput);
 
-      try {
-        const response = await apiClient.post("/ai/classify", formData, {
-          headers: { "Content-Type": "multipart/form-data" }
-        });
-        return unwrap(response);
-      } catch (error) {
-        console.warn("Backend AI chưa phản hồi, sử dụng phân tích mô phỏng:", error.message);
-      }
+      const response = await apiClient.post("/ai/classify", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 30000
+      });
+      return unwrap(response);
     }
 
-    // Fallback mô phỏng cho demo khi chưa nối AI (tuần 5)
+    // Fallback mô phỏng cho ảnh demo offline
     return await classifyProduceImage(imageInput, sampleId);
-  }
+  },
+  getHistory: (params = {}) => apiClient.get("/ai/history", { params }).then(unwrap),
+  getHistoryById: (id) => apiClient.get(`/ai/history/${id}`).then(unwrap)
 };
 
 // ==========================================
@@ -224,7 +243,6 @@ export const sellerApi = {
     update: (id, payload) => apiClient.put(`/seller/products/${id}`, payload).then(unwrap),
     delete: (id) => apiClient.delete(`/seller/products/${id}`).then(unwrap),
     submit: (id) => apiClient.post(`/seller/products/${id}/submit`).then(unwrap),
-    // Backend gọi AI đồng bộ cho từng ảnh (timeout 5s/ảnh) -> timeout 10s mặc định không đủ cho nhiều ảnh
     uploadImages: (id, formData) => apiClient.post(`/seller/products/${id}/images`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
       timeout: 60000
@@ -245,7 +263,6 @@ export const sellerApi = {
   // --- Dashboard ---
   dashboard: {
     getSummary: () => apiClient.get("/seller/dashboard/summary").then(unwrap),
-    // params: reviewStatus (vd "RETAKE_REQUESTED"), page (từ 0), size
     getAiResults: (params = {}) => apiClient.get("/seller/ai/results", { params }).then(unwrap)
   }
 };
@@ -278,20 +295,23 @@ export const adminApi = {
   },
   user: {
     getAll: (params = {}) => apiClient.get("/admin/users", { params }).then(unwrap),
+    getById: (id) => apiClient.get(`/admin/users/${id}`).then(unwrap),
     updateStatus: (id, action) => apiClient.patch(`/admin/users/${id}/status`, { action }).then(unwrap),
     updateTier: (id, tier) => apiClient.patch(`/admin/users/${id}/tier`, { tier }).then(unwrap),
     createAdmin: (payload) => apiClient.post("/admin/users", payload).then(unwrap)
   },
+  category: {
+    getAll: () => apiClient.get("/admin/categories").then(unwrap),
+    create: (payload) => apiClient.post("/admin/categories", payload).then(unwrap),
+    update: (id, payload) => apiClient.put(`/admin/categories/${id}`, payload).then(unwrap),
+    delete: (id) => apiClient.delete(`/admin/categories/${id}`).then(unwrap)
+  },
   // Kiểm định AI — docs/1910.md mục 7.2
   ai: {
-    // params: { reviewStatus ("PENDING_REVIEW" hoặc nhiều giá trị cách dấu phẩy), label, shopId, produce, from, to, sort, page, size }
     getResults: (params = {}) => apiClient.get("/admin/ai/results", { params }).then(unwrap),
     getResult: (id) => apiClient.get(`/admin/ai/results/${id}`).then(unwrap),
-    // payload: { action: "ACCEPT" | "CORRECT" | "RETAKE", finalLabel?, note? }
     review: (id, payload) => apiClient.patch(`/admin/ai/results/${id}/review`, payload).then(unwrap),
-    // payload: { minConfidence } -> { succeeded }
     acceptBulk: (payload) => apiClient.patch("/admin/ai/results/accept-bulk", payload).then(unwrap),
-    // Thử mô hình, không lưu -> { label, produce, condition, confidence, top, modelVersion, inferenceMs }
     classify: (file) => {
       const formData = new FormData();
       formData.append("image", file);
@@ -301,8 +321,6 @@ export const adminApi = {
     },
     getSettings: () => apiClient.get("/admin/ai/settings").then(unwrap),
     updateSettings: (payload) => apiClient.put("/admin/ai/settings", payload).then(unwrap),
-    // params: { from, to } (yyyy-MM-dd)
     getStatistics: (params = {}) => apiClient.get("/admin/ai/statistics", { params }).then(unwrap)
   }
 };
-

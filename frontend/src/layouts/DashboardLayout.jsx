@@ -28,7 +28,7 @@ import {
   Users,
   FolderTree,
   ScanSearch,
-  LogOut,
+  Store,
   Home,
   Search,
   Bell,
@@ -49,7 +49,6 @@ const NAV_BY_ROLE = {
     logoTitle: "EcoFresh Partner",
     items: [
       { label: "Tổng quan", to: "/seller", icon: LayoutDashboard, end: true },
-      // Badge thật từ /seller/dashboard/summary: cần sửa = REJECTED + NEED_INFO, đơn mới = pendingOrders (0 thì ẩn)
       { label: "Sản phẩm", to: "/seller/products", icon: Package, dynamicBadge: "sellerNeedFix", badgeColor: "warning" },
       { label: "Đơn hàng", to: "/seller/orders", icon: ClipboardList, dynamicBadge: "sellerNewOrders", badgeColor: "default" },
       { label: "Thông tin shop & AI", to: "/seller/info", icon: ScanSearch }
@@ -60,12 +59,10 @@ const NAV_BY_ROLE = {
     logoTitle: "EcoFresh Admin",
     items: [
       { label: "Tổng quan", to: "/admin", icon: LayoutDashboard, end: true },
-      // Badge = số sản phẩm PENDING thật (totalElements của adminApi.product.getAll)
       { label: "Sản phẩm", to: "/admin/products", icon: Package, dynamicBadge: "adminPendingProducts", badgeColor: "warning" },
-      // Chưa có /api/admin/orders -> chưa có badge
-      { label: "Đơn hàng", to: "/admin/orders", icon: ClipboardList },
-      // Badge = số ảnh đang chờ kiểm định thật (pendingReview), xem DashboardLayout bên dưới
+      { label: "Đơn hàng", to: "/admin/orders", icon: ClipboardList, dynamicBadge: "adminPendingOrders", badgeColor: "default" },
       { label: "Kiểm định AI", to: "/admin/ai-review", icon: ScanSearch, dynamicBadge: "aiPending", badgeColor: "error" },
+      { label: "Cửa hàng", to: "/admin/shops", icon: Store, dynamicBadge: "adminPendingShops", badgeColor: "warning" },
       { label: "Người dùng", to: "/admin/users", icon: Users },
       { label: "Danh mục", to: "/admin/categories", icon: FolderTree }
     ],
@@ -81,15 +78,16 @@ export default function DashboardLayout({ role }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [aiPending, setAiPending] = useState(0);
   const [adminPendingProducts, setAdminPendingProducts] = useState(0);
+  const [adminPendingOrders, setAdminPendingOrders] = useState(0);
+  const [adminPendingShops, setAdminPendingShops] = useState(0);
   const [sellerCounts, setSellerCounts] = useState({ needFix: 0, newOrders: 0 });
   const location = useLocation();
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.admin;
-  // Chỉ gọi API của đúng khu: ADMIN vào khu người bán không gọi summary người bán (backend trả 404 "chưa có shop")
+
   const isAdminArea = role === "admin" && hasRole("ADMIN");
   const isSellerArea = role === "seller" && hasRole("SELLER");
 
-  // Badge admin: số ảnh chờ kiểm định AI + số sản phẩm chờ duyệt. Tải lại khi có ảnh / sản phẩm vừa được kiểm định
-  // (AdminProductsPage, AdminProductDetailPage, AiReview* đều gọi notifyAiPendingChanged()).
+  // Badge admin: số ảnh chờ kiểm định AI, sản phẩm chờ duyệt, đơn mới, shop chờ duyệt
   useEffect(() => {
     if (!isAdminArea) return undefined;
     let ignore = false;
@@ -100,7 +98,7 @@ export default function DashboardLayout({ role }) {
           if (!ignore) setAiPending(Number(stats?.pendingReview) || 0);
         })
         .catch(() => {
-          if (!ignore) setAiPending(0); // lỗi -> ẩn badge
+          if (!ignore) setAiPending(0);
         });
       adminApi.product
         .getAll({ status: "PENDING", page: 0, size: 1 })
@@ -110,6 +108,15 @@ export default function DashboardLayout({ role }) {
         .catch(() => {
           if (!ignore) setAdminPendingProducts(0);
         });
+      adminApi.dashboard
+        .getSummary()
+        .then((sum) => {
+          if (!ignore && sum) {
+            setAdminPendingOrders(Number(sum.pendingOrders) || 0);
+            setAdminPendingShops(Number(sum.pendingShops) || 0);
+          }
+        })
+        .catch(() => {});
     };
     loadPending();
     window.addEventListener(AI_PENDING_CHANGED_EVENT, loadPending);
@@ -119,7 +126,7 @@ export default function DashboardLayout({ role }) {
     };
   }, [isAdminArea]);
 
-  // Badge người bán: tải lại khi có notifySellerDataChanged() (gửi duyệt, xoá, ẩn sản phẩm, đổi trạng thái đơn)
+  // Badge người bán
   useEffect(() => {
     if (!isSellerArea) return undefined;
     let ignore = false;
@@ -135,7 +142,7 @@ export default function DashboardLayout({ role }) {
           });
         })
         .catch(() => {
-          if (!ignore) setSellerCounts({ needFix: 0, newOrders: 0 }); // lỗi -> ẩn badge
+          if (!ignore) setSellerCounts({ needFix: 0, newOrders: 0 });
         });
     };
     loadSummary();
@@ -146,11 +153,12 @@ export default function DashboardLayout({ role }) {
     };
   }, [isSellerArea]);
 
-  // Số = 0 (hoặc sai khu) thì ẩn badge
   const countBadge = (enabled, count, suffix) => (enabled && count > 0 ? `${count}${suffix}` : null);
   const dynamicBadges = {
     aiPending: countBadge(isAdminArea, aiPending, ""),
     adminPendingProducts: countBadge(isAdminArea, adminPendingProducts, " chờ"),
+    adminPendingOrders: countBadge(isAdminArea, adminPendingOrders, " mới"),
+    adminPendingShops: countBadge(isAdminArea, adminPendingShops, " chờ"),
     sellerNeedFix: countBadge(isSellerArea, sellerCounts.needFix, " cần sửa"),
     sellerNewOrders: countBadge(isSellerArea, sellerCounts.newOrders, " mới")
   };
@@ -201,181 +209,172 @@ export default function DashboardLayout({ role }) {
                 transition: "all 0.2s"
               }}
             >
-              <ListItemIcon sx={{ minWidth: 36, color: isActive ? "#10b981" : "#94a3b8" }}>
-                <Icon size={20} />
+              <ListItemIcon sx={{ color: "inherit", minWidth: 38 }}>
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
               </ListItemIcon>
               <ListItemText
                 primary={label}
-                slotProps={{
-                  primary: {
-                    fontSize: 14,
-                    fontWeight: isActive ? 700 : 600
-                  }
+                primaryTypographyProps={{
+                  fontSize: 14,
+                  fontWeight: isActive ? 700 : 500,
+                  letterSpacing: -0.2
                 }}
               />
               {badge && (
                 <Chip
-                  label={badge}
                   size="small"
-                  color={badgeColor === "warning" ? "warning" : badgeColor === "error" ? "error" : "default"}
+                  label={badge}
+                  color={badgeColor || "default"}
                   sx={{
-                    height: 22,
+                    height: 20,
                     fontSize: 11,
                     fontWeight: 700,
-                    px: 0.5,
-                    bgcolor: badgeColor === "warning" ? "#fef3c7" : badgeColor === "error" ? "#fee2e2" : "#f1f5f9",
-                    color: badgeColor === "warning" ? "#b45309" : badgeColor === "error" ? "#b91c1c" : "#475569",
-                    "& .MuiChip-label": { px: 1 }
+                    borderRadius: "6px"
                   }}
                 />
               )}
             </ListItemButton>
           );
         })}
-
-        {/* Mục Khác (Admin only) */}
-        {nav.otherItems && (
-          <>
-            <Box sx={{ px: 2, pt: 3, pb: 1 }}>
-              <Typography variant="caption" sx={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                Khác
-              </Typography>
-            </Box>
-            {nav.otherItems.map(({ label, to, icon: Icon }) => (
-              <ListItemButton
-                key={to}
-                component={NavLink}
-                to={to}
-                onClick={() => setMobileOpen(false)}
-                sx={{
-                  borderRadius: 2,
-                  mb: 1,
-                  py: 1.2,
-                  px: 2,
-                  color: "#64748b",
-                  "&.active": { bgcolor: "#ecfdf5", color: "#047857" },
-                  "&:hover": { bgcolor: "#f8fafc" }
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 36, color: "#94a3b8" }}>
-                  <Icon size={20} />
-                </ListItemIcon>
-                <ListItemText primary={label} slotProps={{ primary: { fontSize: 14, fontWeight: 600 } }} />
-              </ListItemButton>
-            ))}
-          </>
-        )}
       </List>
 
-      <Box sx={{ p: 2 }}>
+      {/* Bottom Nav / Settings */}
+      {nav.otherItems && (
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Divider sx={{ mb: 2, borderColor: "#f1f5f9" }} />
+          {nav.otherItems.map(({ label, to, icon: Icon }) => (
+            <ListItemButton
+              key={to}
+              component={NavLink}
+              to={to}
+              onClick={() => setMobileOpen(false)}
+              sx={{
+                borderRadius: 2,
+                py: 1.2,
+                px: 2,
+                color: "#64748b",
+                "&:hover": { bgcolor: "#f8fafc", color: "#0f172a" }
+              }}
+            >
+              <ListItemIcon sx={{ color: "inherit", minWidth: 38 }}>
+                <Icon size={20} />
+              </ListItemIcon>
+              <ListItemText primary={label} primaryTypographyProps={{ fontSize: 14, fontWeight: 500 }} />
+            </ListItemButton>
+          ))}
+        </Box>
+      )}
+
+      {/* Footer / Back to Shop */}
+      <Box sx={{ p: 2, borderTop: "1px solid #f1f5f9", bgcolor: "#fafafa" }}>
         <ListItemButton
-          onClick={logout}
+          component={Link}
+          to="/"
           sx={{
             borderRadius: 2,
-            mb: 1,
-            py: 1.2,
-            px: 2,
-            color: "#ef4444",
-            "&:hover": { bgcolor: "#fef2f2" }
+            py: 1,
+            px: 1.5,
+            color: "#64748b",
+            "&:hover": { bgcolor: "#f1f5f9", color: "#0f172a" }
           }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: "#ef4444" }}>
-            <LogOut size={20} />
+          <ListItemIcon sx={{ color: "inherit", minWidth: 32 }}>
+            <Home size={18} />
           </ListItemIcon>
-          <ListItemText primary="Đăng xuất" slotProps={{ primary: { fontSize: 14, fontWeight: 700 } }} />
-        </ListItemButton>
-        <ListItemButton component={Link} to="/" sx={{ borderRadius: 2, py: 1.2, px: 2, color: "#64748b", "&:hover": { bgcolor: "#f8fafc" } }}>
-          <ListItemIcon sx={{ minWidth: 36, color: "#94a3b8" }}>
-            <Home size={20} />
-          </ListItemIcon>
-          <ListItemText primary="Về trang mua hàng" slotProps={{ primary: { fontSize: 14, fontWeight: 600 } }} />
+          <ListItemText primary="Về sàn mua sắm" primaryTypographyProps={{ fontSize: 13, fontWeight: 600 }} />
         </ListItemButton>
       </Box>
     </Box>
   );
 
   return (
-    <ScopedCssBaseline sx={{ display: "flex", minHeight: "100vh", bgcolor: "#F8FAFB" }}>
-      {/* Top Header */}
+    <ScopedCssBaseline sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
+      {/* Top Bar Header */}
       <AppBar
         position="fixed"
-        color="inherit"
         elevation={0}
         sx={{
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { md: `${DRAWER_WIDTH}px` },
+          bgcolor: "#fff",
+          color: "#0f172a",
           borderBottom: "1px solid #f1f5f9",
-          bgcolor: "rgba(255, 255, 255, 0.9)",
-          backdropFilter: "blur(8px)"
+          zIndex: (theme) => theme.zIndex.drawer + 1
         }}
       >
-        <Toolbar sx={{ height: 72, gap: 2, px: { xs: 2, md: 4 } }}>
-          <IconButton
-            edge="start"
-            onClick={() => setMobileOpen(true)}
-            sx={{ display: { md: "none" }, color: "#64748b" }}
-            aria-label="Mở menu"
-          >
-            <Menu size={24} />
-          </IconButton>
+        <Toolbar sx={{ justifyContent: "space-between", height: 70, px: { xs: 2, sm: 3 } }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              sx={{ mr: 1, display: { md: "none" } }}
+            >
+              <Menu size={22} />
+            </IconButton>
 
-          {/* Quick Search */}
-          <Box sx={{ flex: 1, maxWidth: 480, display: { xs: "none", sm: "block" } }}>
+            {/* Quick Search */}
             <TextField
+              placeholder="Tìm kiếm nhanh đơn hàng, nông sản..."
               size="small"
-              fullWidth
-              placeholder="Tìm kiếm..."
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search size={18} color="#94a3b8" />
-                    </InputAdornment>
-                  ),
-                  sx: {
-                    height: 40,
-                    fontSize: 14,
-                    bgcolor: "#f1f5f9",
-                    borderRadius: 2,
-                    "& fieldset": { border: "none" },
-                    "&:hover": { bgcolor: "#e2e8f0" }
-                  }
+              sx={{
+                width: { xs: 180, sm: 280 },
+                display: { xs: "none", sm: "block" },
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 3,
+                  bgcolor: "#f8fafc",
+                  fontSize: 13,
+                  "& fieldset": { borderColor: "#f1f5f9" },
+                  "&:hover fieldset": { borderColor: "#cbd5e1" }
                 }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={16} color="#94a3b8" />
+                  </InputAdornment>
+                )
               }}
             />
           </Box>
-          <Box sx={{ flex: 1, display: { sm: "none" } }} />
 
-          {/* Thông báo: chưa có API thông báo -> không hiện số giả */}
-          <IconButton aria-label="Thông báo" sx={{ color: "#64748b", bgcolor: "#f8fafc", width: 40, height: 40, borderRadius: "10px" }}>
-            <Bell size={20} />
-          </IconButton>
+          {/* User Profile & Actions */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <IconButton size="small" sx={{ color: "#64748b" }}>
+              <Bell size={20} />
+            </IconButton>
 
-          {/* User Profile */}
-          <Box onClick={handleProfileClick} sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", pl: 1, borderLeft: "1px solid #f1f5f9" }}>
-            <Avatar
+            <Divider orientation="vertical" flexItem sx={{ height: 24, alignSelf: "center" }} />
+
+            <Box
+              onClick={handleProfileClick}
               sx={{
-                width: 40,
-                height: 40,
-                bgcolor: "#10b981",
-                color: "#ffffff",
-                fontSize: 14,
-                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                cursor: "pointer",
+                p: 0.8,
                 borderRadius: 2,
-                boxShadow: "0 2px 8px rgba(16, 185, 129, 0.2)"
+                "&:hover": { bgcolor: "#f8fafc" },
+                transition: "background 0.2s"
               }}
             >
-              {(user?.fullName || user?.email || "?").trim().split(" ").slice(-1)[0].substring(0, 2).toUpperCase()}
-            </Avatar>
-            <Box sx={{ display: { xs: "none", md: "block" } }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: "#1e293b", lineHeight: 1.2 }}>
-                {user?.fullName || user?.email}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
-                {hasRole("ADMIN") ? "Quản trị viên" : "Chủ cửa hàng"}
-              </Typography>
+              <Avatar
+                src={user?.avatarUrl}
+                sx={{ width: 36, height: 36, bgcolor: "#10b981", fontSize: 14, fontWeight: 700 }}
+              >
+                {user?.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
+              </Avatar>
+              <Box sx={{ display: { xs: "none", sm: "block" }, textAlign: "left" }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                  {user?.fullName || "Người dùng"}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#64748b" }}>
+                  {role === "seller" ? "Người bán" : "Quản trị viên"}
+                </Typography>
+              </Box>
+              <ChevronDown size={14} color="#64748b" />
             </Box>
-            <ChevronDown size={16} color="#94a3b8" style={{ marginLeft: 4 }} />
           </Box>
 
           {/* User Dropdown Menu */}
@@ -406,8 +405,8 @@ export default function DashboardLayout({ role }) {
               </Typography>
             </Box>
             <Divider sx={{ my: 0.5 }} />
-            <MenuItem component={Link} to={role === "seller" ? "/seller/info" : "/admin/settings"} onClick={handleProfileClose} sx={{ fontSize: 14, py: 1 }}>
-              {role === "seller" ? "Hồ sơ cửa hàng" : "Cài đặt hệ thống"}
+            <MenuItem component={Link} to={role === "seller" ? "/seller/profile" : "/admin/profile"} onClick={handleProfileClose} sx={{ fontSize: 14, py: 1 }}>
+              Hồ sơ tài khoản
             </MenuItem>
             <Divider sx={{ my: 0.5 }} />
             <MenuItem onClick={handleLogoutClick} sx={{ fontSize: 14, py: 1, color: "error.main" }}>
